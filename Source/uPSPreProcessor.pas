@@ -205,6 +205,13 @@ type
 
 implementation
 
+{+}
+{$IFDEF DELPHI12UP}
+uses
+  AnsiStrings;
+{$ENDIF}
+{+.}
+
 {$IFDEF DELPHI3UP }
 resourceString
 {$ELSE }
@@ -212,7 +219,10 @@ const
 {$ENDIF }
 
   RPS_TooManyNestedInclude = 'Too many nested include files while processing ''%s'' from ''%s''';
-  RPS_IncludeNotFound = 'Unable to find file ''%s'' used from ''%s''';
+  {+}
+  RPS_IncludeNotFound = 'Unable to find file ''%s''';
+  RPS_IncludeNotFoundFrom = ' used from ''%s''';
+  {+.}
   RPS_DefineTooManyParameters = 'Too many parameters at %d:%d';
   RPS_NoIfdefForEndif = 'No IFDEF for ENDIF at %d:%d';
   RPS_NoIfdefForElse = 'No IFDEF for ELSE at %d:%d';
@@ -578,7 +588,14 @@ begin
       dta := MainFile;
     end else
     if (@OnNeedFile = nil) or (not OnNeedFile(Self, OrgFileName, FileName, dta)) then
-      raise EPSPreProcessor.CreateFmt(RPS_IncludeNotFound, [FileName, OrgFileName]);
+    {+}
+    begin
+      if OrgFileName <> '' then
+        raise EPSPreProcessor.CreateFmt(RPS_IncludeNotFound + RPS_IncludeNotFoundFrom, [FileName, OrgFileName])
+      else
+        raise EPSPreProcessor.CreateFmt(RPS_IncludeNotFound, [FileName])
+    end;
+    {+.}
     Item := FCurrentLineInfo.Add;
     current := FCurrentLineInfo.Count -1;
     FCurrentLineInfo.Current := current;
@@ -603,17 +620,17 @@ begin
 
         if pos(tbtChar(' '), s) = 0 then
         begin
-          name := uppercase(s);
+          name := {+}tbtstring(uppercase(s)){+.};
           s := '';
         end else
         begin
-          Name := uppercase(copy(s,1,pos(' ', s)-1));
-          Delete(s, 1, pos(' ', s));
+          Name := {+}tbtstring(uppercase(copy(s,1,Pos(tbtstring(' '), s)-1))){+.};
+          Delete(s, 1, Pos({+}tbtstring(' '){+.}, s));
         end;
 
         //-- 20050707_jgv - ask the application
         AppContinue := True;
-        If @OnProcessDirective <> Nil then OnProcessDirective (Self, Parser, FDefineState.DoWrite, name, s, AppContinue);
+        If @OnProcessDirective <> Nil then OnProcessDirective (Self, Parser, FDefineState.DoWrite, name, {+}tbtstring(s){+.}, AppContinue);
 
         If AppContinue then
         //-- end jgv
@@ -623,7 +640,7 @@ begin
             if FDefineState.DoWrite then
             begin
               FAddedPosition := 0;
-              IntPreProcess(Level +1, FileName, s, Dest);
+              IntPreProcess(Level +1, FileName, {+}tbtstring(s){+.}, Dest);
               FCurrentLineInfo.Current := current;
               FAddedPosition := Cardinal(Dest.Position) - Item.StartPos - Parser.Pos;
             end;
@@ -631,30 +648,35 @@ begin
           begin
             if FDefineState.DoWrite then
             begin
-              if pos(' ', s) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
-              FCurrentDefines.Add(Uppercase(S));
+              if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
+              FCurrentDefines.Add(Uppercase({+}string(S){+.}));
             end;
           end else if (Name = 'UNDEF') then
           begin
             if FDefineState.DoWrite then
             begin
-              if pos(' ', s) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
-              i := FCurrentDefines.IndexOf(Uppercase(s));
+              if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
+              i := FCurrentDefines.IndexOf(Uppercase({+}string(S){+.}));
               if i <> -1 then
                 FCurrentDefines.Delete(i);
             end;
           end else if (Name = 'IFDEF') then
           begin
-            if pos(' ', s) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
+            if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
+            {+}
             //JeromeWelsh - nesting fix
-            ADoWrite := (FCurrentDefines.IndexOf(Uppercase(s)) >= 0) and FDefineState.DoWrite;
+            ADoWrite := (FCurrentDefines.IndexOf(UpperCase(string(s))) >= 0) and FDefineState.DoWrite;
             FDefineState.Add.DoWrite := ADoWrite;
+            {+.}
           end else if (Name = 'IFNDEF') then
           begin
-            if pos(' ', s) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
+            if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [Parser.Row, Parser.Col]);
             //JeromeWelsh - nesting fix
-            ADoWrite := (FCurrentDefines.IndexOf(Uppercase(s)) < 0) and FDefineState.DoWrite;
+            {+}
+            //JeromeWelsh - nesting fix
+            ADoWrite := (FCurrentDefines.IndexOf(UpperCase(string(s))) < 0) and FDefineState.DoWrite;
             FDefineState.Add.DoWrite := ADoWrite;
+            {+.}
           end else if (Name = 'ENDIF') then
           begin
             //- jgv remove - borland use it (sysutils.pas)
@@ -678,7 +700,7 @@ begin
           //-- 20050710_jgv custom application error process
           else begin
             If @OnProcessUnknowDirective <> Nil then begin
-              OnProcessUnknowDirective (Self, Parser, FDefineState.DoWrite, name, s, AppContinue);
+              OnProcessUnknowDirective (Self, Parser, FDefineState.DoWrite, name, {+}tbtstring(s){+.}, AppContinue);
             end;
             If AppContinue then
             //-- end jgv

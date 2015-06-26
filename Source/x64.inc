@@ -6,13 +6,19 @@
 { implementation of x64 abi }
 //procedure DebugBreak; external 'Kernel32.dll';
 const
-  EmptyPchar: array[0..0] of char = #0;
+  {+}
+  EmptyPchar: array[0..0] of Char = (Char(#0));
+  {+.}
 {$IFDEF FPC}
 {$ASMMODE INTEL}
 {$ENDIF}
 {$IFDEF MSWINDOWS}{$DEFINE WINDOWS}{$ENDIF}
 
 {$IFDEF WINDOWS}
+{+} // [Chau Chee Yang]: // https://github.com/remobjects/pascalscript/issues/78#issuecomment-78253830
+                         // https://github.com/ccy/pascalscript/commit/aa5ca34b458abd60a55f0824ff5629c42f9ca06b
+(*
+// TODO: TEST: https://github.com/remobjects/pascalscript/issues/87
 type
   TRegisters = packed record
     _RCX,                  // 0
@@ -24,7 +30,7 @@ type
     _XMM3: Double;         // 48
     Stack: Pointer;        // 56
     Items: {$IFDEF FPC}PtrUInt{$ELSE}IntPtr{$ENDIF}; // 64
-    SingleBits: Integer; // 72
+    SingleBits: Integer;   // 72
   end;
 
 procedure x64call(
@@ -32,27 +38,54 @@ procedure x64call(
   out _RAX: IPointer;
   var _XMM0: Double;
   var Registers: TRegisters); assembler; {$IFDEF FPC}nostackframe;{$ENDIF}
+*)
+procedure x64call(
+  Address: Pointer;
+  out _RAX: IPointer;
+  _RCX, _RDX, _R8, _R9: IPointer;
+  var _XMM0: Double;
+  _XMM1, _XMM2, _XMM3: Double;
+  aStack: Pointer; aItems: {$IFDEF FPC}PtrUInt{$ELSE}IntPtr{$ENDIF}); assembler; {$IFDEF FPC}nostackframe;{$ENDIF}
+{+.} // [Chau Chee Yang]
 asm
 (* Registers:
     RCX: Address
     RDX: *_RAX
-    R8:  * _XMM0
-    R9: _REGISTERS
+    {+} // [Chau Chee Yang]
+    //R8:  * _XMM0
+    //R9: _REGISTERS
+    R8: _RCX
+    R9: _RDX
+    {+.} // [Chau Chee Yang]
     fpc inserts an 20h empty space
 *)
-//{$IFDEF FPC}
+{+} // [Chau Chee Yang] //TODO: TEST NEEDED !!!
+{$IFDEF FPC}
   push rbp
   mov rbp,rsp
-//{$ENDIF}
-  push rcx  // address         ;rbp -8
-  push rdx  // @_rax           ;rbp -16
-  push r8   // @_xmm0          ;rbp -24
-  push r9   // _registers      ;rbp -32
+{$ENDIF}
+{+.} // [Chau Chee Yang]
+
+{+} // [Chau Chee Yang]
+  {
+  push rcx  // address    ;rbp -8
+  push rdx  // @_rax      ;rbp -16
+  push r8   // @_xmm0     ;rbp -24
+  push r9   // _registers ;rbp -32
 
   mov rax, [rbp-32] //registers
 
   mov rcx, [rax+64] // items/count
   mov rdx, [rax+56] // stack
+  }
+//  call debugbreak
+  push rcx  // address
+  push rdx  // _rax
+  push r8   // _rcx
+  push r9   // _rdx
+  mov rcx, aItems
+  mov rdx, aStack
+{+.} // [Chau Chee Yang]
   jmp @compareitems
 @work:
 {$IFDEF FPC}
@@ -67,6 +100,8 @@ asm
   jnz @work
 
   // copy registers
+{+} // [Chau Chee Yang]
+{
   mov rcx, [rax+72] // single bits
 
   bt rcx, 1
@@ -116,6 +151,25 @@ asm
 
 
   mov rax, [rbp-8]
+}
+  {$IFDEF FPC}
+  movd xmm0,[_XMM0]
+  movd xmm1,_XMM1
+  movd xmm2,_XMM2
+  movd xmm3,_XMM3
+  {$ELSE}
+  mov rax, [_XMM0]
+  movsd xmm0, qword ptr [rax]
+  movsd xmm1,_XMM1
+  movsd xmm2,_XMM2
+  movsd xmm3,_XMM3
+  {$ENDIF}
+  mov RAX, [rbp-8]
+  mov RCX, [rbp-24]
+  mov RDX, [rbp-32]
+  mov R8, _R8
+  mov R9, _R9
+{+.} // [Chau Chee Yang]
 
   // weird thing on windows, it needs 32 bytes in the CALLEE side to do whatever in
   sub RSP, 32
@@ -128,6 +182,8 @@ asm
   mov RDX, [rbp-16]
   mov [RDX], RAX
 
+{+} // [Chau Chee Yang]
+{
   mov rax, [rbp-32] //registers
 
   bt [rax+72], 8
@@ -140,6 +196,18 @@ asm
     movsd qword ptr [rdx], xmm0
 
   @g5e:
+}
+  {$IFDEF FPC}
+  movd [_XMM0],xmm0
+  {$ELSE}
+  mov rax, [_XMM0]
+  movsd qword ptr [rax], xmm0
+  {$ENDIF}
+  pop r9
+  pop r8
+  pop rdx
+  pop rcx
+{+.} // [Chau Chee Yang]
 
   leave
   ret
@@ -331,11 +399,17 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
 var
   Stack: array of Byte;
   _RAX: IPointer;
-_XMM0: Double;
+{+} // [Chau Chee Yang]
+{$IFDEF WINDOWS}
+  _RCX, _RDX, _R8, _R9: IPointer;
+  _XMM0, _XMM1, _XMM2, _XMM3: Double;
+{$ELSE}
+  _XMM0: Double;
   Registers: TRegisters;
-{$IFNDEF WINDOWS}
+//{$IFNDEF WINDOWS}
   RegUsageFloat: Byte;
 {$ENDIF}
+{+.} // [Chau Chee Yang]
   RegUsage: Byte;
   CallData: TPSList;
   I: Integer;
@@ -343,7 +417,7 @@ _XMM0: Double;
 
   function rp(p: PPSVariantIFC): PPSVariantIFC;
   begin
-    if p = nil then
+    if {+}(p = nil) or (p.aType = nil){+.} then
     begin
       result := nil;
       exit;
@@ -360,10 +434,12 @@ _XMM0: Double;
   var p: Pointer;
   begin
     case RegUsage of
-      0: begin inc(RegUsage); Registers._RCX:=Data; end;
-      1: begin inc(RegUsage); Registers._RDX:=Data; end;
-      2: begin inc(RegUsage); Registers._R8:=Data; end;
-      3: begin inc(RegUsage); Registers._R9:=Data; end;
+      {+} // [Chau Chee Yang]
+      0: begin inc(RegUsage); {Registers.}_RCX:=Data; end;
+      1: begin inc(RegUsage); {Registers.}_RDX:=Data; end;
+      2: begin inc(RegUsage); {Registers.}_R8:=Data; end;
+      3: begin inc(RegUsage); {Registers.}_R9:=Data; end;
+      {+.} // [Chau Chee Yang]
     else begin
       SetLength(Stack, Length(Stack)+8);
       p := @Stack[LEngth(Stack)-8];
@@ -409,10 +485,12 @@ _XMM0: Double;
   var p: Pointer;
   begin
     case RegUsage of
+      {+} // [Chau Chee Yang]
       0: begin inc(RegUsage); _XMM0:=Data; end;
-      1: begin inc(RegUsage); Registers._XMM1:=Data; end;
-      2: begin inc(RegUsage); Registers._XMM2:=Data; end;
-      3: begin inc(RegUsage); Registers._XMM3:=Data; end;
+      1: begin inc(RegUsage); {Registers.}_XMM1:=Data; end;
+      2: begin inc(RegUsage); {Registers.}_XMM2:=Data; end;
+      3: begin inc(RegUsage); {Registers.}_XMM3:=Data; end;
+      {+.} // [Chau Chee Yang]
     else begin
       SetLength(Stack, Length(Stack)+8);
       p := @Stack[LEngth(Stack)-8];
@@ -420,6 +498,8 @@ _XMM0: Double;
     end;
     end;
   end;
+  {+} // [Chau Chee Yang]
+  {
   procedure StoreReg(data: Single); overload;
   var p: Pointer;
   begin
@@ -435,6 +515,7 @@ _XMM0: Double;
     end;
     end;
   end;
+  {+.} // [Chau Chee Yang]
   {$ELSE}
   procedure StoreReg(data: Double); overload;
   var p: Pointer;
@@ -476,6 +557,15 @@ _XMM0: Double;
   end;
   {$ENDIF}
   function GetPtr(fVar: PPSVariantIFC): Boolean;
+  {+} // [#velter#]: https://github.com/remobjects/pascalscript/pull/107
+  //                 https://github.com/velter/pascalscript/commit/44cefba3328bd9cc041e11715d217c97c97199e7
+  //                 https://github.com/remobjects/pascalscript/pull/107/files#diff-0
+  type
+    TMethodCallData = record
+      AType: Byte;
+      Data: TMethod;
+    end;
+  {+.}
   var
     varPtr: Pointer;
     //UseReg: Boolean;
@@ -493,6 +583,10 @@ _XMM0: Double;
             begin
               p := CreateOpenArray(True, Self, FVar);
               if p = nil then exit;
+              {+} // [#velter#]
+              if CallData = nil then
+                CallData := TPSList.Create;
+              {+.}
               CallData.Add(p);
               StoreReg(IPointer(POpenArray(p)^.Data));
               StoreReg(IPointer(POpenArray(p)^.ItemCount -1));
@@ -509,7 +603,7 @@ _XMM0: Double;
         btRecord,
         btInterface,
         btClass,
-        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {$ENDIF} btU8, btS8, btU16,
+        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF} btU8, btS8, btU16,
         btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
         {$IFNDEF PS_NOINT64}, bts64{$ENDIF}:
           begin
@@ -541,6 +635,10 @@ _XMM0: Double;
             begin
               p := CreateOpenArray(False, SElf, FVar);
               if p =nil then exit;
+              {+} // [#velter#]
+              if CallData = nil then
+                CallData := TPSList.Create;
+              {+.}
               CallData.Add(p);
               StoreReg(IPointer(POpenArray(p)^.Data));
               StoreReg(IPointer(POpenArray(p)^.ItemCount -1));
@@ -595,6 +693,17 @@ _XMM0: Double;
             else
               StoreReg(IPointer(fvar^.dta^));
           end;
+        {+}
+        {$IFNDEF PS_NOWIDESTRING}
+        btPWideChar:
+          begin
+            if pointer(fvar^.dta^) = nil then
+              StoreReg(IPointer(@EmptyPchar))
+            else
+              StoreReg(IPointer(fvar^.dta^));
+          end;
+        {$ENDIF}
+        {+.}
         btclass, btinterface, btString:
           begin
             StoreReg(IPointer(fvar^.dta^));
@@ -607,11 +716,25 @@ _XMM0: Double;
           end;
 
         btProcPtr:
-          begin
+          begin //TODO: TEST NEEDED !!!
+            {+} // [#velter#]
+            {
             GetMem(p, PointerSize2);
             TMethod(p^) := MKMethod(Self, Longint(FVar.Dta^));
             StoreStack(p^, Pointersize2);
             FreeMem(p);
+            }
+            GetMem(p, sizeof(TMethodCallData));
+            TMethodCallData(p^).AType:=255;
+            TMethodCallData(p^).Data.Code:=nil;
+            TMethodCallData(p^).Data.Data:=nil;
+            if CallData = nil then
+              CallData := TPSList.Create;
+            CallData.Add(p);
+            // Uncomment when Handler will be implemented
+            //TMethodCallData(p^).Data := MKMethod(Self, Longint(FVar.Dta^));
+            StoreReg(IPointer(@TMethodCallData(p^).Data));
+            {+.}
           end;
 
         bts64:
@@ -627,7 +750,12 @@ begin
   if Address = nil then
     exit; // need address
   SetLength(Stack, 0);
+  {+} // [#velter#]
+  {
   CallData := TPSList.Create;
+  }
+  CallData := nil;
+  {+.}
   res := rp(res);
   if res <> nil then
     res.VarParam := true;
@@ -639,18 +767,37 @@ begin
     _XMM5 := 0;
     _XMM6 := 0;
     _XMM7 := 0;*)
+{+} // [Chau Chee Yang]
+    FillChar(Registers, Sizeof(Registers), 0);
+    _XMM0 := 0;
     RegUsageFloat := 0;
+{$ELSE}
+    _RCX := 0;
+    _RDX := 0;
+    _R8 := 0;
+    _R9 := 0;
+    _XMM0 := 0;
+    _XMM1 := 0;
+    _XMM2 := 0;
+    _XMM3 := 0;
 {$ENDIF}
+  {
   _XMM0 := 0;
-  FillChar(Registers, Sizeof(REgisters), 0);
+  FillChar(Registers, Sizeof(Registers), 0);
+  }
+{+.} // [Chau Chee Yang]
     _RAX := 0;
     RegUsage := 0;
     if assigned(_Self) then begin
       StoreReg(IPointer(_Self));
     end;
+{+} // [Chau Chee Yang]
+{$IFNDEF WINDOWS}
     if assigned(res) and (res^.atype.basetype = btSingle) then begin
       Registers.Singlebits  := Registers.Singlebits or 256;
     end;
+{$ENDIF}
+{+.} // [Chau Chee Yang]
 {$IFDEF PS_RESBEFOREPARAMETERS}
    if assigned(res) then begin
     case res^.aType.BaseType of
@@ -693,9 +840,14 @@ begin
       {$ENDIF}
       if Stack = nil then pp := nil else pp := @Stack[Length(Stack) -8];
 {$IFDEF WINDOWS}
+{+} // [Chau Chee Yang]
+      {
       Registers.Stack := pp;
       Registers.Items := Length(Stack) div 8;
       x64call(Address, _RAX, _XMM0, Registers);
+      }
+      x64call(Address, _RAX, _RCX, _RDX, _R8, _R9, _XMM0, _XMM1, _XMM2, _XMM3, pp, Length(Stack) div 8);
+{+.} // [Chau Chee Yang]
 {$ELSE}
       x64call(Address, _RAX, Registers, pp, Length(Stack) div 8, _XMM0);
 {$ENDIF}
@@ -718,8 +870,13 @@ begin
         btClass : IPointer(res.dta^) := _RAX;
         btu32,bts32:   tbtu32(res.dta^) := _RAX;
         btPChar:       pansichar(res.dta^) := Pansichar(_RAX);
+        {+}
+        {$IFNDEF PS_NOWIDESTRING}
+        btPWideChar:   pwidechar(res.dta^) := PWideChar(_RAX);
+        {$ENDIF}
+        {+.}
         bts64: tbts64(res.dta^) := Int64(_RAX);
-        btCurrency:    tbts64(res.Dta^) := Int64(_RAX);
+        btCurrency:    {+}tbtCurrency{+.}(res.Dta^) := Int64(_RAX);
         btInterface,
         btVariant,
         {$IFDEF x64_string_result_as_varparameter}
@@ -738,24 +895,37 @@ begin
         SetLength(Stack, Length(Stack)+16 - (Length(Stack) mod 16));
       end;
       {$ENDIF}
-  if Stack = nil then pp := nil else pp := @Stack[Length(Stack) -8];
+      if Stack = nil then pp := nil else pp := @Stack[Length(Stack) -8];
 {$IFDEF WINDOWS}
-        Registers.Stack := pp;
-        Registers.Items := Length(Stack) div 8;
-        x64call(Address, _RAX, _XMM0, Registers);
+{+} // [Chau Chee Yang]
+      {
+      Registers.Stack := pp;
+      Registers.Items := Length(Stack) div 8;
+      x64call(Address, _RAX, _XMM0, Registers);
+      }
+      x64call(Address, _RAX, _RCX, _RDX, _R8, _R9, _XMM0, _XMM1, _XMM2, _XMM3, pp, Length(Stack) div 8);
+{+.} // [Chau Chee Yang]
 {$ELSE}
-       x64call(Address, _RAX, Registers, pp, Length(Stack) div 8, _XMM0);
+      x64call(Address, _RAX, Registers, pp, Length(Stack) div 8, _XMM0);
 {$ENDIF}
     end;
     Result := True;
   finally
-    for i := CallData.Count -1 downto 0 do
+    {+} // [#velter#]
+    if CallData<>nil then
     begin
-      pp := CallData[i];
-      case pp^ of
-        0: DestroyOpenArray(Self, Pointer(pp));
+      for i := CallData.Count -1 downto 0 do
+      begin
+        pp := CallData[i];
+        case pp^ of
+          0: DestroyOpenArray(Self, Pointer(pp));
+          {+} // https://github.com/velter/pascalscript/commit/1c598a1406390e2e762368b07a185ecb187182a7
+          255: FreeMem(Pointer(pp));
+          {+.}
+        end;
       end;
+      CallData.Free;
     end;
-    CallData.Free;
+    {+.}
   end;
 end;

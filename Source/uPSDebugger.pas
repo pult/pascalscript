@@ -115,6 +115,12 @@ const
 
   RPS_ExpectedReturnAddressStackBase = 'Expected return address at stack base';
 
+{+}
+type
+  EPSDebugger = class(EPSError);
+  Exception = EPSDebugger;
+{+.}
+
 type
   PPositionData = ^TPositionData;
   TPositionData = packed record
@@ -459,6 +465,9 @@ begin
   LastPos := 0;
   LastRow := 0;
   LastCol := 0;
+  {+}
+  lastfn := '';
+  {+.}
   if fi <> nil then begin
     pt := fi^.FPositionTable;
     for i := 0 to pt.Count -1 do

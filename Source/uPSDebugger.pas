@@ -6,13 +6,13 @@ uses
   SysUtils, uPSRuntime, uPSUtils;
 
 type
-  
-  TDebugMode = (dmRun 
-  , dmStepOver 
-  , dmStepInto 
-  , dmPaused 
+
+  TDebugMode = (dmRun
+  , dmStepOver
+  , dmStepInto
+  , dmPaused
   );
-  
+
   TPSCustomDebugExec = class(TPSExec)
   protected
     FDebugDataForProcs: TIfList;
@@ -22,51 +22,51 @@ type
     FGlobalVarNames: TIfStringList;
     FCurrentSourcePos, FCurrentRow, FCurrentCol: Cardinal;
     FCurrentFile: tbtstring;
-    
+
     function GetCurrentProcParams: TIfStringList;
-    
+
     function GetCurrentProcVars: TIfStringList;
   protected
-    
+
     procedure ClearDebug; virtual;
   public
-    
+
     function GetCurrentProcNo: Cardinal;
-    
+
     function GetCurrentPosition: Cardinal;
-    
+
     function TranslatePosition(Proc, Position: Cardinal): Cardinal;
-    
+
     function TranslatePositionEx(Proc, Position: Cardinal; var Pos, Row, Col: Cardinal; var Fn: tbtstring): Boolean;
-    
+
     procedure LoadDebugData(const Data: tbtstring);
-	
+
     procedure Clear; override;
-    
+
     property GlobalVarNames: TIfStringList read FGlobalVarNames;
-	
+
     property ProcNames: TIfStringList read FProcNames;
-	
+
     property CurrentProcVars: TIfStringList read GetCurrentProcVars;
-	
+
     property CurrentProcParams: TIfStringList read GetCurrentProcParams;
-    
+
     function GetGlobalVar(I: Cardinal): PIfVariant;
-	
+
     function GetProcVar(I: Cardinal): PIfVariant;
-	
+
     function GetProcParam(I: Cardinal): PIfVariant;
-    
+
     constructor Create;
-	
+
     destructor Destroy; override;
   end;
   TPSDebugExec = class;
-  
+
   TOnSourceLine = procedure (Sender: TPSDebugExec; const Name: tbtstring; Position, Row, Col: Cardinal);
-  
+
   TOnIdleCall = procedure (Sender: TPSDebugExec);
-  
+
   TPSDebugExec = class(TPSCustomDebugExec)
   private
     FDebugMode: TDebugMode;
@@ -76,31 +76,31 @@ type
     FOnSourceLine: TOnSourceLine;
     FDebugEnabled: Boolean;
   protected
-    
+
     procedure SourceChanged;
     procedure ClearDebug; override;
     procedure RunLine; override;
   public
     constructor Create;
-    
+
     function LoadData(const s: tbtstring): Boolean; override;
-    
+
     procedure Pause; override;
-    
+
     procedure Run;
-    
+
     procedure StepInto;
-    
+
     procedure StepOver;
-    
+
     procedure Stop; override;
-	
+
     property DebugMode: TDebugMode read FDebugMode;
-    
+
     property OnSourceLine: TOnSourceLine read FOnSourceLine write FOnSourceLine;
-	
+
     property OnIdleCall: TOnIdleCall read FOnIdleCall write FOnIdleCall;
-    
+
     property DebugEnabled: Boolean read FDebugEnabled write FDebugEnabled;
   end;
   TIFPSDebugExec = TPSDebugExec;

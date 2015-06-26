@@ -148,9 +148,48 @@ type
 
     procedure CalcSize; virtual;
 
+    {+}
+    procedure Clear; virtual;
+    {+.}
+
     constructor Create(Owner: TPSExec);
     destructor Destroy; override;
   end;
+
+  {+}
+
+  TPSTypeRec_Chars = class(TPSTypeRec)
+  private
+    FPChasrRefCount: Integer;
+  public
+    property PCharRefCount: Integer read FPChasrRefCount write FPChasrRefCount;
+  end;
+
+  TPSTypeRec_PChar = class(TPSTypeRec)
+  private
+    //FTempBaseType: TPSBaseType;
+    FTempData: Pointer;
+    FTypeCharsRec: TPSTypeRec_Chars;
+  public
+
+    constructor Create(Owner: TPSExec);
+    destructor Destroy; override;
+
+    procedure Clear; override;
+
+    //property TempBaseType: TPSBaseType read FTempBaseType write FTempBaseType;
+    property TempData: Pointer read FTempData write FTempData;
+  end;
+
+  TPSTypeRec_PAnsiChar = class(TPSTypeRec_PChar)
+  private
+    fBuffer: tbtString;
+  end;
+  TPSTypeRec_PWideChar = class(TPSTypeRec_PChar)
+  //private
+  //  todo: fBuffer: tbtUnicodeString;
+  end;
+  {+.}
 
   TPSTypeRec_ProcPtr = class(TPSTypeRec)
   private
@@ -469,7 +508,9 @@ type
     aType: TPSTypeRec;
     FreeType: TPSVarFreeType;
   end;
-
+  {+}
+  PPSResultData=^TPSResultData;
+  {+.}
 
   PPSResource = ^TPSResource;
 
@@ -602,7 +643,7 @@ type
     function ReadLong(var b: Cardinal): Boolean;
     function DoCalc(var1, Var2: Pointer; var1Type, var2type: TPSTypeRec; CalcType: Cardinal): Boolean;
     function DoBooleanCalc(var1, Var2, into: Pointer; var1Type, var2type, intotype: TPSTypeRec; Cmd: Cardinal): Boolean;
-    function SetVariantValue(dest, Src: Pointer; desttype, srctype: TPSTypeRec): Boolean;
+    function SetVariantValue(dest, Src: Pointer; desttype, srctype: TPSTypeRec{+}; sd: PPSResultData = nil{+.}): Boolean;
     function ReadVariable(var Dest: TPSResultData; UsePointer: Boolean): Boolean;
     function DoBooleanNot(Dta: Pointer; aType: TPSTypeRec): Boolean;
     function DoMinus(Dta: Pointer; aType: TPSTypeRec): Boolean;
@@ -992,6 +1033,10 @@ type
     property Exec: TPSExec read FExec;
   end;
 
+  {+}
+  EPSError = class(Exception);
+  {+.}
+
   TPSRuntimeClass = class
   protected
     FClassName: tbtstring;
@@ -1101,6 +1146,15 @@ function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: tbtS
 
 implementation
 uses
+  {+}
+  {$IFNDEF PS_NOINTERFACES}
+  {$IFDEF CONDITIONALEXPRESSIONS}
+    VarUtils,
+  {$ENDIF CONDITIONALEXPRESSIONS}
+  {$ENDIF !PS_NOINTERFACES}
+  {$IFNDEF PS_NOWIDESTRING}WideStrUtils,{$ENDIF}
+  {$IFDEF DELPHI18UP}AnsiStrings,{$ENDIF}
+  {+.}
   TypInfo {$IFDEF DELPHI3UP}{$IFNDEF FPC}{$IFNDEF KYLIX} , ComObj {$ENDIF}{$ENDIF}{$ENDIF}{$IFDEF PS_FPC_HAS_COM}, ComObj{$ENDIF};
 
 {$IFDEF DELPHI3UP }
@@ -1155,7 +1209,11 @@ const
   RPS_NILInterfaceException = 'Nil interface';
   RPS_UnknownMethod = 'Unknown method';
 
-
+{+}
+type
+  ExceptionBase = Exception;
+  Exception = EPSError;
+{+.}
 
 type
   PPSExportedVar = ^TPSExportedVar;
@@ -1592,7 +1650,7 @@ begin
       else
       Result := tbtstring(Variant(p.Dta^));
     except
-      on e: Exception do
+      on e: {+}{Exception}ExceptionBase{+.} do
         Result := tbtstring(Format (RPS_Exception, [e.Message]));
     end;
     exit;
@@ -1618,6 +1676,15 @@ begin
       end;
     btchar: Result := MakeString(tbtchar(p.dta^));
     {$IFNDEF PS_NOWIDESTRING}
+    {+}
+    btPWideChar:
+      begin
+        if PWideChar(p.dta^) = nil then
+          Result := 'nil'
+        else
+          Result := MakeWString(PWideChar(p.dta^));
+      end;
+    {+.}
     btwidechar: Result := MakeWString(tbtwidechar(p.dta^));
     btWideString: Result := MakeWString(tbtwidestring(p.dta^));
     btUnicodeString: Result := MakeWString(tbtUnicodeString(p.dta^));
@@ -1666,7 +1733,7 @@ begin
 end;
 
 function PSErrorToString(x: TPSError; const Param: tbtString): tbtString;
-begin
+begin {+}{@dbg@:hook.error}{+.} // dbg.cond:
   case x of
     ErNoError: Result := tbtString(RPS_NoError);
     erCannotImport: Result := tbtString(Format (RPS_CannotImport, [Safestr(Param)]));
@@ -1709,7 +1776,7 @@ begin
     {$IFNDEF PS_NOWIDESTRING}btWideString,
     btUnicodeString,
     {$ENDIF}{$IFNDEF PS_NOINTERFACES}btInterface, {$ENDIF}
-    btclass, btPChar, btString: FrealSize := PointerSize;
+    btclass, btPChar, {+}{$IFNDEF PS_NOWIDESTRING}btPWideChar,{$ENDIF}{+.}btString: FrealSize := PointerSize;
     btSingle, bts32, btU32: FRealSize := 4;
     btProcPtr: FRealSize := 2 * sizeof(Pointer) + sizeof(Cardinal);
     btCurrency: FrealSize := Sizeof(Currency);
@@ -1722,6 +1789,14 @@ begin
   end;
 end;
 
+
+{+}
+procedure TPSTypeRec.Clear;
+begin
+  { empty }
+end;
+{+.}
+
 constructor TPSTypeRec.Create(Owner: TPSExec);
 begin
   inherited Create;
@@ -1733,6 +1808,76 @@ begin
   FAttributes.Free;
   inherited destroy;
 end;
+
+{+}
+
+{ TPSTypeRec_PChar }
+
+constructor TPSTypeRec_PChar.Create(Owner: TPSExec);
+begin
+  inherited Create(Owner);
+end;
+
+destructor TPSTypeRec_PChar.Destroy;
+begin
+  Clear;
+  inherited;
+end;
+
+procedure FinalizeVariant(p: Pointer; aType: TPSTypeRec); forward;
+
+procedure TPSTypeRec_PChar.Clear;
+begin
+  if Assigned(FTypeCharsRec) then
+  begin
+    Dec(FTypeCharsRec.FPChasrRefCount);
+    if FTypeCharsRec.FPChasrRefCount <= 0 then
+    begin
+      FinalizeVariant(FTempData, FTypeCharsRec);
+      FTypeCharsRec.FPChasrRefCount := 0;
+    end;
+    //FTempBaseType := 0;
+    FTempData := nil;
+    FTypeCharsRec := nil;
+    //Exit;
+  end;
+  (*
+  //
+  case FTempBaseType of
+    btString:
+      begin
+        FTempBaseType := 0;
+        if Assigned(FTempData) then
+        begin
+          tbtString(FTempData^) := '';
+          FTempData := nil;
+        end;
+      end;
+    {$IFNDEF PS_NOWIDESTRING}
+    btWideString:
+      begin
+        FTempBaseType := 0;
+        if Assigned(FTempData) then
+        begin
+          tbtWideString(FTempData^) := '';
+          FTempData := nil;
+        end;
+      end;
+    btUnicodeString:
+      begin
+        FTempBaseType := 0;
+        if Assigned(FTempData) then
+        begin
+          tbtUnicodeString(FTempData^) := '';
+          FTempData := nil;
+        end;
+      end;
+    {$ENDIF}
+  end;
+  //*)
+end;
+
+{+.}
 
 { TPSTypeRec_Record }
 
@@ -1766,12 +1911,13 @@ var
   t: TPSTypeRec;
   i: Longint;
 begin
+  {+}if Assigned(p) then{+.}
   case aType.BaseType of
     btChar, bts8, btU8: tbtu8(p^) := 0;
     {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}bts16, btU16: tbtu16(p^) := 0;
     btSingle: TbtSingle(P^) := 0;
     bts32, btU32: TbtU32(P^) := 0;
-    btPChar, btString, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString, {$ENDIF}btClass,
+    btPChar, btString, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString, {+}btPWideChar,{+.}{$ENDIF}btClass,
     btInterface, btArray: Pointer(P^) := nil;
     btPointer:
       begin
@@ -1846,9 +1992,13 @@ procedure FinalizeVariant(p: Pointer; aType: TPSTypeRec);
 var
   t: TPSTypeRec;
   elsize: Cardinal;
-  i, l: Longint;
+  i, l: {+}NativeInt{+.};
   darr: PDynArrayRec;
 begin
+  {+}
+  if p = nil then
+    exit;
+  {+.}
   case aType.BaseType of
     btString: tbtString(p^) := '';
     {$IFNDEF PS_NOWIDESTRING}
@@ -1879,7 +2029,10 @@ begin
     btArray:
       begin
         if IPointer(P^) = 0 then exit;
-        darr := PDynArrayRec(IPointer(p^) - sizeof(TDynArrayRecHeader));
+        {+}
+        //darr := PDynArrayRec(IPointer(p^) - sizeof(TDynArrayRecHeader));
+        darr := PDynArrayRec(PointerShift(Pointer(p^),-sizeof(TDynArrayRecHeader)));
+        {+.}
         if darr^.header.refCnt < 0 then exit;// refcount < 0 means don't free
         Dec(darr^.header.refCnt);
         if darr^.header.refCnt <> 0 then exit;
@@ -1899,11 +2052,19 @@ begin
               for i := 0 to l -1 do
               begin
                 FinalizeVariant(darr, t);
-                darr := Pointer(IPointer(darr) + elsize);
+                {+}
+                //darr := Pointer(IPointer(darr) + elsize);
+                darr := PointerShift(darr, elsize);
+                {+.}
               end;
             end;
         end;
-        FreeMem(Pointer(IPointer(p^) - SizeOf(TDynArrayRecHeader)), IPointer(Cardinal(l) * elsize) + SizeOf(TDynArrayRecHeader));
+        {+}
+        //FreeMem(Pointer(IPointer(p^) - SizeOf(TDynArrayRecHeader)), IPointer(Cardinal(l) * elsize) + SizeOf(TDynArrayRecHeader));
+        darr := PointerShift(Pointer(p^), -SizeOf(TDynArrayRecHeader));
+        l := l * NativeInt(elsize) + NativeInt(SizeOf(TDynArrayRecHeader));
+        FreeMem(darr, l);
+        {+.}
         Pointer(P^) := nil;
       end;
     btRecord:
@@ -1915,7 +2076,10 @@ begin
             btString, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString, {$ENDIF}{$IFNDEF PS_NOINTERFACES}btInterface, {$ENDIF}btArray, btStaticArray,
             btRecord: FinalizeVariant(p, t);
           end;
-          p := Pointer(IPointer(p) + t.FrealSize);
+          {+}
+          //p := Pointer(IPointer(p) + t.FrealSize);
+          p := PointerShift(p, NativeInt(t.FrealSize));
+          {+.}
         end;
       end;
     btStaticArray:
@@ -1929,7 +2093,10 @@ begin
         for i := 0 to TPSTypeRec_StaticArray(aType).Size -1 do
         begin
           FinalizeVariant(p, t);
-          p := Pointer(IPointer(p) + t.RealSize);
+          {+}
+          //p := Pointer(IPointer(p) + t.RealSize);
+          p := PointerShift(p, NativeInt(t.RealSize));
+          {+.}
         end;
       end;
   end;
@@ -2144,10 +2311,15 @@ begin
   ExPos := Position;
   ExEx := Ex;
   ExParam := s;
-  if ExObject <> nil then
+  if ExObject <> nil then{+}
+  begin
+    if (Ex<>ErNoError) and (ExParam = '') and (ExObject is ExceptionBase) then
+      ExParam := tbtString(ExceptionBase(ExObject).Message);
     ExObject.Free;
+  end;{+.}
   ExObject := NewObject;
-  if Ex = eNoError then Exit;
+  if Ex = eNoError then
+    Exit;
   for d := FExceptionStack.Count -1 downto 0 do
   begin
     pp := FExceptionStack[d];
@@ -2369,9 +2541,9 @@ var
                 exit;;
               end;
         {$ifdef FPC_REQUIRES_PROPER_ALIGNMENT}
-              PPSVariantU32(varp)^.Data := unaligned(Cardinal((@FData^[FCurrentPosition])^));
+              PPSVariantU32(varp)^.Data := unaligned({+}tbtU32{+.}((@FData^[FCurrentPosition])^));
         {$else}
-              PPSVariantU32(varp)^.Data := Cardinal((@FData^[FCurrentPosition])^);
+              PPSVariantU32(varp)^.Data := {+}tbtU32{+.}((@FData^[FCurrentPosition])^);
         {$endif}
               Inc(FCurrentPosition, 4);
             end;
@@ -2385,9 +2557,9 @@ var
                 exit;;
               end;
         {$ifdef FPC_REQUIRES_PROPER_ALIGNMENT}
-              PPSVariantU32(varp)^.Data := unaligned(Cardinal((@FData^[FCurrentPosition])^));
+              PPSVariantU32(varp)^.Data := unaligned({+}tbtU32{+.}((@FData^[FCurrentPosition])^));
         {$else}
-              PPSVariantU32(varp)^.Data := Cardinal((@FData^[FCurrentPosition])^);
+              PPSVariantU32(varp)^.Data := {+}tbtU32{+.}((@FData^[FCurrentPosition])^);
         {$endif}
               if PPSVariantU32(varp)^.Data = 0 then
               begin
@@ -2452,7 +2624,7 @@ var
               end;
             end;
           {$IFNDEF PS_NOWIDESTRING}
-          btWidestring:
+          {+}btPWideChar,{+.}btWidestring:
             begin
               if not read(NameLen, 4) then
               begin
@@ -2556,6 +2728,11 @@ var
     end;
   begin
     LoadTypes := True;
+    {+} // remove warning
+    {$IFNDEF FPC}{$IFDEF CPUX86}
+    Curr := nil;
+    {$ENDIF}{$ENDIF}
+    {+.}
     for l := 0 to HDR.TypeCount - 1 do begin
       if not read(currf, SizeOf(currf)) then begin
         cmd_err(erUnexpectedEof);
@@ -2570,12 +2747,35 @@ var
       case currf.BaseType of
         {$IFNDEF PS_NOINT64}bts64, {$ENDIF}
         btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btCurrency,
-        btExtended, btString, btPointer, btPChar,
-        btVariant, btChar{$IFNDEF PS_NOWIDESTRING}, btUnicodeString, btWideString, btWideChar{$ENDIF}: begin
+        btExtended, {+}{btString,{+.} btPointer, {+}{btPChar,{+.}
+        btVariant{+}(*, btChar{$IFNDEF PS_NOWIDESTRING}, btUnicodeString, btWideString, btWideChar{+}{, {btPWideChar{+.}{$ENDIF}*){+.} : begin
             curr := TPSTypeRec.Create(self);
             Curr.BaseType := currf.BaseType;
             FTypes.Add(Curr);
           end;
+          {+}
+        btString, {+}{btPChar,{+.}
+        btChar{$IFNDEF PS_NOWIDESTRING}, btUnicodeString, btWideString, btWideChar{+}{, {btPWideChar{+.}{$ENDIF}: begin
+            curr := TPSTypeRec_Chars.Create(self);
+            Curr.BaseType := currf.BaseType;
+            FTypes.Add(Curr);
+          end;
+        {+.}
+        {+}
+         btPChar(*{$IFNDEF PS_NOWIDESTRING}, btPWideChar{$ENDIF}*): begin
+            //curr := TPSTypeRec_PChar.Create(self);
+            curr := TPSTypeRec_PAnsiChar.Create(self);
+            Curr.BaseType := currf.BaseType;
+            FTypes.Add(Curr);
+         end;
+         {$IFNDEF PS_NOWIDESTRING}
+          btPWideChar: begin
+            curr := TPSTypeRec_PWideChar.Create(self);
+            Curr.BaseType := currf.BaseType;
+            FTypes.Add(Curr);
+         end;
+         {$ENDIF}
+        {+.}
         btClass:
           begin
             Curr := TPSTypeRec_Class.Create(self);
@@ -3249,7 +3449,8 @@ procedure VSetPointerTo(const Src: PIFVariant; Data: Pointer; aType: TPSTypeRec)
 var
   temp: TPSVariantIFC;
 begin
-  if (Atype = nil) or (Data = nil) or (Src = nil) then raise Exception.Create(RPS_InvalidVariable);
+  if (Atype = nil) or (Data = nil) or (Src = nil) then
+    raise Exception.Create(RPS_InvalidVariable);
   temp.Dta := @PPSVariantData(Src).Data;
   temp.aType := Src.FType;
   temp.VarParam := false;
@@ -3350,7 +3551,9 @@ end;
 {$IFNDEF PS_NOWIDESTRING}
 function VarToWideStr(const Data: Variant): tbtunicodestring;
 begin
-  if not VarIsNull(Data) then
+  {+}
+  if not (VarIsEmpty(Data) or VarIsNull(Data)) then
+  {+.}
     Result := Data
   else
     Result := '';
@@ -3363,7 +3566,8 @@ begin
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btU8: Result := tbtu8(src^);
@@ -3377,7 +3581,10 @@ begin
     btChar: Result := Ord(tbtchar(Src^));
 {$IFNDEF PS_NOWIDESTRING}    btWideChar: Result := Ord(tbtwidechar(Src^));{$ENDIF}
     btVariant:
-      case VarType(Variant(Src^)) of
+      {+}
+      //case VarType(Variant(Src^)) of
+      case TVarData(Variant(Src^)).VType of
+      {+.}
         varString:
           if Length(VarToStr(Variant(Src^))) = 1 then
             Result := Ord(VarToStr(Variant(Src^))[1])
@@ -3403,7 +3610,8 @@ begin
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btClass: Result := TObject(Src^);
@@ -3417,7 +3625,8 @@ begin
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btClass: TObject(Src^) := Val;
@@ -3433,7 +3642,8 @@ begin
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btU8: Result := tbtu8(src^);
@@ -3450,6 +3660,12 @@ begin
 {$IFDEF DELPHI6UP}
     btVariant:   Result := Variant(src^);
 {$ENDIF}
+  {+}
+  {$IFDEF CPU64}
+  {?}btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}:
+    Result := tbts64(src^);
+  {$ENDIF}
+  {+.}
     else raise Exception.Create(RPS_TypeMismatch);
   end;
 end;
@@ -3461,7 +3677,8 @@ begin
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btU8: Result := tbtu8(src^);
@@ -3486,7 +3703,8 @@ begin
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btU8: Result := tbtu8(src^);
@@ -3512,7 +3730,8 @@ begin
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btU8: Result := tbtu8(src^);
@@ -3529,69 +3748,213 @@ begin
   end;
 end;
 
+{+}
+function IsIntType(b: TPSBaseType): Boolean;
+begin
+  case b of
+    btU8, btS8, btU16, btS16, btU32, btS32{$IFNDEF PS_NOINT64}, btS64{$ENDIF}: Result := True;
+  else
+    Result := False;
+  end;
+end;
+
+function IsStrType(b: TPSBaseType): Boolean;
+begin
+  case b of
+    btChar, btPchar, btString{$IFNDEF PS_NOWIDESTRING},btWideChar,btPWideChar,btWidestring,btUnicodeString{$ENDIF}:
+      Result := True;
+  else
+    Result := False;
+  end;
+end;
+{+.}
 
 function PSGetAnsiString(Src: Pointer; aType: TPSTypeRec): tbtString;
+{+}
+var
+  n: integer;
+{+.}
 begin
   if aType.BaseType = btPointer then
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btU8: Result := tbtchar(tbtu8(src^));
+    {+}
+    {$IFNDEF PS_NOWIDESTRING}
+    btU16: Result := tbtString(WideString( widechar(src^) )); //1086
+   {$ENDIF}
+    {+.}
     btChar: Result := tbtchar(Src^);
-    btPchar: Result := pansichar(src^);
+    {+}
+    btPchar: begin
+      Result := tbtString(pansichar(src^)); //todo: detect memory AV
+    end;
+    {+.}
+{+} // debug: pansichar(src^)    pwidechar(src^)
+{$IFNDEF PS_NOWIDESTRING}
+    btPWideChar: begin
+      Result := tbtString(WideString(pwidechar(src^)));
+    end;
+{$ENDIF}
+{+.}
 {$IFNDEF PS_NOWIDESTRING}    btWideChar: Result := tbtString(tbtwidechar(Src^));{$ENDIF}
     btString: Result := tbtstring(src^);
 {$IFNDEF PS_NOWIDESTRING}
     btUnicodeString: result := tbtString(tbtUnicodestring(src^));
     btWideString: Result := tbtString(tbtwidestring(src^));{$ENDIF}
     btVariant:  Result := tbtString(Variant(src^));
+    {+}
+    btArray: begin // dbg: TPSTypeRec_Array(aType),r; TPSTypeRec_Array(aType).FArrayType,r
+      if IsIntType(TPSTypeRec_Array(aType).FArrayType.FBaseType) then
+      begin // autocopy Array Of IntType into AnsiString
+        n := PSDynArrayGetLength(Pointer(src^), aType);
+        n := n * {elSize:}longint(TPSTypeRec_Array(aType).FArrayType.FRealSize);
+        setlength(result, n);
+        if n > 0 then
+        begin // dbg: pansichar(@(PDynArrayRec(PointerShift(Pointer(src^),-sizeof(TDynArrayRecHeader))).datas))
+          move({src:}pointer(@(PDynArrayRec(PointerShift(Pointer(src^),-sizeof(TDynArrayRecHeader))).datas))^, pointer(result)^, n);
+        end;
+      end
+      else
+      begin
+        raise Exception.Create(RPS_TypeMismatch);
+      end;
+    end;
+    btStaticArray: begin
+      //result := ''; //TODO:...
+      raise Exception.Create(RPS_TypeMismatch);
+    end;
+    {+.}
     else raise Exception.Create(RPS_TypeMismatch);
   end;
 end;
 {$IFNDEF PS_NOWIDESTRING}
 function PSGetWideString(Src: Pointer; aType: TPSTypeRec): tbtWideString;
+{+}
+var
+  n: integer;
+{+.}
 begin
   if aType.BaseType = btPointer then
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
     btU8: Result := chr(tbtu8(src^));
     btU16: Result := widechar(src^);
     btChar: Result := tbtwidestring(tbtchar(Src^));
-    btPchar: Result := tbtwidestring(pansichar(src^));
+    {+}
+    btPchar: begin
+      Result := tbtwidestring(pansichar(src^));
+    end;
+    {+.}
+    {+}
+    btPwidechar: begin
+      Result := tbtwidestring(WideString(pwidechar(src^)));
+    end;
+    {+.}
     btWideChar: Result := tbtwidechar(Src^);
     btString: Result := tbtwidestring(tbtstring(src^));
     btWideString: Result := tbtwidestring(src^);
     btVariant:   Result := Variant(src^);
     btUnicodeString: result := tbtUnicodeString(src^);
+    {+}
+    btArray: begin // dbg: TPSTypeRec_Array(aType),r; TPSTypeRec_Array(aType).FArrayType,r
+      if IsIntType(TPSTypeRec_Array(aType).FArrayType.FBaseType) then
+      begin // autocopy Array Of IntType into WideString
+        n := PSDynArrayGetLength(Pointer(src^), aType);
+        n := n * {elSize:}longint(TPSTypeRec_Array(aType).FArrayType.FRealSize);
+        n := n div 2;
+        setlength(result, n);
+        if n > 0 then
+        begin
+          n := n * 2;
+          // TODO: ? analyze/remove first BOM: {#$FEFF, "UNICODE MARKER (BOM)"}
+          move({src:}pointer(@(PDynArrayRec(PointerShift(Pointer(src^),-sizeof(TDynArrayRecHeader))).datas))^, pointer(result)^, n);
+        end;
+      end
+      else
+      begin
+        raise Exception.Create(RPS_TypeMismatch);
+      end;
+    end;
+    btStaticArray: begin
+      //result := ''; //TODO:...
+      raise Exception.Create(RPS_TypeMismatch);
+    end;
+    {+.}
     else raise Exception.Create(RPS_TypeMismatch);
   end;
 end;
 
 function PSGetUnicodeString(Src: Pointer; aType: TPSTypeRec): tbtunicodestring;
+{+}
+var
+  n: integer;
+{+.}
 begin
   if aType.BaseType = btPointer then
   begin
     atype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
     Src := Pointer(Src^);
-    if (src = nil) or (aType = nil) then raise Exception.Create(RPS_TypeMismatch);
+    if (src = nil) or (aType = nil) then
+      raise Exception.Create(RPS_TypeMismatch);
   end;
   case aType.BaseType of
-    btU8: Result := chr(tbtu8(src^));
-    btU16: Result := widechar(src^);
-    btChar: Result := tbtunicodestring(tbtchar(Src^));
-    btPchar: Result := tbtunicodestring(pansichar(src^));
+    btU8: Result := tbtUnicodeString(chr(tbtu8(src^)));
+    btU16: Result := tbtUnicodeString(widechar(src^));
+    {+}
+    btU32, btS32: Result := tbtUnicodeString(widechar(word(tbtU32(src^))));
+    {+.}
+    btChar: Result := tbtUnicodeString(tbtchar(Src^));
+    {+}
+    btPchar: begin
+      Result := tbtUnicodeString(AnsiString(pansichar(src^)));
+    end;
+    {+.}
+    {+}
+    btPwidechar: begin
+      Result := tbtUnicodeString(widestring(pwidechar(src^)));
+    end;
+    {+.}
     btWideChar: Result := tbtwidechar(Src^);
-    btString: Result := tbtunicodestring(tbtstring(src^));
-    btWideString: Result := tbtwidestring(src^);
+    btString: Result := tbtUnicodeString(tbtstring(src^));
+    btWideString: Result := tbtUnicodeString(tbtwidestring(src^));
     btVariant:   Result := Variant(src^);
     btUnicodeString: result := tbtUnicodeString(src^);
+    {+}
+    btArray: begin // dbg: TPSTypeRec_Array(aType),r; TPSTypeRec_Array(aType).FArrayType,r
+      if IsIntType(TPSTypeRec_Array(aType).FArrayType.FBaseType) then
+      begin // autocopy Array Of IntType into WideString
+        n := PSDynArrayGetLength(Pointer(src^), aType);
+        n := n * {elSize:}longint(TPSTypeRec_Array(aType).FArrayType.FRealSize);
+        n := n div 2; // elSize := TPSTypeRec_Array(aType).ArrayType.RealSize;
+        setlength(result, n);
+        if n > 0 then
+        begin // dbg: pwidechar(@(PDynArrayRec(PointerShift(Pointer(src^),-sizeof(TDynArrayRecHeader))).datas))
+          n := n * 2;
+          // TODO: ? analyze/remove first BOM: {#$FEFF, "UNICODE MARKER (BOM)"}
+          move({src:}pointer(@(PDynArrayRec(PointerShift(Pointer(src^),-sizeof(TDynArrayRecHeader))).datas))^, pointer(result)^, n);
+        end;
+      end
+      else
+      begin
+        raise Exception.Create(RPS_TypeMismatch);
+      end;
+    end;
+    btStaticArray: begin
+      //result := ''; //TODO:...
+      raise Exception.Create(RPS_TypeMismatch);
+    end;
+    {+.}
     else raise Exception.Create(RPS_TypeMismatch);
   end;
 end;
@@ -3859,12 +4222,12 @@ function PSGetString(Src: Pointer; aType: TPSTypeRec): string;
 begin
   {$IFNDEF PS_NOWIDESTRING}
     {$IFDEF DELPHI2009UP}
-    result := PSGetUnicodeString(Src, aType);
+    result := {+}string(PSGetUnicodeString(Src, aType)){+.};
     {$ELSE}
-    result := PSGetAnsiString(Src, aType);
+    result := {+}string(PSGetAnsiString(Src, aType)){+.};
     {$ENDIF}
   {$ELSE}
-  result := PSGetAnsiString(Src, aType);
+  result := {+}string(PSGetAnsiString(Src, aType)){+.};
   {$ENDIF}
 end;
 
@@ -3951,7 +4314,7 @@ begin
           Dest := Pointer(IPointer(Dest) + PointerSize);
           Src := Pointer(IPointer(Src) + PointerSize);
         end;
-      btClass, btpchar:
+      btClass, btpchar{+}{$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}{+.}:
         for i := 0 to Len -1 do
         begin
           Pointer(Dest^) := Pointer(Src^);
@@ -4048,7 +4411,10 @@ begin
             Pointer(Dest^) := Pointer(Src^);
             if Pointer(Dest^) <> nil then
             begin
-              Inc(PDynArrayRec(PAnsiChar(Dest^) - SizeOf(TDynArrayRecHeader))^.header.refCnt);
+              {+}
+              //Inc(PDynArrayRec(PAnsiChar(Dest^) - SizeOf(TDynArrayRecHeader))^.header.refCnt);
+              Inc(PDynArrayRec(PointerShift(Pointer(Dest^), -SizeOf(TDynArrayRecHeader)))^.header.refCnt);
+              {+.}
             end;
             Dest := Pointer(IPointer(Dest) + PointerSize);
             Src := Pointer(IPointer(Src) + PointerSize);
@@ -4176,8 +4542,13 @@ end;
 
 function PSDynArrayGetLength(arr: Pointer; aType: TPSTypeRec): Longint;
 begin
-  if aType.BaseType <> btArray then raise Exception.Create(RPS_InvalidArray);
-  if arr = nil then Result := 0 else result:=PDynArrayRec(PAnsiChar(arr) - SizeOf(TDynArrayRecHeader))^.header.{$IFDEF FPC}high + 1{$ELSE}length{$ENDIF FPC};
+  if aType.BaseType <> btArray then
+    raise Exception.Create(RPS_InvalidArray);
+  if arr = nil then Result := 0 else
+  {+}
+    //Result := PDynArrayRec(PAnsiChar(arr) - SizeOf(TDynArrayRecHeader))^.header.{$IFDEF FPC}high + 1{$ELSE}length{$ENDIF FPC};
+    Result := PDynArrayRec(PointerShift(arr, -SizeOf(TDynArrayRecHeader)))^.header.{$IFDEF FPC}high + 1{$ELSE}length{$ENDIF FPC};
+  {+.}
 end;
 
 procedure PSDynArraySetLength(var arr: Pointer; aType: TPSTypeRec; NewLength: Longint);
@@ -4185,14 +4556,18 @@ var
   elSize, i, OldLen: Longint;
   darr : PDynArrayRec;
 begin
-  if aType.BaseType <> btArray then raise Exception.Create(RPS_InvalidArray);
+  if aType.BaseType <> btArray then
+    raise Exception.Create(RPS_InvalidArray);
   OldLen := PSDynArrayGetLength(arr, aType);
   elSize := TPSTypeRec_Array(aType).ArrayType.RealSize;
   if NewLength<0 then
      NewLength:=0;
   if (OldLen = 0) and (NewLength = 0) then exit; // already are both 0
   if (OldLen = NewLength) then exit; // already same size, noop
-  darr := PDynArrayRec(PAnsiChar(Arr) - SizeOf(TDynArrayRecHeader));
+  {+}
+  //darr := PDynArrayRec(PAnsiChar(Arr) - SizeOf(TDynArrayRecHeader));
+  darr := PDynArrayRec(PointerShift(arr, -SizeOf(TDynArrayRecHeader)));
+  {+.}
   if (OldLen <> 0) and (darr^.header.refCnt = 1) then // unique copy of this dynamic array
   begin
     for i := NewLength to OldLen -1 do
@@ -4337,11 +4712,232 @@ begin
 end;
 {$ENDIF}
 
-function TPSExec.SetVariantValue(dest, Src: Pointer; desttype, srctype: TPSTypeRec): Boolean;
+{+}
+type
+  EPSIntf = class(Exception)
+    {$IFDEF UNICODE}
+    constructor Create(const Msg: AnsiString); overload;
+    {$ENDIF}
+  end;
+
+{$IFDEF UNICODE}
+constructor EPSIntf.Create(const Msg: AnsiString);
+begin
+  inherited Create(string(Msg));
+end;
+{$ENDIF}
+
+{$IFNDEF PS_NOINTERFACES}
+
+const
+  IUnknown_GUID: TGUID = '{00000000-0000-0000-C000-000000000046}';
+
+{$UNDEF _DEBUG_}
+{.$DEFINE _DEBUG_}
+
+{$IFDEF _DEBUG_}
+
+function DbgRefCount(const V: IUnknown): Integer; overload; forward;
+function DbgRefCount(const V: Pointer): Integer; overload; forward;
+function DbgRefCount(const V: TVarData): Integer; overload; forward;
+function DbgRefCount(const V: Variant): Integer; overload; forward;
+
+{$ENDIF _DEBUG_}
+
+{$IFDEF CONDITIONALEXPRESSIONS}
+procedure AnyToIntf(var Intf: IUnknown; const V: TVarData);
+var
+  LTemp: TVarData;
+begin
+  {VarUtils.}VariantInit(LTemp);
+  try
+    {VarUtils.}VariantCopy(LTemp, V);
+    {VarUtils.}ChangeAnyProc(LTemp);
+    if LTemp.VType <> varUnknown then
+      Intf := nil
+    else
+      Intf := IUnknown(LTemp.VUnknown);
+  finally
+    {VarUtils.}VariantClear(LTemp);
+  end;
+end;
+{$ENDIF CONDITIONALEXPRESSIONS}
+
+function VarToIInterface(const Value: TVarData; out Obj): Boolean;
+var
+  Intf: IUnknown absolute Obj;
+begin
+  Pointer(Obj) := nil;
+  with Value do
+  begin
+    case VType of
+      varUnknown, varDispatch:
+        if Assigned(VUnknown) then
+          Intf := IUnknown(VUnknown);
+      varUnknown + varByRef, varDispatch + varByRef:
+        if Assigned(VPointer) then
+          Intf := IUnknown(VPointer^);
+       {$IFDEF CONDITIONALEXPRESSIONS}
+       varAny:
+         AnyToIntf(Intf, Value);
+       {$ENDIF}
+    end;
+    Result := Assigned(Intf);
+  end;
+end;
+
+function VarToInterfase(const Value: TVarData; IID: TGUID; out Obj): Boolean;
+var
+  Intf: IUnknown;
+begin
+  Pointer(Obj) := nil;
+  with Value do
+  begin
+    case VType of
+      varUnknown, varDispatch:
+        if Assigned(VUnknown) then
+          Intf := IUnknown(VUnknown);
+      varUnknown + varByRef, varDispatch + varByRef:
+        if Assigned(VPointer) then
+          Intf := IUnknown(VPointer^);
+       {$IFDEF CONDITIONALEXPRESSIONS}
+       varAny:
+         AnyToIntf(Intf, Value);
+       {$ENDIF}
+    end;
+    Result := Assigned(Intf) and (Intf.QueryInterface(IID, Obj) =  S_OK) and (Pointer(Obj) <> nil);
+  end;
+end;
+
+{$IFDEF _DEBUG_}
+
+function DbgRefCount(const V: IUnknown): Integer; overload;
+begin
+  if Assigned(V) then
+  begin
+     V._AddRef;
+     Result := V._Release;
+  end
+  else
+    Result := -1;
+end;
+
+function DbgRefCount(const V: Pointer): Integer; overload;
+begin
+  Result := DbgRefCount(IUnknown(V));
+end;
+
+function DbgRefCount(const V: TVarData): Integer; overload;
+var
+  Obj: IUnknown;
+begin
+  if VarToIInterface(TVarData(V), Obj) then
+    Result := DbgRefCount(Obj)
+  else
+    Result := -1;
+end;
+
+function DbgRefCount(const V: Variant): Integer; overload;
+begin
+  Result := DbgRefCount(TVarData(V));
+end;
+
+{$ENDIF _DEBUG_}
+
+function AssignIInterfaceFromVariant(var Dest: IUnknown; const Src: Variant; const dest_giud: TGUID): Boolean;
+var
+  pDest: Pointer absolute Dest;
+  Obj: Pointer;
+  iObj: IUnknown;
+begin
+  if pDest <> nil then
+  {$IFDEF Delphi3UP}
+    Dest._Release;
+  {$ELSE}
+    Dest.Release;
+  {$ENDIF}
+  pDest := nil;
+{$IFDEF _DEBUG_}
+  writeln('Src(0>):', DbgRefCount(Src));
+  writeln('Dst(0>):', DbgRefCount(Dest));
+{$ENDIF _DEBUG_}
+  if VarToIInterface(TVarData(Src), iObj) then
+  begin
+{$IFDEF _DEBUG_}
+  writeln('Src(1>):', DbgRefCount(Src));
+  writeln('Dst(1>):', DbgRefCount(Dest));
+{$ENDIF _DEBUG_}
+//{$IFDEF _DEBUG_}
+//  writeln('Src(2>):', DbgRefCount(Src));
+//{$ENDIF _DEBUG_}
+    Obj := nil;
+    if (not IsEqualGUID(dest_giud, IUnknown_GUID))
+      and (not IsEqualGUID(dest_giud, GUID_NULL)) then
+    begin // debug: GUIDToString(dest_giud)
+      if iObj.QueryInterface(dest_giud, Obj) <>  S_OK then
+        Obj := nil;
+    end
+    else
+      Obj := Pointer(iObj);
+    pDest := Obj;
+  end;
+  Result := pDest <> nil;
+  if Result then
+  {$IFDEF Delphi3UP}
+    Dest._AddRef;
+  {$ELSE}
+    Dest.AddRef;
+  {$ENDIF}
+{$IFDEF _DEBUG_}
+  writeln('Src(E<):', DbgRefCount(Src));
+  writeln('Dst(E<):', DbgRefCount(Dest));
+{$ENDIF _DEBUG_}
+end;
+
+function AssignIntfFromIntf(var Dest: IUnknown; const Src: IUnknown; const dest_giud: TGUID): Boolean;
+var
+  pDest: Pointer absolute Dest;
+  Obj: Pointer;
+begin
+  if pDest <> nil then
+  {$IFDEF Delphi3UP}
+    Dest._Release;
+  {$ELSE}
+    Dest.Release;
+  {$ENDIF}
+  pDest := nil;
+  if Assigned(Src) then
+  begin
+    Obj := nil;
+    if not IsEqualGUID(dest_giud, GUID_NULL) then
+    begin // debug: GUIDToString(dest_giud)
+      if Src.QueryInterface(dest_giud, Obj) <>  S_OK then
+        Obj := nil;
+    end
+    else
+      Obj := Pointer(Src);
+    pDest := Obj;
+  end;
+  Result := pDest <> nil;
+  if Result then
+  {$IFDEF Delphi3UP}
+    Dest._AddRef;
+  {$ELSE}
+    Dest.AddRef;
+  {$ENDIF}
+end;
+{$ENDIF !PS_NOINTERFACES}
+{+.}
+
+function TPSExec.SetVariantValue(dest, Src: Pointer; desttype, srctype: TPSTypeRec{+}; sd: PPSResultData{+.}): Boolean;
 var
   Tmp: TObject;
   tt: TPSVariantPointer;
-begin
+  {+}
+  S: tbtString;
+  n, elSize, len: integer;
+  {+.} // IsStrType(srctype.BaseType) and ((desttype.FBaseType in [btArray, btStaticArray]) and IsIntType(TPSTypeRec_Array(desttype).FArrayType.FBaseType))
+begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnicodeString; IsStrType(srctype.BaseType)
   Result := True;
   try
     case desttype.BaseType of
@@ -4362,13 +4958,26 @@ begin
           begin
             srctype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
             Src := Pointer(Src^);
-            if (src = nil) or (srctype = nil) then raise Exception.Create(RPS_TypeMismatch);
+            if (src = nil) or (srctype = nil) then
+              raise Exception.Create(RPS_TypeMismatch);
           end;
           case srctype.BaseType of
-            btu32:
+            btu32{+},bts32{+.}:
               begin
                 Pointer(Dest^) := Pointer(Src^);
               end;
+            {+}
+            {$IFDEF CPU64}
+            bts64:
+              begin
+                Pointer(Dest^) := Pointer(Src^);
+              end;
+            {$ENDIF}
+            btPointer:
+              begin
+                Pointer(Dest^) := Pointer(Src^);
+              end;
+            {+.}
             btProcPtr:
               begin
                 Pointer(Dest^) := Pointer(Src^);
@@ -4384,7 +4993,8 @@ begin
           begin
             srctype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
             Src := Pointer(Src^);
-            if (src = nil) or (srctype = nil) then raise Exception.Create(RPS_TypeMismatch);
+            if (src = nil) or (srctype = nil) then
+              raise Exception.Create(RPS_TypeMismatch);
           end;
           case srctype.BaseType of
             btU8: tbtu32(Dest^) := tbtu8(src^);
@@ -4397,6 +5007,12 @@ begin
             btChar: tbtu32(Dest^) := Ord(tbtchar(Src^));
         {$IFNDEF PS_NOWIDESTRING}    btWideChar: tbtu32(Dest^) := Ord(tbtwidechar(Src^));{$ENDIF}
             btVariant: tbtu32(Dest^) := Variant(src^);
+            {+}
+            {$IFDEF CPU32} {+}{@dbg@:hook.variant.set}{+.} // dbg.cond:
+            {?}btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}:
+              tbtu32(Dest^) := tbtu32(src^);
+            {$ENDIF}
+            {+.}
             else raise Exception.Create(RPS_TypeMismatch);
           end;
         end;
@@ -4406,7 +5022,8 @@ begin
           begin
             srctype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
             Src := Pointer(Src^);
-            if (src = nil) or (srctype = nil) then raise Exception.Create(RPS_TypeMismatch);
+            if (src = nil) or (srctype = nil) then
+              raise Exception.Create(RPS_TypeMismatch);
           end;
           case srctype.BaseType of
             btU8: tbts32(Dest^) := tbtu8(src^);
@@ -4420,7 +5037,14 @@ begin
         {$IFNDEF PS_NOWIDESTRING}  btWideChar: tbts32(Dest^) := Ord(tbtwidechar(Src^));{$ENDIF}
             btVariant: tbts32(Dest^) := Variant(src^);
             // nx change start - allow assignment of class
+            {+}{
             btClass: tbtu32(Dest^) := tbtu32(src^);
+            {}
+            {$IFDEF CPU32}
+            {?}btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}:
+              tbtu32(Dest^) := tbtu32(src^);
+            {$ENDIF}
+            {+.}
             // nx change start
             else raise Exception.Create(RPS_TypeMismatch);
           end;
@@ -4434,7 +5058,8 @@ begin
           begin
             srctype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
             Src := Pointer(Src^);
-            if (src = nil) or (srctype = nil) then raise Exception.Create(RPS_TypeMismatch);
+            if (src = nil) or (srctype = nil) then
+              raise Exception.Create(RPS_TypeMismatch);
           end;
           case srctype.BaseType of
             btU8: tbtsingle(Dest^) := tbtu8(src^);
@@ -4458,7 +5083,8 @@ begin
           begin
             srctype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
             Src := Pointer(Src^);
-            if (src = nil) or (srctype = nil) then raise Exception.Create(RPS_TypeMismatch);
+            if (src = nil) or (srctype = nil) then
+              raise Exception.Create(RPS_TypeMismatch);
           end;
           case srctype.BaseType of
             btU8: tbtdouble(Dest^) := tbtu8(src^);
@@ -4473,6 +5099,16 @@ begin
             btExtended: tbtdouble(Dest^) := tbtextended(Src^);
             btCurrency: tbtdouble(Dest^) := tbtcurrency(Src^);
             btVariant:  tbtdouble(Dest^) := Variant(src^);
+            {+}
+            {$IFDEF CPU32}
+            {?}btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}:
+              tbtdouble(Dest^) := tbtu32(src^);
+            {$ENDIF}
+            {$IFDEF CPU64}
+            {?}btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}:
+              tbtdouble(Dest^) := NativeUInt(tbts64(src^));
+            {$ENDIF}
+            {+.}
             else raise Exception.Create(RPS_TypeMismatch);
           end;
 
@@ -4483,7 +5119,8 @@ begin
           begin
             srctype := PIFTypeRec(Pointer(IPointer(Src)+PointerSize)^);
             Src := Pointer(Src^);
-            if (src = nil) or (srctype = nil) then raise Exception.Create(RPS_TypeMismatch);
+            if (src = nil) or (srctype = nil) then
+              raise Exception.Create(RPS_TypeMismatch);
           end;
           case srctype.BaseType of
             btU8: tbtextended(Dest^) := tbtu8(src^);
@@ -4498,21 +5135,66 @@ begin
             btExtended: tbtextended(Dest^) := tbtextended(Src^);
             btCurrency: tbtextended(Dest^) := tbtcurrency(Src^);
             btVariant:  tbtextended(Dest^) := Variant(src^);
+            {+}
+            {$IFDEF CPU32}
+            {?}btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}:
+              tbtextended(Dest^) := tbtu32(src^);
+            {$ENDIF}
+            {$IFDEF CPU64}
+            {?}btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}:
+              tbtextended(Dest^) := NativeUInt(tbts64(src^));
+            {$ENDIF}
+            {+.}
             else raise Exception.Create(RPS_TypeMismatch);
           end;
         end;
       btCurrency: tbtcurrency(Dest^) := PSGetCurrency(Src, srctype);
-      btPChar: pansichar(dest^) := pansichar(PSGetAnsiString(Src, srctype));
+      {+}
+      btPChar: begin
+        TPSTypeRec_PAnsiChar(desttype).fBuffer := PSGetAnsiString(Src, srctype);
+        pansichar(dest^) := pansichar(TPSTypeRec_PAnsiChar(desttype).fBuffer);
+        (*
+        if (sd=nil) or (srctype.BaseType <> btPChar) or (dest <> Src) then
+        begin
+          desttype.Clear;
+          if (srctype.BaseType <> btPChar) or (TPSTypeRec_PChar(srctype).FTypeCharsRec = nil) then
+            pansichar(dest^) := pansichar(PSGetAnsiString(Src, srctype))
+          else
+          begin
+            //dest := Src;
+            sd.P := Src;
+            with TPSTypeRec_PChar(desttype) do
+            begin
+              FTypeCharsRec := TPSTypeRec_PChar(srctype).FTypeCharsRec;
+              //FTempBaseType := TPSTypeRec_PChar(srctype).FTempBaseType;
+              FTempData := TPSTypeRec_PChar(srctype).FTempData;
+              //if Assigned(FTypeCharsRec) then
+              Inc(FTypeCharsRec.FPChasrRefCount);
+            end;
+          end;
+        end;
+        //*)
+      end;
+      {+.}
       btString:
         tbtstring(dest^) := PSGetAnsiString(Src, srctype);
       btChar: tbtchar(dest^) := tbtchar(PSGetUInt(Src, srctype));
       {$IFNDEF PS_NOWIDESTRING}
+      {+}
+      btPWideChar: begin
+        desttype.Clear;
+        pwidechar(dest^) := pwidechar(PSGetWideString(Src, srctype));
+      end;
+      {+.}
       btWideString: tbtwidestring(dest^) := PSGetWideString(Src, srctype);
-      btUnicodeString: tbtUnicodeString(dest^) := PSGetUnicodeString(Src, srctype);
+      btUnicodeString: tbtUnicodeString(dest^) := PSGetUnicodeString(Src, srctype); // {+}{@dbg@:hook.setvar}{+.} // dbg.cond: srctype.FExportName='TBYTES' ; PSDynArrayGetLength(Pointer(Src^), srctype)=36
       btWideChar: tbtwidechar(dest^) := widechar(PSGetUInt(Src, srctype));
       {$ENDIF}
       btStaticArray:
         begin
+          {+} // TODO: autocopy StrType into Array Of IntType
+           // ...
+          {+.}
           if desttype <> srctype then
             Result := False
           else
@@ -4520,6 +5202,37 @@ begin
         end;
       btArray:
         begin
+          {+} // autocopy StrType into Array Of IntType
+          if IsStrType(srctype.BaseType) and IsIntType(TPSTypeRec_Array(desttype).FArrayType.FBaseType) then
+          begin
+            len := 0;
+            if src <> nil then
+            case srctype.BaseType of
+              btChar:
+                len := 1;
+              btPchar:
+                len := strlen((pansichar(src^)));
+              btString:
+                len := length(tbtString(src^));
+              {$IFNDEF PS_NOWIDESTRING}
+              btWideChar:
+                len := 2;
+              btPWideChar:
+                len := 2*wstrlen((pwidechar(src^)));
+              btWidestring:
+                len := 2*length(tbtWidestring(src^));
+              btUnicodeString:
+                len := 2*length(tbtUnicodestring(src^));
+              {$ENDIF}
+            end;
+            elSize := TPSTypeRec_Array(desttype).ArrayType.RealSize;
+            n := len div elSize;
+            //PSDynArraySetLength(Pointer(Dest^), desttype, 0); // for relocation always
+            PSDynArraySetLength(Pointer(Dest^), desttype, n); // dbg: PSDynArrayGetLength(Pointer(dest^), desttype)
+            if n > 0 then // dbg: pwidechar(src^) ; pwidechar(dest^) ; pwidechar(@(PDynArrayRec(PointerShift(Pointer(dest^),-sizeof(TDynArrayRecHeader))).datas))
+              move(ppointer(src)^^, pointer(@(PDynArrayRec(PointerShift(Pointer(dest^),-sizeof(TDynArrayRecHeader))).datas))^, len);
+          end else
+          {+.}
           if (srctype.BaseType = btStaticArray) and (TPSTypeRec_Array(desttype).ArrayType = TPSTypeRec_Array(srctype).ArrayType) then
           begin
             PSDynArraySetLength(Pointer(Dest^), desttype, TPSTypeRec_StaticArray(srctype).Size);
@@ -4545,7 +5258,7 @@ begin
           if srctype.ExportName = 'IDISPATCH' then
           begin
             {$IFDEF DELPHI3UP}
-            Variant(Dest^) := IDispatch(Src^);
+            Variant(Dest^) := IDispatch(Src^); {+}{@dbg@:hook.IDispatch}{+.} // dbg.cond:
             {$ELSE}
             AssignVariantFromIDispatch(Variant(Dest^), IDispatch(Src^));
             {$ENDIF}
@@ -4568,8 +5281,16 @@ begin
             TObject(Dest^) := TObject(Src^)
           else
           // nx change start
-          if (srctype.BaseType in [btS32, btU32]) then
+          {+}
+          {$IFDEF CPU32}
+          if (srctype.BaseType in [btS32, btU32, btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}]) then
             TbtU32(Dest^) := TbtU32(Src^)
+          {$ENDIF}
+          {$IFDEF CPU64}
+          if (srctype.BaseType in [btS64, btPointer, btPChar, btClass, btInterface {$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}]) then
+            tbts64(Dest^) := tbts64(Src^)
+          {$ENDIF}
+          {+.}
           else
           // nx change end
             Result := False;
@@ -4587,15 +5308,46 @@ begin
               AssignIDispatchFromVariant(IDispatch(Dest^), Variant(Src^));
               {$ENDIF}
             end else
-              Result := False;
+            {+}   // debug: GUIDToString(TPSTypeRec_Interface(desttype).Guid)
+            begin // debug: GUIDToString(TPSTypeRec_Interface(srctype).Guid)
+              //Result := False;
+              if not AssignIInterfaceFromVariant(IUnknown(Dest^), Variant(Src^), TPSTypeRec_Interface(desttype).Guid) then
+              begin
+                //Cmd_Err(erInterfaceNotSupported);
+                S := tbtString(RPS_CannotCastInterface);
+                if desttype.FExportName <> '' then
+                  S := S + tbtString(' ') + desttype.FExportName
+                else //if TPSTypeRec_Interface(desttype).Guid <> GUID_NULL then
+                  S := S + tbtString(' ') + tbtString(GUIDToString(TPSTypeRec_Interface(desttype).Guid));
+                //
+                raise EPSIntf.Create(S);
+                //
+                {CMD_Err2(erCustomError, S);
+                Result := False;
+                exit;{}
+              end;
+            end;
+            {+.}
 {$IFDEF Delphi3UP}
           end else
           if srctype.BaseType = btClass then
           begin
             if (TObject(Src^) = nil) or not TObject(Src^).GetInterface(TPSTypeRec_Interface(desttype).Guid, IUnknown(Dest^)) then
             begin
-              Result := false;
-              Cmd_Err(erInterfaceNotSupported);
+              {+}
+              //Result := false;
+              //Cmd_Err(erInterfaceNotSupported);
+              S := tbtString(RPS_InterfaceNotSupported);
+              if desttype.FExportName <> '' then
+                S := S + tbtString(' ') + desttype.FExportName
+              else
+                S := S + tbtString(' ') + tbtString(GUIDToString(TPSTypeRec_Interface(desttype).Guid));
+              //
+              raise EPSIntf.Create(S);
+              //
+              {CMD_Err2(erCustomError, S);
+              Result := False;{}
+              {+.}
               exit;
             end;
 {$ENDIF}
@@ -4608,11 +5360,47 @@ begin
               IUnknown(Dest^) := nil;
             end;
             {$ENDIF}
-            IUnknown(Dest^) := IUnknown(Src^);
-            {$IFNDEF Delphi3UP}
-            if IUnknown(Dest^) <> nil then
-              IUnknown(Dest^).AddRef;
-            {$ENDIF}
+            {+}
+            //IUnknown(Dest^) := IUnknown(Src^);
+            //{$IFNDEF Delphi3UP}
+            //if IUnknown(Dest^) <> nil then
+            //  IUnknown(Dest^).AddRef;
+            //{$ENDIF}
+            if Pointer(Src^) = nil then
+            begin
+              S := tbtString(RPS_NullPointerException) + tbtString(': ') + tbtString(RPS_CannotCastInterface);
+              if desttype.FExportName <> '' then
+                S := S + tbtString(' ') + desttype.FExportName
+              else //if TPSTypeRec_Interface(desttype).Guid <> GUID_NULL then
+                S := S + tbtString(' ') + tbtString(GUIDToString(TPSTypeRec_Interface(desttype).Guid));
+              //
+              raise EPSIntf.Create(S);
+            end
+            else if IsEqualGUID(TPSTypeRec_Interface(srctype).Guid, TPSTypeRec_Interface(desttype).Guid) then
+            begin
+              IUnknown(Dest^) := IUnknown(Src^);
+              if Pointer(Dest^) <> nil then
+              {$IFNDEF Delphi3UP}
+              if IUnknown(Dest^) <> nil then
+                IUnknown(Dest^).AddRef;
+              {$ENDIF}
+            end
+            else if not AssignIntfFromIntf(IUnknown(Dest^), IUnknown(Src^), TPSTypeRec_Interface(desttype).Guid) then
+            begin
+              //Cmd_Err(erInterfaceNotSupported);
+              S := tbtString(RPS_CannotCastInterface);
+              if desttype.FExportName <> '' then
+                S := S + tbtString(' ') + desttype.FExportName
+              else //if TPSTypeRec_Interface(desttype).Guid <> GUID_NULL then
+                S := S + tbtString(' ') + tbtString(GUIDToString(TPSTypeRec_Interface(desttype).Guid));
+              //
+              raise EPSIntf.Create(S);
+              //
+              {CMD_Err2(erCustomError, S);
+              Result := False;
+              exit;{}
+            end;
+            {+.}
           end else
             Result := False;
         end;
@@ -4622,7 +5410,7 @@ begin
       end;
     end;
     if Result = False then
-      CMD_Err(ErTypeMismatch);
+      CMD_Err(ErTypeMismatch); {+}{@dbg@:hook.variant.set}{+.} // dbg.cond:
   except
     {$IFDEF DELPHI6UP}
     Tmp := AcquireExceptionObject;
@@ -4661,7 +5449,7 @@ begin
         Exit;
       end;
     end;
-    if (tmp <> nil) and (Tmp is Exception) then
+    if (tmp <> nil) and (Tmp is {+}ExceptionBase{+.}) then
       CMD_Err3(erException, tbtString(Exception(Tmp).Message), Tmp)
     else
       CMD_Err3(erException, '', Tmp);
@@ -4753,6 +5541,12 @@ begin
             btU8:
             if (var2Type.BaseType = btString) or (Var2Type.BaseType = btPChar) then
               b := tbtchar(tbtu8(var1^)) >= PSGetAnsiString(Var2, var2type)
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+            else if (var2Type.BaseType = btWideString) or (Var2Type.BaseType = btPWideChar) then
+              b := tbtwidechar(tbtu16(var1^)) >= PSGetWideString(Var2, var2type)
+            {$ENDIF}
+            {+.}
             else
               b := tbtu8(var1^) >= PSGetUInt(Var2, var2type);
             btS8: b := tbts8(var1^) >= PSGetInt(Var2, var2type);
@@ -4765,7 +5559,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: b := tbts32(var1^) >= tbtu8(Var2^);
@@ -4795,7 +5590,7 @@ begin
             btChar: b := tbtchar(var1^) >= PSGetAnsiString(Var2, var2type);
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: b := tbtwidechar(var1^) >= PSGetWideString(Var2, var2type);
-            btWideString: b := tbtwidestring(var1^) >= PSGetWideString(Var2, var2type);
+            {+}btPWideChar,{+.}btWideString: b := tbtwidestring(var1^) >= PSGetWideString(Var2, var2type);
             btUnicodeString: b := tbtUnicodestring(var1^) >= PSGetUnicodeString(Var2, var2type);
             {$ENDIF}
             btVariant:
@@ -4829,6 +5624,12 @@ begin
             btU8:
             if (var2Type.BaseType = btString) or (Var2Type.BaseType = btPChar) then
               b := tbtchar(tbtu8(var1^)) <= PSGetAnsiString(Var2, var2type)
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+            else if (var2Type.BaseType = btWideString) or (Var2Type.BaseType = btPWideChar) then
+              b := tbtwidechar(tbtu16(var1^)) <= PSGetWideString(Var2, var2type)
+            {$ENDIF}
+            {+.}
             else
               b := tbtu8(var1^) <= PSGetUInt(Var2, var2type);
             btS8: b := tbts8(var1^) <= PSGetInt(Var2, var2type);
@@ -4841,7 +5642,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: b := tbts32(var1^) <= tbtu8(Var2^);
@@ -4870,7 +5672,7 @@ begin
             btChar: b := tbtchar(var1^) <= PSGetAnsiString(Var2, var2type);
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: b := tbtwidechar(var1^) <= PSGetWideString(Var2, var2type);
-            btWideString: b := tbtwidestring(var1^) <= PSGetWideString(Var2, var2type);
+            {+}btPWideChar,{+.}btWideString: b := tbtwidestring(var1^) <= PSGetWideString(Var2, var2type);
             btUnicodeString: b := tbtUnicodestring(var1^) <= PSGetUnicodeString(Var2, var2type);
             {$ENDIF}
             btVariant:
@@ -4904,6 +5706,12 @@ begin
             btU8:
             if (var2Type.BaseType = btString) or (Var2Type.BaseType = btPChar) then
               b := tbtchar(tbtu8(var1^)) > PSGetAnsiString(Var2, var2type)
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+            else if (var2Type.BaseType = btWideString) or (Var2Type.BaseType = btPWideChar) then
+              b := tbtwidechar(tbtu16(var1^)) > PSGetWideString(Var2, var2type)
+            {$ENDIF}
+            {+.}
             else
               b := tbtu8(var1^) > PSGetUInt(Var2, var2type);
             btS8: b := tbts8(var1^) > PSGetInt(Var2, var2type);
@@ -4916,7 +5724,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: b := tbts32(var1^) > tbtu8(Var2^);
@@ -4945,7 +5754,7 @@ begin
             btChar: b := tbtchar(var1^) > PSGetAnsiString(Var2, var2type);
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: b := tbtwidechar(var1^) > PSGetWideString(Var2, var2type);
-            btWideString: b := tbtwidestring(var1^) > PSGetWideString(Var2, var2type);
+            {+}btPWideChar,{+.}btWideString: b := tbtwidestring(var1^) > PSGetWideString(Var2, var2type);
             btUnicodeString: b := tbtUnicodestring(var1^) > PSGetUnicodeString(Var2, var2type);
             {$ENDIF}
             btVariant:
@@ -4972,6 +5781,12 @@ begin
             btU8:
             if (var2Type.BaseType = btString) or (Var2Type.BaseType = btPChar) then
               b := tbtchar(tbtu8(var1^)) < PSGetAnsiString(Var2, var2type)
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+            else if (var2Type.BaseType = btWideString) or (Var2Type.BaseType = btPWideChar) then
+              b := tbtwidechar(tbtu16(var1^)) < PSGetWideString(Var2, var2type)
+            {$ENDIF}
+            {+.}
             else
               b := tbtu8(var1^) < PSGetUInt(Var2, var2type);
             btS8: b := tbts8(var1^) < PSGetInt(Var2, var2type);
@@ -4984,7 +5799,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: b := tbts32(var1^) < tbtu8(Var2^);
@@ -5013,7 +5829,7 @@ begin
             btChar: b := tbtchar(var1^) < PSGetAnsiString(Var2, var2type);
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: b := tbtwidechar(var1^) < PSGetWideString(Var2, var2type);
-            btWideString: b := tbtwidestring(var1^) < PSGetWideString(Var2, var2type);
+            {+}btPWideChar,{+.}btWideString: b := tbtwidestring(var1^) < PSGetWideString(Var2, var2type);
             btUnicodeString: b := tbtUnicodestring(var1^) < PSGetUnicodeString(Var2, var2type);
             {$ENDIF}
             btVariant:
@@ -5054,6 +5870,12 @@ begin
             btU8:
             if (var2Type.BaseType = btString) or (Var2Type.BaseType = btPChar) then
               b := tbtchar(tbtu8(var1^)) <> PSGetAnsiString(Var2, var2type)
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+            else if (var2Type.BaseType = btWideString) or (Var2Type.BaseType = btPWideChar) then
+              b := tbtwidechar(tbtu16(var1^)) <> PSGetWideString(Var2, var2type)
+            {$ENDIF}
+            {+.}
             else
               b := tbtu8(var1^) <> PSGetUInt(Var2, var2type);
             btS8: b := tbts8(var1^) <> PSGetInt(Var2, var2type);
@@ -5077,7 +5899,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: b := tbts32(var1^) <> tbtu8(Var2^);
@@ -5106,7 +5929,7 @@ begin
             btChar: b := tbtchar(var1^) <> PSGetAnsiString(Var2, var2type);
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: b := tbtwidechar(var1^) <> PSGetWideString(Var2, var2type);
-            btWideString: b := tbtwidestring(var1^) <> PSGetWideString(Var2, var2type);
+            {+}btPWideChar,{+.}btWideString: b := tbtwidestring(var1^) <> PSGetWideString(Var2, var2type);
             btUnicodeString: b := tbtUnicodeString(var1^) <> PSGetUnicodeString(Var2, var2type);
             {$ENDIF}
             btVariant:
@@ -5164,6 +5987,12 @@ begin
             btU8:
             if (var2Type.BaseType = btString) or (Var2Type.BaseType = btPChar) then
               b := tbtchar(tbtu8(var1^)) = PSGetAnsiString(Var2, var2type)
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+            else if (var2Type.BaseType = btWideString) or (Var2Type.BaseType = btPWideChar) then
+              b := tbtwidechar(tbtu16(var1^)) = PSGetWideString(Var2, var2type)
+            {$ENDIF}
+            {+.}
             else
               b := tbtu8(var1^) = PSGetUInt(Var2, var2type);
             btS8: b := tbts8(var1^) = PSGetInt(Var2, var2type);
@@ -5187,7 +6016,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: b := tbts32(var1^) = tbtu8(Var2^);
@@ -5216,7 +6046,7 @@ begin
             btChar: b := tbtchar(var1^) = PSGetAnsiString(Var2, var2type);
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: b := tbtwidechar(var1^) = PSGetWideString(Var2, var2type);
-            btWideString: b := tbtwidestring(var1^) = PSGetWideString(Var2, var2type);
+            {+}btPWideChar,{+.}btWideString: b := tbtwidestring(var1^) = PSGetWideString(Var2, var2type);
             btUnicodeString: b := tbtUnicodestring(var1^) = PSGetUnicodeString(Var2, var2type);
             {$ENDIF}
             btVariant:
@@ -5352,7 +6182,7 @@ begin
         Exit;
       end;
     end;
-    if (tmp <> nil) and (Tmp is Exception) then
+    if (tmp <> nil) and (Tmp is {+}ExceptionBase{+.}) then
       CMD_Err3(erException, tbtString(Exception(Tmp).Message), Tmp)
     else
       CMD_Err3(erException, '', Tmp);
@@ -5362,7 +6192,10 @@ end;
 
 function VarIsFloat(const V: Variant): Boolean;
 begin
-  Result := VarType(V) in [varSingle, varDouble, varCurrency];
+  {+}
+  //Result := VarType(V) in [varSingle, varDouble, varCurrency];
+  Result := TVarData(V).VType in [varSingle, varDouble, varCurrency];
+  {+.}
 end;
 
 function TPSExec.DoCalc(var1, Var2: Pointer; var1Type, var2type: TPSTypeRec; CalcType: Cardinal): Boolean;
@@ -5386,7 +6219,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtU32(var1^) := tbtU32(var1^) + tbtu8(var2^);
@@ -5408,7 +6242,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbts32(var1^) := tbts32(var1^) + tbtu8(var2^);
@@ -5433,7 +6268,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtsingle(var1^) := tbtsingle(var1^) + tbtu8(var2^);
@@ -5457,7 +6293,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtdouble(var1^) := tbtdouble(var1^) + tbtu8(var2^);
@@ -5481,7 +6318,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtcurrency(var1^) := tbtcurrency(var1^) + tbtu8(var2^);
@@ -5505,7 +6343,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtextended(var1^) := tbtextended(var1^) + tbtu8(var2^);
@@ -5523,11 +6362,19 @@ begin
                   else raise Exception.Create(RPS_TypeMismatch);
                 end;
               end;
-            btPchar, btString: tbtstring(var1^) := tbtstring(var1^) + PSGetAnsiString(Var2, var2type);
+            {+}
+            btPchar, btString: begin
+              var1Type.Clear;
+              tbtstring(var1^) := tbtstring(var1^) + PSGetAnsiString(Var2, var2type);
+            end;
+            {+.}
             btChar: tbtchar(var1^) := tbtchar(ord(tbtchar(var1^)) +  PSGetUInt(Var2, var2type));
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: tbtwidechar(var1^) := widechar(ord(tbtwidechar(var1^)) + PSGetUInt(Var2, var2type));
-            btWideString: tbtwidestring(var1^) := tbtwidestring(var1^) + PSGetWideString(Var2, var2type);
+            {+}btPWideChar,{+.}btWideString: {+} begin
+              var1Type.Clear;
+              tbtwidestring(var1^) := tbtwidestring(var1^) + PSGetWideString(Var2, var2type);
+            end; {+.}
             btUnicodeString: tbtUnicodestring(var1^) := tbtUnicodestring(var1^) + PSGetUnicodeString(Var2, var2type);
             {$ENDIF}
             btVariant:
@@ -5569,7 +6416,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtU32(var1^) := tbtU32(var1^) - tbtu8(var2^);
@@ -5591,7 +6439,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbts32(var1^) := tbts32(var1^) - tbtu8(var2^);
@@ -5616,7 +6465,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtsingle(var1^) := tbtsingle(var1^) - tbtu8(var2^);
@@ -5640,7 +6490,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtcurrency(var1^) := tbtcurrency(var1^) - tbtu8(var2^);
@@ -5664,7 +6515,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtdouble(var1^) := tbtdouble(var1^) - tbtu8(var2^);
@@ -5688,7 +6540,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtextended(var1^) := tbtextended(var1^) - tbtu8(var2^);
@@ -5747,7 +6600,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtU32(var1^) := tbtU32(var1^) * tbtu8(var2^);
@@ -5769,7 +6623,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbts32(var1^) := tbts32(var1^) * tbtu8(var2^);
@@ -5794,7 +6649,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtcurrency(var1^) := tbtcurrency(var1^) * tbtu8(var2^);
@@ -5818,7 +6674,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtsingle(var1^) := tbtsingle(var1^) *tbtu8(var2^);
@@ -5842,7 +6699,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtdouble(var1^) := tbtdouble(var1^) *tbtu8(var2^);
@@ -5866,7 +6724,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtextended(var1^) := tbtextended(var1^) *tbtu8(var2^);
@@ -5921,7 +6780,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtU32(var1^) := tbtU32(var1^) div tbtu8(var2^);
@@ -5943,7 +6803,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbts32(var1^) := tbts32(var1^) div tbtu8(var2^);
@@ -5968,7 +6829,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtsingle(var1^) := tbtsingle(var1^) / tbtu8(var2^);
@@ -5992,7 +6854,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtcurrency(var1^) := tbtcurrency(var1^) / tbtu8(var2^);
@@ -6016,7 +6879,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtdouble(var1^) := tbtdouble(var1^) / tbtu8(var2^);
@@ -6040,7 +6904,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtextended(var1^) := tbtextended(var1^) / tbtu8(var2^);
@@ -6093,7 +6958,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbtU32(var1^) := tbtU32(var1^) mod tbtu8(var2^);
@@ -6115,7 +6981,8 @@ begin
                 begin
                   var2type := PIFTypeRec(Pointer(IPointer(var2)+PointerSize)^);
                   var2 := Pointer(var2^);
-                  if (var2 = nil) or (var2type = nil) then raise Exception.Create(RPS_TypeMismatch);
+                  if (var2 = nil) or (var2type = nil) then
+                    raise Exception.Create(RPS_TypeMismatch);
                 end;
                 case var2type.BaseType of
                   btU8: tbts32(var1^) := tbts32(var1^) mod tbtu8(var2^);
@@ -6370,7 +7237,7 @@ begin
         Exit;
       end;
     end;
-    if (tmp <> nil) and (Tmp is Exception) then
+    if (tmp <> nil) and (Tmp is {+}ExceptionBase{+.}) then
       CMD_Err3(erException, tbtString(Exception(Tmp).Message), Tmp)
     else
       CMD_Err3(erException, '', Tmp);
@@ -6393,7 +7260,7 @@ begin
     exit;
   end;
   VarType := FData^[FCurrentPosition];
-  Inc(FCurrentPosition);
+  Inc(FCurrentPosition); {+}{@dbg@:hook.parser}{+.} // dbg.cond: vartype=3
   {$ifdef FPC_REQUIRES_PROPER_ALIGNMENT}
   Param := unaligned(Cardinal((@FData^[FCurrentPosition])^));
   {$else}
@@ -6626,6 +7493,7 @@ begin
               Param := Cardinal((@FData^[FCurrentPosition])^);
         {$endif}
               Inc(FCurrentPosition, 4);
+              {+}{?: Dest.aType.Clear;{+.}
               Pointer(Dest.P^) := nil;
               SetLength(tbtstring(Dest.P^), Param);
               if Param <> 0 then begin
@@ -6640,7 +7508,7 @@ begin
               end;
             end;
           {$IFNDEF PS_NOWIDESTRING}
-          btWidestring:
+          {+}btPWideChar,{+.}btWidestring:
             begin
               if FCurrentPosition + 3 >= FDataLength then
               begin
@@ -6655,6 +7523,7 @@ begin
               Param := Cardinal((@FData^[FCurrentPosition])^);
         {$endif}
               Inc(FCurrentPosition, 4);
+              {+}{?: Dest.aType.Clear;{+.}
               Pointer(Dest.P^) := nil;
               SetLength(tbtwidestring(Dest.P^), Param);
               if not ReadData(tbtwidestring(Dest.P^)[1], Param*2) then
@@ -6757,7 +7626,10 @@ begin
                 Result := False;
                 exit;
               end;
-              Dest.P := Pointer(IPointer(Dest.P) + IPointer(TPSTypeRec_Record(Dest.aType).RealFieldOffsets[Param]));
+              {+}
+              //Dest.P := Pointer(IPointer(Dest.P) + IPointer(TPSTypeRec_Record(Dest.aType).RealFieldOffsets[Param]));
+              Dest.P := PointerShift(Dest.P, NativeInt(TPSTypeRec_Record(Dest.aType).RealFieldOffsets[Param]));
+              {+.}
               Dest.aType := TPSTypeRec_Record(Dest.aType).FieldTypes[Param];
             end;
           btArray:
@@ -6768,7 +7640,10 @@ begin
                 Result := False;
                 exit;
               end;
-              Dest.P := Pointer(IPointer(Dest.P^) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              {+}
+              //Dest.P := Pointer(IPointer(Dest.P^) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              Dest.P := PointerShift(Pointer(Dest.P^), Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize);
+              {+.}
               Dest.aType := TPSTypeRec_Array(dest.aType).ArrayType;
             end;
           btStaticArray:
@@ -6779,7 +7654,10 @@ begin
                 Result := False;
                 exit;
               end;
-              Dest.P := Pointer(IPointer(Dest.P) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              {+}
+              //Dest.P := Pointer(IPointer(Dest.P) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              Dest.P := PointerShift(Dest.P, Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize);
+              {+.}
               Dest.aType := TPSTypeRec_Array(dest.aType).ArrayType;
             end;
         else
@@ -6895,6 +7773,11 @@ begin
                 exit;
               end;
             end;
+          {+}
+          {$IFNDEF PS_NOINT64}
+          btS64: Param := PPSVariantS64(Tmp).Data;
+          {$ENDIF}
+          {+.}
         else
           CMD_Err(ErTypeMismatch);
           Result := false;
@@ -6909,7 +7792,10 @@ begin
                 Result := False;
                 exit;
               end;
-              Dest.P := Pointer(IPointer(Dest.P) + IPointer(TPSTypeRec_Record(Dest.aType).RealFieldOffsets[Param]));
+              {+}
+              //Dest.P := Pointer(IPointer(Dest.P) + IPointer(TPSTypeRec_Record(Dest.aType).RealFieldOffsets[Param]));
+              Dest.P := PointerShift(Dest.P, NativeInt(TPSTypeRec_Record(Dest.aType).RealFieldOffsets[Param]));
+              {+.}
               Dest.aType := TPSTypeRec_Record(Dest.aType).FieldTypes[Param];
             end;
           btArray:
@@ -6920,7 +7806,10 @@ begin
                 Result := False;
                 exit;
               end;
-              Dest.P := Pointer(IPointer(Dest.P^) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              {+}
+              //Dest.P := Pointer(IPointer(Dest.P^) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              Dest.P := PointerShift(Pointer(Dest.P^), Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize);
+              {+.}
               Dest.aType := TPSTypeRec_Array(dest.aType).ArrayType;
             end;
           btStaticArray:
@@ -6931,7 +7820,10 @@ begin
                 Result := False;
                 exit;
               end;
-              Dest.P := Pointer(IPointer(Dest.P) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              {+}
+              //Dest.P := Pointer(IPointer(Dest.P) + (Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize));
+              Dest.P := PointerShift(Dest.P, Param * TPSTypeRec_Array(Dest.aType).FArrayType.RealSize);
+              {+.}
               Dest.aType := TPSTypeRec_Array(dest.aType).ArrayType;
             end;
         else
@@ -7268,7 +8160,7 @@ begin
             Exit;
           end;
         end;
-        if (Tmp <> nil) and (Tmp is Exception) then
+        if (Tmp <> nil) and (Tmp is {+}ExceptionBase{+.}) then
           CMD_Err3(erException, tbtString(Exception(Tmp).Message), Tmp) else
           CMD_Err3(erException, '', Tmp);
         Result := false;
@@ -7471,7 +8363,7 @@ procedure TPSExec.CMD_Err3(EC: TPSError; const Param: tbtString; ExObject: TObje
 var
   l: Longint;
   C: Cardinal;
-begin
+begin {+}{@dbg@:hook.set.err}{+.} // dbg.cond: EC=ErTypeMismatch
   C := InvalidVal;
   for l := FProcs.Count - 1 downto 0 do begin
     if FProcs.Data^[l] = FCurrProc then begin
@@ -7681,12 +8573,15 @@ begin
                 DWord(vd.P^):=Dword(vs.P^)
               else}
               // nx change start
-              if not SetVariantValue(vd.P, vs.P, vd.aType, vs.aType) then
+              if not SetVariantValue(vd.P, vs.P, vd.aType, vs.aType{+}, @vd{+.}) then
               begin
                 if vs.FreeType <> vtNone then
                 begin
                   if vs.aType.BaseType in NeedFinalization then
-                  FinalizeVariant(vs.P, vs.aType);
+                  {+}
+//                  if (vs.aType.ClassType <> TPSTypeRec_Chars) or (TPSTypeRec_Chars(vs.aType).FPChasrRefCount = 0) then
+                    FinalizeVariant(vs.P, vs.aType);
+                  {+.}
                   p := IPointer(FTempVars.Data^[FtempVars.Count-1]) - IPointer(FtempVars.DataPtr);
                   Dec(FTempVars.FCount);
                   {$IFNDEF PS_NOSMARTLIST}
@@ -7700,8 +8595,48 @@ begin
               end;
               if vs.FreeType <> vtNone then
               begin
+{+}
+//TODO: bug. Sample:
+{
+var
+  s: ansistring;
+  ps: pansichar;
+begin
+  ps := 'pansichar';
+  s := ansistring(ps);
+  writeln(s);
+end.
+}
                 if vs.aType.BaseType in NeedFinalization then
-                FinalizeVariant(vs.P, vs.aType);
+                begin
+                  (*
+                  //if vd.aType.BaseType in [btPChar{$IFNDEF PS_NOWIDESTRING}, btPWideChar{$ENDIF}] then begin
+                  if (vd.aType.ClassType = TPSTypeRec_PChar)
+                    //and (vs.aType.BaseType in [btString{$IFNDEF PS_NOWIDESTRING}, btWidestring, btUnicodeString{$ENDIF}]) then
+                    and (vs.aType.ClassType = TPSTypeRec_Chars) then
+                  begin
+                    //if vs.aType.ClassType = TPSTypeRec_Chars then
+                    begin
+                      TPSTypeRec_PChar(vd.aType).FTypeCharsRec := TPSTypeRec_Chars(vs.aType);
+                      Inc(TPSTypeRec_Chars(vs.aType).FPChasrRefCount);
+                      //TPSTypeRec_PChar(vd.aType).FTempBaseType := vs.aType.BaseType;
+                      TPSTypeRec_PChar(vd.aType).FTempData := vs.P;
+                    //end else begin
+                    //  TPSTypeRec_PChar(vd.aType).FTempBaseType := vs.aType.BaseType;
+                    //  TPSTypeRec_PChar(vd.aType).FTempData := vs.P;
+                    //  vs.P := nil;
+                    //  FinalizeVariant(vs.P, vs.aType);
+                    end;
+                  end
+                  else
+                  begin
+                    if (vs.aType.ClassType <> TPSTypeRec_Chars) or (TPSTypeRec_Chars(vs.aType).FPChasrRefCount <= 0) then
+                      FinalizeVariant(vs.P, vs.aType);
+                  end; // dbg: PChar(@pstring(vs.P)^[1])[2]
+                  //*)
+                  FinalizeVariant(vs.P, vs.aType);
+                end;
+                {+.}
                 p := IPointer(FTempVars.Data^[FtempVars.Count-1]) - IPointer(FtempVars.DataPtr);
                 Dec(FTempVars.FCount);
                 {$IFNDEF PS_NOSMARTLIST}
@@ -7779,12 +8714,12 @@ begin
               vd.P := Pointer(IPointer(vtemp)+PointerSize);
               vd.aType := Pointer(vtemp^);
               vd.FreeType := vtNone;
-              if not SetVariantValue(Vd.P, vs.P, vd.aType, vs.aType) then
+              if not SetVariantValue(Vd.P, vs.P, vd.aType, vs.aType{+}, @vd{+.}) then
               begin
                 if vs.FreeType <> vtnone then
                 begin
                   if vs.aType.BaseType in NeedFinalization then
-                    FinalizeVariant(vs.P, vs.aType);
+                    FinalizeVariant(vs.P, vs.aType);  //todo:...
                   p := IPointer(FTempVars.Data^[FtempVars.Count-1]) - IPointer(FtempVars.DataPtr);
                   Dec(FTempVars.FCount);
                   {$IFNDEF PS_NOSMARTLIST}
@@ -7799,7 +8734,7 @@ begin
               if vs.FreeType <> vtnone then
               begin
                 if vs.aType.BaseType in NeedFinalization then
-                  FinalizeVariant(vs.P, vs.aType);
+                  FinalizeVariant(vs.P, vs.aType); //todo:...
                 p := IPointer(FTempVars.Data^[FtempVars.Count-1]) - IPointer(FtempVars.DataPtr);
                 Dec(FTempVars.FCount);
                 {$IFNDEF PS_NOSMARTLIST}
@@ -7878,7 +8813,21 @@ begin
                 try
                   if not TPSExternalProcRec(u).ProcPtr(Self, TPSExternalProcRec(u), FGlobalVars, FStack) then begin
                     if ExEx = erNoError then
-                      CMD_Err(erCouldNotCallProc);
+                    {+}
+                      //CMD_Err(erCouldNotCallProc);  // #dbg: TPSExternalProcRec(u).fName
+                    begin
+                      if FExceptionStack.Count = 0 then
+                        CMD_Err(erCouldNotCallProc)
+                      else
+                      begin
+                        pp := FExceptionStack.Data[FExceptionStack.Count-1];
+                        if pp.ExceptionParam = '' then
+                          CMD_Err2(erCustomError, tbtString(RPS_CouldNotCallProc) + tbtString(': ') + TPSExternalProcRec(u).fName)
+                        else
+                          CMD_Err2(erCustomError, tbtString(RPS_CouldNotCallProc) + tbtString(': ') + pp.ExceptionParam);
+                      end;
+                    end;
+                    {+.}
                     Break;
                   end;
                 except
@@ -7915,7 +8864,7 @@ begin
                       Break;
                     end;
                   end;
-                  if (Tmp <> nil) and (Tmp is Exception) then
+                  if (Tmp <> nil) and (Tmp is {+}ExceptionBase{+.}) then
                     CMD_Err3(erException, tbtString(Exception(Tmp).Message), Tmp) else
                     CMD_Err3(erException, '', Tmp);
                   Break;
@@ -8564,7 +9513,18 @@ begin
                   try
                     if not TPSExternalProcRec(u).ProcPtr(Self, TPSExternalProcRec(u), FGlobalVars, FStack) then begin
                       if ExEx = erNoError then
-                        CMD_Err(erCouldNotCallProc);
+                        //CMD_Err(erCouldNotCallProc);
+                      {+}
+                      begin
+                        if FExceptionStack.Count = 0 then
+                          CMD_Err(erCouldNotCallProc)
+                        else
+                        begin
+                          pp := FExceptionStack.Data[FExceptionStack.Count-1];
+                          CMD_Err2(erCustomError, tbtString(RPS_CouldNotCallProc) + tbtString(': ') + pp.ExceptionParam);
+                        end;
+                      end;
+                      {+.}
                       Break;
                     end;
                   except
@@ -8601,7 +9561,7 @@ begin
                         break;
                       end;
                     end;
-                    if (Tmp <> nil) and (Tmp is Exception) then
+                    if (Tmp <> nil) and (Tmp is {+}ExceptionBase{+.}) then
                       CMD_Err3(erException, tbtString(Exception(Tmp).Message), Tmp) else
                       CMD_Err3(erException, '', Tmp);
                     Break;
@@ -8714,7 +9674,7 @@ function NVarProc(Caller: TPSExec; p: TPSExternalProcRec; Global, Stack: TPSStac
 var
   tmp: TPSVariantIFC;
 begin
-   case Longint(p.Ext1) of
+   case {+}NativeUInt{+.}(p.Ext1) of
     0:
       begin
         if @Caller.FOnSetNVariant = nil then begin Result := False; exit; end;
@@ -8749,7 +9709,7 @@ begin
     -UPSRuntime.DefProc
     -UPSRuntime.TPSExec.RegisterStandardProcs
   }
-  case Longint(p.Ext1) of
+  case {+}NativeUInt{+.}(p.Ext1) of
     0: Stack.SetAnsiString(-1, tbtstring(SysUtils.IntToStr(Stack.{$IFNDEF PS_NOINT64}GetInt64{$ELSE}GetInt{$ENDIF}(-2)))); // inttostr
     1: Stack.SetInt(-1, StrToInt(Stack.GetAnsiString(-2))); // strtoint
     2: Stack.SetInt(-1, StrToIntDef(Stack.GetAnsiString(-2), Stack.GetInt(-3))); // strtointdef
@@ -8939,7 +9899,7 @@ begin
           btU32, btS32: b := tbtu32(temp.dta^) <> 0;
           btString, btPChar: b := tbtstring(temp.dta^) <> '';
 {$IFNDEF PS_NOWIDESTRING}
-          btWideString: b := tbtwidestring(temp.dta^)<> '';
+          btWideString{+}, btPWideChar{+.}: b := tbtwidestring(temp.dta^)<> '';
           btUnicodeString: b := tbtUnicodeString(temp.dta^)<> '';
 {$ENDIF}
           btArray, btClass{$IFNDEF PS_NOINTERFACES}, btInterface{$ENDIF}: b := Pointer(temp.dta^) <> nil;
@@ -9158,6 +10118,13 @@ begin
         Stack.SetInt(-1,length(tbtUnicodeString(arr.Dta^)));
         Result:=true;
       end;
+    {+}
+    btWideChar:
+      begin
+        Stack.SetInt(-1, 1);
+        Result:=true;
+      end;
+    {+.}
     {$ENDIF}
     btvariant:
       begin
@@ -9389,9 +10356,9 @@ begin
   {$ENDIF}
   RegisterDelphiFunction(@Null, 'NULL', cdRegister);
   RegisterDelphiFunction(@VarIsNull, 'VARISNULL', cdRegister);
-  {$IFNDEF FPC}
-  RegisterDelphiFunction(@VarType, 'VARTYPE', cdRegister);
-  {$ENDIF}
+  {+}{.$IFNDEF FPC}
+  RegisterDelphiFunction(@{+}{$IFDEF FPC}Variants.{$ENDIF}VarType{+.}, 'VARTYPE', cdRegister);
+  {.$ENDIF}{+.}
   {$IFNDEF PS_NOIDISPATCH}
   RegisterDelphiFunction(@IDispatchInvoke, 'IDISPATCHINVOKE', cdregister);
   {$ENDIF}
@@ -9432,11 +10399,28 @@ end;
 
 function ToString(p: PansiChar): tbtString;
 begin
-  SetString(Result, p, StrLen(p));
+  SetString(Result, p, {+}{$IFDEF DELPHI18UP}AnsiStrings.{$ENDIF}{+.}StrLen(p));
 end;
 
-function IntPIFVariantToVariant(Src: pointer; aType: TPSTypeRec; var Dest: Variant): Boolean;
-  function BuildArray(P: Pointer; aType: TPSTypeRec; Len: Longint): Boolean;
+{+}
+{$IFNDEF PS_NOWIDESTRING}
+function ToWideString(p: PWideChar): tbtWideString;
+//  function _PWCharLen(P: PWideChar): Longint;
+//  begin
+//    Result := 0;
+//    if P <> nil then
+//      while P[Result] <> #0 do
+//        Inc(Result);
+//  end;
+begin
+//  SetString(Result, p, _PWCharLen(p));
+  Result := p;
+end;
+{$ENDIF}
+{+.}
+
+  function IntPIFVariantToVariant(Src: pointer; aType: TPSTypeRec; var Dest: Variant): Boolean;
+    function BuildArray(P: Pointer; aType: TPSTypeRec; Len: Longint): Boolean;
   var
     i, elsize: Longint;
     v: variant;
@@ -9451,12 +10435,15 @@ function IntPIFVariantToVariant(Src: pointer; aType: TPSTypeRec; var Dest: Varia
         exit;
       end;
       Dest[i] := v;
-      p := Pointer(IPointer(p) + Cardinal(elSize));
+      {+}
+      //p := Pointer(IPointer(p) + Cardinal(elSize));
+      p := PointerShift(p, elSize);
+      {+.}
     end;
     result := true;
   end;
 begin
-  if aType = nil then
+  if aType = nil then {+}{@dbg@:hook.variant}{+.} // dbg.cond:
   begin
     Dest := null;
     Result := True;
@@ -9470,8 +10457,18 @@ begin
 
   case aType.BaseType of
     btVariant: Dest := variant(src^);
-    btArray: if not BuildArray(Pointer(Src^), TPSTypeRec_Array(aType).ArrayType, PSDynArrayGetLength(Pointer(src^), aType)) then begin result := false; exit; end;
-    btStaticArray: if not BuildArray(Pointer(Src), TPSTypeRec_StaticArray(aType).ArrayType, PSDynArrayGetLength(Pointer(src^), aType)) then begin result := false; exit; end;
+    btArray:
+      if not BuildArray(Pointer(Src^), TPSTypeRec_Array(aType).ArrayType, PSDynArrayGetLength(Pointer(src^), aType)) then
+      begin
+        result := false;
+        exit;
+      end;
+    btStaticArray:
+      if not BuildArray(Pointer(Src), TPSTypeRec_StaticArray(aType).ArrayType, PSDynArrayGetLength(Pointer(src^), aType)) then
+      begin
+        result := false;
+        exit;
+      end;
     btU8:
       if aType.ExportName = 'BOOLEAN' then
         Dest := boolean(tbtu8(Src^) <> 0)
@@ -9498,7 +10495,22 @@ begin
   {$IFDEF DELPHI6UP} btS64: Dest := tbts64(Src^); {$ELSE} bts64: begin Result := False; exit; end; {$ENDIF}
   {$ENDIF}
     btChar: Dest := tbtString(tbtchar(src^));
+    {+}
+    {$IFDEF CPU32}
+    {?}btPointer, btClass:
+      Dest := tbtu32(src^);
+    {$ENDIF}
+    {.$IFNDEF PS_NOINT64}
+    {$IFDEF CPU64}
+    {?}btPointer, btClass:
+      Dest := IPointer(tbts64(src^));
+    {$ENDIF}
+    {.$ENDIF}
+    {?}btInterface:
+      Dest := IUnknown(src^);
+    {+.}
   {$IFNDEF PS_NOWIDESTRING}
+    {+}btPWideChar: Dest := ToWideString(PWideChar(Src^));{+.}
     btWideString: Dest := tbtWideString(src^);
     btWideChar: Dest := tbtwidestring(tbtwidechar(src^));
     btUnicodeString: Dest := tbtUnicodeString(src^);
@@ -9616,6 +10628,13 @@ begin
             tvarrec(p^).VExtended^ := tbtdouble(cp^);
           end;
         {$IFNDEF PS_NOWIDESTRING}
+        {+}
+        btPWideChar:
+        begin
+          tvarrec(p^).VType := vtPWideChar;
+          TVarRec(p^).VPWideChar := pointer(cp^);
+        end;
+        {+.}
         btwidechar: begin
             tvarrec(p^).VType := vtWideChar;
             tvarrec(p^).VWideChar := tbtwidechar(cp^);
@@ -9806,8 +10825,12 @@ begin
 {$ENDIF}
 {$ENDIF}
       end;
-      datap := Pointer(IPointer(datap)+ (2*sizeof(Pointer)+sizeof(LongBool)));
-      p := Pointer(IPointer(p) + Cardinal(v^.ElementSize));
+      {+}
+      //datap := Pointer(IPointer(datap)+ (2*sizeof(Pointer)+sizeof(LongBool)));
+      datap := PointerShift(datap, 2*sizeof(Pointer)+sizeof(LongBool));
+      //p := Pointer(IPointer(p) + Cardinal(v^.ElementSize));
+      p := PointerShift(p, v^.ElementSize);
+      {+.}
     end;
     FreeMem(v.Data, v.ElementSize * v.ItemCount);
   end;
@@ -9915,9 +10938,9 @@ var
 begin
  {$IFDEF FPC}
  x := Pointer(TObject(FSelf).ClassType) + vmtMethodStart;
- Result := x^[Longint(Ptr)];
+ Result := x^[{+}NativeUInt{+.}(Ptr)];
  {$ELSE}
- Result := PPtrArr(PPointer(FSelf)^)^[Longint(Ptr)];
+ Result := PPtrArr(PPointer(FSelf)^)^[{+}NativeUInt{+.}(Ptr)];
  {$ENDIF}
 end;
 
@@ -9929,22 +10952,22 @@ var
 begin
   {$IFDEF FPC}
   x := Pointer(FSelf) + vmtMethodStart;
-  Result := x^[Longint(Ptr)];
+  Result := x^[{+}NativeUInt{+.}(Ptr)];
   {$ELSE}
-  Result := PPtrArr(FSelf)^[Longint(Ptr)];
+  Result := PPtrArr(FSelf)^[{+}NativeUInt{+.}(Ptr)];
   {$ENDIF}
 end;
 
 
 procedure CheckPackagePtr(var P: PByteArr);
 begin
-  {$ifdef Win32}
+  {$ifdef Win32} {TODO: ?: IFDEF CPU32}
   if (word((@p[0])^) = $25FF) and (word((@p[6])^)=$C08B)then
   begin
     p := PPointer((@p[2])^)^;
   end;
   {$endif}
-  {$ifdef Win64}
+  {$ifdef Win64} {TODO: ?: IFDEF CPU64}
   if (word((@p[0])^) = $25FF) {and (word((@p[6])^)=$C08B)}then
   begin
     p := PPointer(NativeUInt(@P[0]) + Cardinal((@p[2])^) + 6{Instruction Size})^
@@ -10060,7 +11083,10 @@ begin
   if Result.aType.BaseType = btRecord then
   begin
     Offs := Cardinal(TPSTypeRec_Record(Result.aType).RealFieldOffsets[FieldNo]);
-    Result.Dta := Pointer(IPointer(Result.dta) + Offs);
+    {+}
+    //Result.Dta := Pointer(IPointer(Result.dta) + Offs);
+    Result.Dta := PointerShift(Result.dta, Offs);
+    {+.}
     Result.aType := TPSTypeRec_Record(Result.aType).FieldTypes[FieldNo];
   end else
   begin
@@ -10076,13 +11102,13 @@ var
 begin
   Result := aVar;
   case Result.aType.BaseType of
-    btStaticArray, btArray:
+  btStaticArray, btArray:
   begin
-        if Result.aType.BaseType = btStaticArray then
-          n := TPSTypeRec_StaticArray(Result.aType).Size
-        else
-          n := PSDynArrayGetLength(Pointer(Result.Dta^), Result.aType);
-        if (FieldNo <0) or (FieldNo >= n) then
+    if Result.aType.BaseType = btStaticArray then
+      n := TPSTypeRec_StaticArray(Result.aType).Size
+    else
+      n := PSDynArrayGetLength(Pointer(Result.Dta^), Result.aType);
+    if (FieldNo <0) or (FieldNo >= n) then
     begin
       Result.Dta := nil;
       Result.aType := nil;
@@ -10090,9 +11116,15 @@ begin
     end;
     Offs := TPSTypeRec_Array(Result.aType).ArrayType.RealSize * Cardinal(FieldNo);
         if Result.aType.BaseType = btStaticArray then
-          Result.Dta := Pointer(IPointer(Result.dta) + Offs)
+          {+}
+          //Result.Dta := Pointer(IPointer(Result.dta) + Offs)
+          Result.Dta := PointerShift(Result.dta, Offs)
+          {+.}
         else
-          Result.Dta := Pointer(IPointer(Result.dta^) + Offs);
+          {+}
+          //Result.Dta := Pointer(IPointer(Result.dta^) + Offs);
+          Result.Dta := PointerShift(Pointer(Result.dta^), Offs);
+          {+.}
     Result.aType := TPSTypeRec_Array(Result.aType).ArrayType;
       end
   else
@@ -10110,7 +11142,10 @@ begin
   begin
     Offs := Cardinal(TPSTypeRec_Record(Result.aType).RealFieldOffsets[FieldNo]);
     Result.aType := TPSTypeRec_Record(Result.aType).FieldTypes[FieldNo];
-    Result.Dta := Pointer(IPointer(Result.dta) + Offs);
+    {+}
+    //Result.Dta := Pointer(IPointer(Result.dta) + Offs);
+    Result.Dta := PointerShift(Result.dta, Offs);
+    {+.}
   end else
   begin
     Result.Dta := nil;
@@ -10262,11 +11297,13 @@ begin
   // under FPC a constructor it's called with self=0 (EAX) and
   // the VMT class pointer in EDX so they are effectively swaped
   // using register calling convention
+  {+}
   {$IFDEF CPU64}
-  PPSVariantU32(IntVal).Data := Int64(FSelf);
+  PPSVariantS64(IntVal).Data := tbts64(FSelf); // TODO: unchecked
   {$ELSE}
-  PPSVariantU32(IntVal).Data := Cardinal(FSelf);
+  PPSVariantU32(IntVal).Data := {+}tbtU32{+.}(FSelf);
   {$ENDIF}
+  {+.}
   FSelf := pointer(1);
   {$ELSE}
   PPSVariantU32(IntVal).Data := 1;
@@ -10392,6 +11429,9 @@ var
   FType: PIFTypeRec;
   H, I: Longint;
   x: TPSRuntimeClass;
+  {+}
+  S: tbtString;
+  {+.}
 begin
   TypeNo := NewTPSVariantIFC(Stack[Stack.Count-3], false);
   InVar := NewTPSVariantIFC(Stack[Stack.Count-2], false);
@@ -10413,9 +11453,21 @@ begin
     IUnknown(resvar.Dta^) := nil;
     if (IUnknown(invar.Dta^) = nil) or (IUnknown(invar.Dta^).QueryInterface(TPSTypeRec_Interface(ResVar.aType).Guid, IUnknown(resvar.Dta^)) <> 0) then
     begin
-      Caller.CMD_Err2(erCustomError, tbtString(RPS_CannotCastInterface));
+      {+}
+      //Caller.CMD_Err2(erCustomError, tbtString(RPS_CannotCastInterface));
+      S := tbtString(RPS_CannotCastInterface);
+      if ResVar.aType.FExportName <> '' then
+        S := S + tbtString(' ') + ResVar.aType.FExportName
+      else
+        S := S + tbtString(' ') + tbtString(GUIDToString(TPSTypeRec_Interface(ResVar.aType).Guid));
+      //
+      raise EPSIntf.Create(S);
+      //
+      {Caller.CMD_Err2(erCustomError, S);
+      //
       Result := False;
-      exit;
+      exit;{}
+      {+.}
     end;
 {$IFDEF Delphi3UP}
   end else if (Invar.aType.BaseType = btclass) and (resvar.aType.BaseType = btInterface) then
@@ -10427,9 +11479,21 @@ begin
     IUnknown(resvar.Dta^) := nil;
     if (TObject(invar.Dta^)= nil) or (not TObject(invar.dta^).GetInterface(TPSTypeRec_Interface(ResVar.aType).Guid, IUnknown(resvar.Dta^))) then
     begin
-      Caller.CMD_Err2(erCustomError, tbtString(RPS_CannotCastInterface));
+      {+}
+      //Caller.CMD_Err2(erCustomError, tbtString(RPS_CannotCastInterface));
+      S := tbtString(RPS_CannotCastInterface);
+      if ResVar.aType.FExportName <> '' then
+        S := S + tbtString(' ') + ResVar.aType.FExportName
+      else
+        S := S + tbtString(' ') + tbtString(GUIDToString(TPSTypeRec_Interface(ResVar.aType).Guid));
+      //
+      raise EPSIntf.Create(S);
+      //
+      {Caller.CMD_Err2(erCustomError, S);
+      //
       Result := False;
-      exit;
+      exit;{}
+      {+.}
     end;
 {$ENDIF}
   end else {$ENDIF}if (invar.aType.BaseType = btclass) and (resvar.aType.BaseType = btclass ) then
@@ -10639,6 +11703,14 @@ begin
         btClass: SetOrdProp(TObject(FSelf), P.Ext1, Longint(n.Dta^));
     {$IFDEF DELPHI6UP}
 {$IFNDEF PS_NOWIDESTRING}
+  {+}
+  btPWideChar:
+    {$IFDEF UNICODE}
+    SetWideStrProp(TObject(FSelf), p.Ext1, widestring(pwidechar(n.Dta^)));
+    {$ELSE}
+    SetStrProp(TObject(FSelf), p.Ext1, string(widestring(pwidechar(n.Dta^))));
+    {$ENDIF}
+  {+.}
 {$IFNDEF DELPHI2009UP}btUnicodeString,{$ENDIF}
   btWideString: SetWideStrProp(TObject(FSelf), P.Ext1, tbtWidestring(n.dta^));
 {$IFDEF DELPHI2009UP}
@@ -10675,8 +11747,12 @@ begin
         Cardinal(n.Dta^) := GetMethodNo(m, Caller);
         if Cardinal(n.dta^) = 0 then
         begin
-          Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := m.Data;
-          Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := m.Code;
+          {+}
+          //Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := m.Data;
+          Pointer(PointerShift(n.dta, PointerSize)^) := m.Data;
+          //Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := m.Code;
+          Pointer(PointerShift(n.dta, PointerSize2)^) := m.Code;
+          {+.}
         end;
       end else
       case n.aType.BaseType of
@@ -10696,7 +11772,7 @@ begin
         btExtended: tbtextended(n.Dta^) := GetFloatProp(TObject(FSelf), p.Ext1);
         btString: tbtString(n.Dta^) := tbtString(GetStrProp(TObject(FSelf), p.Ext1));
         btClass: Longint(n.dta^) := GetOrdProp(TObject(FSelf), p.Ext1);
-    {$IFDEF DELPHI6UP}
+{$IFDEF DELPHI6UP}
 {$IFNDEF PS_NOWIDESTRING}
         {$IFDEF DELPHI2009UP}
         btUnicodeString: tbtUnicodeString(n.dta^) := GetUnicodeStrProp(TObject(FSelf), P.Ext1);
@@ -10844,7 +11920,7 @@ begin
       Caller.CMD_Err(erNullPointerException);
       exit;
     end;
-    FSelf := Tobject(n.dta^);
+    FSelf := TObject(n.dta^);
     Params := TPSList.Create;
     Params.Add(NewPPSVariantIFC(Stack[Longint(Stack.Count) - 2], True));
 
@@ -10898,7 +11974,7 @@ begin
       Caller.CMD_Err(erNullPointerException);
       exit;
     end;
-    FSelf := Tobject(n.dta^);
+    FSelf := TObject(n.dta^);
     n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 1], True); // Result
     if (n.aType.BaseType <> btU32) and (n.aType.BaseType <> btProcPtr) then
     begin
@@ -10928,8 +12004,12 @@ begin
       Cardinal(n.Dta^) := getMethodNo(data, Caller);
       if Cardinal(n.Dta^) = 0 then
       begin
-        Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := data.Data;
-        Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := data.Code;
+        {+}
+        //Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := data.Data;
+        Pointer(PointerShift(n.dta, PointerSize2)^) := data.Code;
+        //Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := data.Code;
+        Pointer(PointerShift(n.dta, PointerSize2)^) := data.Code;
+        {+.}
       end;
       DestroyHeapVariant(n2);
       DisposePPSVariantIFCList(Params);
@@ -10942,7 +12022,7 @@ begin
       Caller.CMD_Err(erNullPointerException);
       exit;
     end;
-    FSelf := Tobject(n.dta^);
+    FSelf := TObject(n.dta^);
     n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 2], false);
     if (n.Dta = nil) or ((n.aType.BaseType <> btu32) and (n.aType.BaseType <> btProcPtr)) then
     begin
@@ -10973,7 +12053,7 @@ begin
       Result := Caller.InnerfuseCall(FSelf, p.Ext2, cdregister, Params, nil);
     finally
       Params.Clear;
-      //DestroyHeapVariant(n2);
+      {+}{DestroyHeapVariant(n2);{+.}
       DisposePPSVariantIFCList(Params);
     end;
   end;
@@ -11579,16 +12659,23 @@ begin
   s := '';
 end;
 
-{$ifdef CPUX64}
+{+} // [Chau Chee Yang]: // https://github.com/remobjects/pascalscript/issues/78#issuecomment-78253830
+                         // https://github.com/ccy/pascalscript/commit/aa5ca34b458abd60a55f0824ff5629c42f9ca06b
+//{$ifdef CPUX64}
+//  {$DEFINE empty_methods_handler}
+//{$endif}
+//{$ifdef FPC}
+//  {$if defined(cpupowerpc) or defined(cpuarm) or defined(cpu64)}
+//    {$DEFINE empty_methods_handler}
+//  {$ifend}
+//{$endif}
 
-{$DEFINE empty_methods_handler}
+{$IFNDEF MSWINDOWS}
+  //{$IFNDEF DELPHI_ANDROID}
+  {$define empty_methods_handler}
+  //{$ENDIF}
 {$ENDIF}
-
-{$ifdef fpc}
-  {$if defined(cpupowerpc) or defined(cpuarm) or defined(cpu64)}
-    {$define empty_methods_handler}
-  {$ifend}
-{$endif}
+{+.} // [Chau Chee Yang]
 
 {$ifdef empty_methods_handler}
 procedure MyAllMethodsHandler;
@@ -11596,16 +12683,33 @@ begin
 end;
 {$else}
 
-
 function MyAllMethodsHandler2(Self: PScriptMethodInfo; const Stack: PPointer; _EDX, _ECX: Pointer): Integer; forward;
 
-procedure MyAllMethodsHandler;
+procedure MyAllMethodsHandler; assembler;
+asm
+{$ifdef CPUX64}
+  push rbp
+  sub rsp, $50
+  mov rbp, rsp
+  mov rcx, rcx    // Param1: Self
+  mov r8, rdx     // param3: _RDX
+  //mov rdx, rdx    // Param2: Stack
+  //mov r9, r9      // Param4: _RCX
+  call MyAllMethodsHandler2
+  lea rsp, [rbp+$50]
+  pop rbp
+{$else !CPUX64}
 //  On entry:
 //     EAX = Self pointer
 //     EDX, ECX = param1 and param2
 //     STACK = param3... paramcount
-asm
+  {+}
+  {$IFDEF FPC}
+  push DWORD(0)
+  {$ELSE}
   push 0
+  {$ENDIF}
+  {+.}
   push ecx
   push edx
   mov edx, esp
@@ -11617,6 +12721,7 @@ asm
   add esp, eax
   mov [esp], edx
   mov eax, ecx
+{$endif !CPUX64}
 end;
 
 function ResultAsRegister(b: TPSTypeRec): Boolean;
@@ -11639,6 +12744,7 @@ begin
 {$ENDIF}
     btPChar,
 {$IFNDEF PS_NOWIDESTRING}
+    {+}btPWideChar,{+.}
     btWideChar,
 {$ENDIF}
     btChar,
@@ -11667,6 +12773,7 @@ begin
 {$ENDIF}
     btPChar,
 {$IFNDEF PS_NOWIDESTRING}
+    {+}btPWideChar,{+.}
     btwidestring,
     btUnicodeString,
     btWideChar,
@@ -11885,7 +12992,10 @@ begin
         if res^.FType.BaseType <> btS64 then
 {$ENDIF}
           //CopyArrayContents(Pointer(Longint(Stack)-PointerSize2), @PPSVariantData(res)^.Data, 1, Res^.FType);
-          CopyArrayContents(Pointer(Longint(Stack)-Longint(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          {+}
+          //CopyArrayContents(Pointer(Longint(Stack)-Longint(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          CopyArrayContents(PointerShift(Stack,-PointerSize), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          {+.}
       end;
     end;
     DestroyHeapVariant(res);
@@ -12386,7 +13496,8 @@ begin
     PSSetUInt(@PPSVariantData(val).Data, val.FType, ok, 1)
   else
     PSSetUInt(@PPSVariantData(val).Data, val.FType, ok, 0);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 
 procedure TPSStack.SetCapacity(const Value: Longint);
@@ -12441,7 +13552,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetObject(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 
 procedure TPSStack.SetCurrency(ItemNo: Longint; const Data: Currency);
@@ -12455,7 +13567,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetCurrency(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 
 procedure TPSStack.SetInt(ItemNo: Longint; const Data: Longint);
@@ -12469,7 +13582,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetInt(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 
 {$IFNDEF PS_NOINT64}
@@ -12484,7 +13598,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetInt64(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 {$ENDIF}
 
@@ -12499,7 +13614,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetReal(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 
 procedure TPSStack.SetAnsiString(ItemNo: Longint; const Data: tbtString);
@@ -12513,7 +13629,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetAnsiString(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 
 procedure TPSStack.SetString(ItemNo: Longint; const Data: string);
@@ -12541,7 +13658,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetUInt(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 
 
@@ -12572,7 +13690,8 @@ begin
     val := items[ItemNo];
   ok := true;
   PSSetWideString(@PPSVariantData(val).Data, val.FType, ok, Data);
-  if not ok then raise Exception.Create(RPS_TypeMismatch);
+  if not ok then
+    raise Exception.Create(RPS_TypeMismatch);
 end;
 {$ENDIF}
 
@@ -12583,6 +13702,73 @@ var
 const
   LOCALE_SYSTEM_DEFAULT = 2 shl 10; // Delphi 2 doesn't define this
 
+{+}  // TODO: Win64 FPC 2.5.x
+{$IFDEF FPC}{$IFDEF CPU64}
+type
+   //(*
+   PPSafeArray = ^PSafeArray;
+   PSafeArray = ^TSafeArray;
+
+   tagVariant = record
+   case Integer of
+   0: (
+     vt: TVarType;
+     wReserved1: Word;
+     wReserved2: Word;
+     wReserved3: Word;
+     case Integer of
+       VT_UI1:                  (bVal: Byte);
+       VT_UI2:                  (uiVal: Word);
+       VT_UI4:                  (ulVal: LongWord);
+       VT_UI8:                  (ullVal: QWord);
+       VT_I1:                   (cVal: Char);  { shortint,perhaps? But it is Char both in PSDK and Delphi }
+       VT_I2:                   (iVal: Smallint);
+       VT_I4:                   (lVal: Longint);
+       VT_I8:                   (llVal: Int64);
+       VT_R4:                   (fltVal: Single);
+       VT_R8:                   (dblVal: Double);
+       VT_BOOL:                 (vbool: VARIANT_BOOL);
+       VT_ERROR:                (scode: HResult);
+       VT_CY:                   (cyVal: Currency);
+       VT_DATE:                 (date: TOleDate);
+       VT_BSTR:                 (bstrVal: POleStr{WideString});
+       VT_UNKNOWN:              (unkVal: Pointer{IUnknown});
+       VT_DISPATCH:             (dispVal: Pointer{IDispatch});
+       VT_ARRAY:                (parray: PSafeArray);
+       VT_BYREF or VT_UI1:      (pbVal: PByte);
+       VT_BYREF or VT_UI2:      (puiVal: PWord);
+       VT_BYREF or VT_UI4:      (pulVal: PInteger);
+       VT_BYREF or VT_UI8:      (pullVal: PQWord);
+       VT_BYREF or VT_I1:       (pcVal: PChar); { PShortInt?? }
+       VT_BYREF or VT_I2:       (piVal: PSmallint);
+       VT_BYREF or VT_I4:       (plVal: PLongint);
+       VT_BYREF or VT_I8:       (pllVal: PInt64);
+       VT_BYREF or VT_R4:       (pfltVal: PSingle);
+       VT_BYREF or VT_R8:       (pdblVal: PDouble);
+       VT_BYREF or VT_BOOL:     (pbool: PVARIANT_BOOL);
+       VT_BYREF or VT_ERROR:    (pscode: ^HResult);
+       VT_BYREF or VT_CY:       (pcyVal: PCurrency);
+       VT_BYREF or VT_DATE:     (pdate: POleDate);
+       VT_BYREF or VT_BSTR:     (pbstrVal: PPOleStr);
+       VT_BYREF or VT_UNKNOWN:  (punkVal: ^IUnknown);
+       VT_BYREF or VT_DISPATCH: (pdispVal: ^IDispatch);
+       VT_BYREF or VT_ARRAY:    (pparray: PPSafeArray);
+       VT_BYREF or VT_VARIANT:  (pvarVal: PVariant);
+       VT_BYREF:                (byRef: Pointer);
+       VT_INT:                  (intVal: Longint);
+       VT_UINT:                 (uintVal: LongWord);
+       VT_BYREF or VT_DECIMAL:  (pdecVal: PDecimal);
+
+       VT_BYREF or VT_INT:      (pintVal: PLongint);
+       VT_BYREF or VT_UINT:     (puintVal: PLongWord);
+     );
+   1: (decVal: TDECIMAL);
+   end;
+   //*)
+   TVariantArg = tagVariant;
+{$ENDIF CPU64}{$ENDIF FPC}
+{+.}
+
 function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: tbtString; const Par: array of Variant): Variant;
 var
   Param: Word;
@@ -12592,6 +13778,14 @@ var
   ExceptInfo: TExcepInfo;
   aName: PWideChar;
   WSFreeList: TPSList;
+  {+}
+  ArgType: Longint;
+  DispArg: {ActiveX.pas:}PVariantArg;
+const
+  { Parameter type masks - keep in sync with decl.h/ap* enumerations}
+  atTypeMask = $7F;
+  atByRef    = $80;
+  {+.}
 begin
   if Self = nil then begin
     raise EPSException.Create('Variant is null, cannot invoke', nil, 0, 0);
@@ -12629,39 +13823,81 @@ begin
     try
       for i := 0 to High(Par)  do
       begin
-        if PVarData(@Par[High(Par)-i]).VType = varString then
+        {+}
+        ArgType := PVarData(@Par[High(Par)-i]).VType;
+        DispArg := @(DispParam.rgvarg{+}{$IFDEF FPC}^{$ENDIF}{+.}[i]);
+
+        //if PVarData(@Par[High(Par)-i]).VType = varString then
+        if ArgType = varString then
+        {+.}
         begin
-          DispParam.rgvarg[i].vt := VT_BSTR;
-          DispParam.rgvarg[i].bstrVal := StringToOleStr(AnsiString(Par[High(Par)-i]));
-          WSFreeList.Add(DispParam.rgvarg[i].bstrVal);
+          {+}
+          //DispParam.rgvarg{+}{$IFDEF FPC}^{$ENDIF}{+.}[i].vt := VT_BSTR;
+          DispArg.vt := VT_BSTR;
+          //DispParam.rgvarg{+}{$IFDEF FPC}^{$ENDIF}{+.}[i].bstrVal := StringToOleStr(AnsiString(Par[High(Par)-i]));
+          DispArg.bstrVal := StringToOleStr(AnsiString(Par[High(Par)-i]));
+          //WSFreeList.Add(DispParam.rgvarg[i].bstrVal);
+          WSFreeList.Add(DispArg.bstrVal);
+          {+.}
         {$IFDEF UNICODE}
-        end else if (PVarData(@Par[High(Par)-i]).VType = varOleStr) or (PVarData(@Par[High(Par)-i]).VType = varUString) then
+        //end else if (PVarData(@Par[High(Par)-i]).VType = varOleStr) or (PVarData(@Par[High(Par)-i]).VType = varUString) then
+        end else if (ArgType = varOleStr) or (ArgType = varUString) then
         begin
-          DispParam.rgvarg[i].vt := VT_BSTR;
-          DispParam.rgvarg[i].bstrVal := StringToOleStr(UnicodeString(Par[High(Par)-i]));
-          WSFreeList.Add(DispParam.rgvarg[i].bstrVal);
+          {+}
+          //DispParam.rgvarg[i].vt := VT_BSTR;
+          DispArg.vt := VT_BSTR;
+          //DispParam.rgvarg[i].bstrVal := StringToOleStr(UnicodeString(Par[High(Par)-i]));
+          DispArg.bstrVal := StringToOleStr(UnicodeString(Par[High(Par)-i]));
+          //WSFreeList.Add(DispParam.rgvarg[i].bstrVal);
+          WSFreeList.Add(DispArg.bstrVal);
+          {+.}
         {$ENDIF}
         end else
         begin
-          DispParam.rgvarg[i].vt := VT_VARIANT or VT_BYREF;
-          New(
-          {$IFDEF DELPHI4UP}
-          POleVariant
-          {$ELSE}
-          PVariant{$ENDIF}
-           (DispParam.rgvarg[i].pvarVal));
+          {+}
+          //DispParam.rgvarg[i].vt := VT_VARIANT or VT_BYREF;
+          DispArg.vt := VT_VARIANT or VT_BYREF;
 
-          (*
-          {$IFDEF DELPHI4UP}
+          // fix set IDispatch property value (sample: .Net interop over com object)
+          if (ArgType = varDispatch) then
+          begin
+            DispArg.vt := VT_DISPATCH; {+}{@dbg@:hook.Dispatch.Invoke}{+.} // dbg.cond:
+          end
+          else if (ArgType and atByRef) = atByRef then
+          begin
+            if ((ArgType and atTypeMask) = varDispatch) then
+            begin
+              DispArg.vt := VT_DISPATCH;// or VT_BYREF; // quiet crush of applications for "VT_BYREF"
+            end;
+          end;
+
+          if (DispArg.vt and VT_BYREF) = VT_BYREF then
+          begin
+            New(
+            {$IFDEF DELPHI4UP}
             POleVariant
-          {$ELSE}
-            PVariant
-          {$ENDIF}
-           (DispParam.rgvarg[i].pvarVal)^ := Par[High(Par)-i];
-          *)
-          Move(Par[High(Par)-i],Pointer(DispParam.rgvarg[i].pvarVal)^,
-           Sizeof({$IFDEF DELPHI4UP}OleVariant{$ELSE}Variant{$ENDIF}));
+            {$ELSE}
+            PVariant{$ENDIF}
+             //(DispParam.rgvarg[i].pvarVal));
+             (DispArg.pvarVal));
 
+            (*
+            {$IFDEF DELPHI4UP}
+              POleVariant
+            {$ELSE}
+              PVariant
+            {$ENDIF}
+             (DispParam.rgvarg[i].pvarVal)^ := Par[High(Par)-i];
+            *)
+
+            //Move(Par[High(Par)-i],Pointer(DispParam.rgvarg[i].pvarVal)^,
+            Move(Par[High(Par)-i],Pointer(DispArg.pvarVal)^,
+             Sizeof({$IFDEF DELPHI4UP}OleVariant{$ELSE}Variant{$ENDIF}))
+          end
+          else // copy IDispatch value:
+            DispArg.dispVal := PVarData(@Par[High(Par)-i]).VDispatch;
+          // fix end.
+          {+.}
         end;
       end;
       i :=Self.Invoke(DispatchId, GUID_NULL, LOCALE_SYSTEM_DEFAULT, Param, DispParam, @Result, @ExceptInfo, @ArgErr);
@@ -12695,17 +13931,24 @@ begin
     finally
       for i := 0 to High(Par)  do
       begin
-        if DispParam.rgvarg[i].vt = (VT_VARIANT or VT_BYREF) then
+        {+}
+        DispArg := @(DispParam.rgvarg{+}{$IFDEF FPC}^{$ENDIF}{+.}[i]);
+
+        //if DispParam.rgvarg[i].vt = (VT_VARIANT or VT_BYREF) then
+        if (DispArg.vt and VT_BYREF) = VT_BYREF then
+        {+.}
         begin
           if{$IFDEF DELPHI4UP}POleVariant{$ELSE}PVariant{$ENDIF}
-            (DispParam.rgvarg[i].pvarVal) <> nil then
+            //(DispParam.rgvarg[i].pvarVal) <> nil then
+            (DispArg.pvarVal) <> nil then
             Dispose(
             {$IFDEF DELPHI4UP}
              POleVariant
             {$ELSE}
              PVariant
             {$ENDIF}
-             (DispParam.rgvarg[i].pvarVal));
+             //(DispParam.rgvarg[i].pvarVal));
+             (DispArg.pvarVal));
         end;
       end;
       FreeMem(DispParam.rgvarg, sizeof(TVariantArg) * (High(Par) + 1));

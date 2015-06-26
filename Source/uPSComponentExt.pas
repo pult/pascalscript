@@ -156,6 +156,17 @@ type
 
 implementation
 
+{+}
+{$IFDEF DELPHI12UP}
+uses
+  AnsiStrings;
+{$ENDIF}
+
+type
+  EMethodList = class(EPSError);
+  Exception = EMethodList;
+{+.}
+
 resourcestring
   sMissingEndStatment = 'Missing some ''End'' statments';
 
@@ -240,7 +251,7 @@ Procedure TPSScriptExtension.GetCodeProps;
 
   Function existsItem(aName:tbtstring):Boolean;
   Begin
-    result := FInserts.indexof(aName)<> -1;
+    result := FInserts.indexof({+}string(aName){+.})<> -1;
   end;
 
   Procedure addListItem(aType, aName:tbtstring; aDef:tbtstring='');
@@ -248,7 +259,7 @@ Procedure TPSScriptExtension.GetCodeProps;
     x : LongInt;
   begin
     If not ((aName ='') or (aName[1]='!')) then begin
-      x := FInserts.Add(aName);
+      x := FInserts.Add({+}string(aName){+.});
       fItems.Insert(x, format('%s \column{}\style{+B}%s\style{-B} %s',[aType, aName, aDef]));
     end;
   end;
@@ -286,9 +297,9 @@ Procedure TPSScriptExtension.GetCodeProps;
   begin
     Show := aZoek='';
     Zoek := aZoek;
-    If Pos('.',aZoek)>0 then begin
-      Zoek  := copy(aZoek, 1 ,Pos('.',aZoek)-1);
-      bZoek := copy(aZoek, Pos('.',aZoek)+1, 999);
+    If Pos({+}tbtstring('.'){+.},aZoek)>0 then begin
+      Zoek  := copy(aZoek, 1 ,Pos({+}tbtstring('.'){+.},aZoek)-1);
+      bZoek := copy(aZoek, Pos({+}tbtstring('.'){+.},aZoek)+1, 999);
     end else bZoek := '';
 
     result := (xc <> nil) and Show;
@@ -335,9 +346,9 @@ Procedure TPSScriptExtension.GetCodeProps;
     if xr <> nil then begin
       If xr is TPSRecordType then begin
         Zoek := aZoek;
-        If Pos('.',aZoek)>0 then begin
-          Zoek  := copy(aZoek, 1 ,Pos('.',aZoek)-1);
-          aZoek := copy(aZoek, Pos('.',aZoek)+1, 999);
+        If Pos({+}tbtstring('.'){+.},aZoek)>0 then begin
+          Zoek  := copy(aZoek, 1 ,Pos({+}tbtstring('.'){+.},aZoek)-1);
+          aZoek := copy(aZoek, Pos({+}tbtstring('.'){+.},aZoek)+1, 999);
         end else aZoek := '';
         for n := 0 to (xr as TPSRecordType).RecValCount-1 do begin
           xri := (xr as TPSRecordType).RecVal(n);
@@ -406,9 +417,9 @@ Procedure TPSScriptExtension.GetCodeProps;
 //    t  : tbtstring;
   begin
     cv := aProcName;
-    If Pos('.',aProcName)>0 then begin
-      cv := copy(aProcName, 1 ,Pos('.',aProcName)-1);
-      aProcName := copy(aProcName, Pos('.',aProcName)+1, 999);
+    If Pos({+}tbtstring('.'){+.},aProcName)>0 then begin
+      cv := copy(aProcName, 1 ,Pos({+}tbtstring('.'){+.},aProcName)-1);
+      aProcName := copy(aProcName, Pos({+}tbtstring('.'){+.},aProcName)+1, 999);
     end else aProcName := '';
     H := MakeHash(Cv);
 //    Result := False;
@@ -596,12 +607,12 @@ begin
   ProcType := Uppercase(ProcType);
   x := ProcIndexOf(ProcName);
   if x <> -1 then begin
-    y := Procs[x].ProcType.IndexOf(ProcType);
-    If y = -1 then TProcObj(fProcList.Items[x]).ProcType.add(ProcType);
+    y := Procs[x].ProcType.IndexOf({+}string(ProcType){+.});
+    If y = -1 then TProcObj(fProcList.Items[x]).ProcType.add({+}string(ProcType){+.});
   end else begin
     po := TProcObj.create(self);
     po.Name := ProcName;
-    po.ProcType.add(ProcType);
+    po.ProcType.add({+}string(ProcType){+.});
     fProcList.add(po);
   end
 end;
@@ -731,7 +742,7 @@ var
     begin
       inc(iLineNo);
       if iLineNo > (fowner.script.Count - 1) then exit;
-      sProcDecl := sProcDecl + ' ' + uppercase(trim(fowner.script[iLineNo])) + ' ';
+      sProcDecl := sProcDecl + {+}tbtstring(' ') + tbtstring(uppercase(trim(fowner.script[iLineNo]))) + tbtstring(' '){+.};
     end;
 
     sProcDecl := DelSpaces(sProcDecl);
@@ -745,8 +756,8 @@ var
 begin
   sl := TStringList.create;
   Try
-    sl.Text := NewProc;
-    test := uppercase(trim(sl[0]));
+    sl.Text := {+}string(NewProc){+.};
+    test := {+}tbtstring(uppercase(trim(sl[0]))){+.};
   finally
     Sl.free;
   end;
@@ -755,7 +766,7 @@ begin
   x := 0;
   If Not Ontop Then begin
     for x := 0 to fOwner.script.count -1 do begin
-      Line := fowner.script[x];
+      Line := {+}tbtstring(fowner.script[x]){+.};
       Line := uppercase(trim(line));
       If IsItem(line,'PROCEDURE', true) or IsItem(line,'FUNCTION', true) then begin
         If nBegins >0 then Raise exception.create('Missing some ''end'' statments');
@@ -766,7 +777,7 @@ begin
       end;
       if IsItem(line,'FORWARD') or IsItem(line,'EXTERNAL') then
         dec(nProcs);
-      If Pos('END',line) < Pos('BEGIN',line) then begin
+      If Pos({+}tbtstring('END'){+.},line) < Pos({+}tbtstring('BEGIN'){+.},line) then begin
         If IsItem(line,'END') then begin
           If (nBegins = 0) and (nProcs=0) then Break;
           Dec(nBegins);
@@ -797,7 +808,7 @@ begin
       FOwner.script.Insert(x,'');
       inc(x);
     end;
-    FOwner.script.Insert(x,NewProc);
+    FOwner.script.Insert(x,{+}string(NewProc));
     FOwner.script.text := FOwner.script.text;
   finally
     FOwner.script.EndUpdate;
@@ -824,7 +835,7 @@ begin
         m := fOwner.Exec.GetProcAsMethodN(Procs[Y].name);
         TProcObj(fProcList.Items[Y]).Method := m;
       end;
-      SetMethodProp(Methods[x].Instance, Methods[x].propname, m );
+      SetMethodProp(Methods[x].Instance, {+}string(Methods[x].propname){+.}, m );
     end;
   end;
 end;
@@ -858,8 +869,8 @@ begin
   List.Clear;
   fOwner.CompileIfNeeded;
   for x := 0 to fProcList.count-1 do begin
-    If Procs[x].ProcType.indexof(EventType)<> -1 then
-      List.add(Procs[x].name);
+    If Procs[x].ProcType.indexof({+}string(EventType){+})<> -1 then
+      List.add({+}string(Procs[x].name){+.});
   end;
 end;
 
@@ -911,7 +922,7 @@ var
   begin
     // assume failure
     Result := Nil;
-    PropInfo := GetPropInfo(Instance, PropName);
+    PropInfo := GetPropInfo(Instance, {+}string(PropName){+});
     if PropInfo <> nil then
     begin
       Result:= GetTypeData(PropInfo^.PropType{$IFNDEF FPC}^{$ENDIF});
@@ -981,7 +992,7 @@ begin
     for x := 0 to fOwner.MethodCount-1 do begin
       If (name = fOwner.Methods[x].ProcName) and assigned(fOwner.Methods[x].Instance) then begin
         Try
-          SetMethodProp(fOwner.Methods[x].Instance, fOwner.Methods[x].PropName,m);
+          SetMethodProp(fOwner.Methods[x].Instance, {+}string(fOwner.Methods[x].PropName){+.},m);
         except; end;
       end;
     end;

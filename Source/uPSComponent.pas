@@ -395,6 +395,16 @@ type
 
 implementation
 
+{+}
+{$IFDEF DELPHI12UP}
+uses
+  AnsiStrings;
+{$ENDIF}
+
+type
+  EPSScriptError = class(EPSError);
+  Exception = EPSScriptError;
+{+.}
 
 {$IFDEF DELPHI3UP }
 resourceString
@@ -594,7 +604,7 @@ begin
     FComp.OnTranslateLineInfo := CompTranslateLineInfo;
     Fpp.OnProcessDirective := callObjectOnProcessDirective;
     Fpp.OnProcessUnknowDirective := callObjectOnProcessUnknowDirective;
-    Fpp.MainFile := FScript.Text;
+    Fpp.MainFile := {+}tbtstring(FScript.Text){+.};
     Fpp.MainFileName := FMainFileName;
     Fpp.PreProcess(FMainFileName, dta);
     if FComp.Compile(dta) then
@@ -610,7 +620,7 @@ begin
   end else
   begin
     FComp.OnTranslateLineInfo := nil;
-    if FComp.Compile(FScript.Text) then
+    if FComp.Compile({+}tbtstring(FScript.Text){+.}) then
     begin
       FCanAdd := False;
       if not LoadExec then
@@ -668,7 +678,8 @@ end;
 
 function TPSScript.Execute: Boolean;
 begin
-  if Running then raise Exception.Create(RPS_ScripEngineAlreadyRunning);
+  if Running then 
+    raise Exception.Create(RPS_ScripEngineAlreadyRunning);
   if SuppressLoadData then
     LoadExec;
 
@@ -826,7 +837,7 @@ begin
       TPSPluginItem(FPlugins.Items[i]).Plugin.ExecOnUses(Self);
   end;
   if not FExec.LoadData(Data) then
-    raise Exception.Create(GetExecErrorString);
+    raise Exception.Create({+}string(GetExecErrorString){+.});
 end;
 
 function TPSScript.SetVarToInstance(const VarName: tbtstring; cl: TObject): Boolean;
@@ -945,7 +956,8 @@ var
   t: TPSVariantIFC;
 begin
   v := GetVariable(VarName);
-  if (Atype = nil) or (v = nil) then raise Exception.Create(RPS_UnableToFindVariable);
+  if (Atype = nil) or (v = nil) 
+    then raise Exception.Create(RPS_UnableToFindVariable);
   t.Dta := @PPSVariantData(v).Data;
   t.aType := v.FType;
   t.VarParam := false;
@@ -1264,13 +1276,13 @@ function TPSScriptDebugger.GetVarContents(const Name: tbtstring): tbtstring;
 var
   i: Longint;
   pv: PIFVariant;
-  s1, s: tbtstring;
+  s1, s: {+}string; //tbtstring;{+.}
 begin
-  s := Uppercase(Name);
+  s := Uppercase({+}string(Name){+.});
   if pos('.', s) > 0 then
   begin
     s1 := copy(s,1,pos('.', s) -1);
-    delete(s,1,pos('.', Name));
+    delete(s,1,pos('.', {+}string(Name){+.}));
   end else begin
     s1 := s;
     s := '';
@@ -1278,7 +1290,7 @@ begin
   pv := nil;
   for i := 0 to Exec.CurrentProcVars.Count -1 do
   begin
-    if Uppercase(Exec.CurrentProcVars[i]) =  s1 then
+    if Uppercase({+}string(Exec.CurrentProcVars[i]){+.}) =  s1 then
     begin
       pv := Exec.GetProcVar(i);
       break;
@@ -1288,7 +1300,7 @@ begin
   begin
     for i := 0 to Exec.CurrentProcParams.Count -1 do
     begin
-      if Uppercase(Exec.CurrentProcParams[i]) =  s1 then
+      if Uppercase({+}string(Exec.CurrentProcParams[i]){+.}) =  s1 then
       begin
         pv := Exec.GetProcParam(i);
         break;
@@ -1299,7 +1311,7 @@ begin
   begin
     for i := 0 to Exec.GlobalVarNames.Count -1 do
     begin
-      if Uppercase(Exec.GlobalVarNames[i]) =  s1 then
+      if Uppercase({+}string(Exec.GlobalVarNames[i]){+.}) =  s1 then
       begin
         pv := Exec.GetGlobalVar(i);
         break;
@@ -1307,9 +1319,9 @@ begin
     end;
   end;
   if pv = nil then
-    Result := RPS_UnknownIdentifier
+    Result := {+}tbtstring(RPS_UnknownIdentifier){+.}
   else
-    Result := PSVariantToString(NewTPSVariantIFC(pv, False), s);
+    Result := PSVariantToString(NewTPSVariantIFC(pv, False), {+}tbtstring(s){+.});
 end;
 
 function TPSScriptDebugger.HasBreakPoint(const Fn: tbtstring; Line: Integer): Boolean;

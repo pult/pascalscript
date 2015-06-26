@@ -79,7 +79,7 @@ type
     fOutputDir  : String;
     fPrifix     : String;
     FAfterInterfaceDeclaration: string;
-    FAutoRenameOverloadedMethods: Boolean;        
+    FAutoRenameOverloadedMethods: Boolean;
     fLastUsed   : TStringList;
     FUseUnitAtDT: Boolean;
     FSingleUnit : Boolean;
@@ -137,7 +137,7 @@ begin
   Result := [];
   if frMatchCase in SO then Include(Result, ssoMatchCase);
   if frWholeWord in SO then Include(Result, ssoWholeWord);
-  if frReplace	 in SO then Include(Result, ssoReplace);
+  if frReplace   in SO then Include(Result, ssoReplace);
   if not (frDown in SO) then Include(Result, ssoBackwards);
   if frReplaceAll in SO then Include(Result, ssoReplaceAll);
   if frMatchCase in SO then Include(Result, ssoMatchCase);

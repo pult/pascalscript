@@ -816,10 +816,10 @@ begin T := Self.FIXEDCHAR; end;
 
 
 procedure TSTRINGFIELDVALUE_W(Self: TSTRINGFIELD; const T: String);
-begin Self.VALUE := T; end;
+begin Self.VALUE := {+}AnsiString(T){+.}; end;
 
 procedure TSTRINGFIELDVALUE_R(Self: TSTRINGFIELD; var T: String);
-begin T := Self.VALUE; end;
+begin T := {+}string(Self.VALUE);{+.} end;
 
 procedure TFIELDONVALIDATE_W(Self: TFIELD; const T: TFIELDNOTIFYEVENT);
 begin Self.ONVALIDATE := T; end;
@@ -1368,7 +1368,9 @@ with Cl.Add(TDATASET) do
   RegisterMethod(@TDATASET.REFRESH, 'REFRESH');
 //  RegisterVirtualMethod(@TDATASET.RESYNC, 'RESYNC');
   RegisterMethod(@TDATASET.SETFIELDS, 'SETFIELDS');
+  {+}{$warnings off}{+.}
   RegisterVirtualMethod(@TDATASET.TRANSLATE, 'TRANSLATE');
+  {+}{$warnings on}{+.}
   RegisterMethod(@TDATASET.UPDATECURSORPOS, 'UPDATECURSORPOS');
   RegisterMethod(@TDATASET.UPDATERECORD, 'UPDATERECORD');
   RegisterVirtualMethod(@TDATASET.UPDATESTATUS, 'UPDATESTATUS');

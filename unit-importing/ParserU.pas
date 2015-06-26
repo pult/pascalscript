@@ -391,7 +391,7 @@ begin
   if TimeMode = CompileTime then
     proclist := fCompileTimeproclist
   else proclist := fRunTimeProclist;
-  
+
   assert(proclist <> nil);
   Index := proclist.IndexOf(ProcName);
   if Index = -1 then
@@ -611,7 +611,7 @@ begin
         OutPut.Add(GetLicence);
 //        OutPut.Add('{$I PascalScript.inc}');
         OutPut.Add('interface');
-        OutPut.Add(FAfterInterfaceDeclaration);        
+        OutPut.Add(FAfterInterfaceDeclaration);
         OutPut.Add(GetUsedUnitList(fRunTimeUnitList) + Newline);
         for Index := FRunTimeProcList.count - 1 downto 0 do
         begin
@@ -779,7 +779,7 @@ begin
     OutPutList.Add('interface');
     OutPutList.Add(' ');
     OutPutList.Add(FAfterInterfaceDeclaration);
-    OutPutList.Add(' ');    
+    OutPutList.Add(' ');
 
     { interface uses clause list }
     AddToUsesList(InterfaceUsesList, nil, 'SysUtils');
@@ -1044,7 +1044,7 @@ begin
 
   RunTimeProcType := [];
   fCurrentRTProc := nil;
-end; 
+end;
 (*----------------------------------------------------------------------------*)
 procedure TUnitParser.ParseGlobalDeclarations;
 begin
@@ -1192,7 +1192,7 @@ begin
           else break;
         end;
     end;
-    NextToken; 
+    NextToken;
   until (not (TokenID in [CSTI_Integer, CSTI_HexInt, CSTI_Real, CSTI_String, CSTI_Char,
     CSTI_Equal, CSTI_NotEqual, CSTI_Greater, CSTI_GreaterEqual,
       CSTI_Less, CSTI_LessEqual, CSTI_Plus, CSTI_Minus, CSTI_Divide,
@@ -1555,7 +1555,7 @@ begin
                       Writeln('Auto-remapped')
                     else
                       Readln(ProcName, s+'Current declaration :' + '''' + OwnerClass +decl + '''', 'Enter new name.');
-                      
+
                     if ProcName = '' then
                       ProcName := OldProcName;
 
@@ -2292,7 +2292,7 @@ begin {ParseClassDef}
 
       CSTII_Class:
         begin
-          // jgv: class procedure/function  
+          // jgv: class procedure/function
           NextToken;
           If Not (TokenID in [CSTII_Procedure, CSTII_Function]) then
             RaiseError ('class must be followed by "function" or "procedure"', TokenRow, TokenCol);
@@ -2489,7 +2489,7 @@ begin {ParseTypes}
     Match(CSTI_Identifier);
     TypeName := PrevOrgToken;
     Match(CSTI_equal);
-    
+
     // build the type discriptor
     TypeDescriptor := '';
     ParseType(TokenID, TypeName, TypeDescriptor, CheckSemiColon);

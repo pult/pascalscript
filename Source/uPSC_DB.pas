@@ -87,11 +87,11 @@ Uses Sysutils;
 
 Function RegClassS(cl : TPSPascalCompiler;Const InheritsFrom,Classname : String) : TPSCompileTimeClass;
 begin
-Result := cl.FindClass(Classname);
+Result := cl.FindClass({+}AnsiString(Classname){+.});
 if Result = nil then
-  Result := cl.AddClassN(cl.FindClass(InheritsFrom),Classname)
+  Result := cl.AddClassN(cl.FindClass({+}AnsiString(InheritsFrom){+.}),{+}AnsiString(Classname){+.})
 else
-  Result.ClassInheritsFrom := cl.FindClass(InheritsFrom);
+  Result.ClassInheritsFrom := cl.FindClass({+}AnsiString(InheritsFrom){+.});
 end;
 
 procedure SIRegisterTDATASET(CL: TPSPascalCompiler);

@@ -77,7 +77,7 @@ begin
     RegisterMethod(@TCanvasEllipse, 'ELLIPSE');
     RegisterMethod(@TCanvasFillRect, 'FILLRECT');
     RegisterMethod(@TCanvasFloodFill, 'FLOODFILL');
-{$ELSE}  
+{$ELSE}
     RegisterMethod(@TCanvas{$IFNDEF FPC}.{$ENDIF}Arc, 'ARC');
     RegisterMethod(@TCanvas{$IFNDEF FPC}.{$ENDIF}Chord, 'CHORD');
     RegisterMethod(@TCanvas{$IFNDEF FPC}.{$ENDIF}Rectangle, 'RECTANGLE');
@@ -239,8 +239,3 @@ end;
 // PS_MINIVCL changes by Martijn Laan (mlaan at wintax _dot_ nl)
 
 end.
-
-
-
-
-

@@ -4,7 +4,7 @@ unit uPSR_classes;
 {$I PascalScript.inc}
 interface
 uses
-  uPSRuntime, uPSUtils;
+  uPSRuntime, uPSUtils {+}{$IFNDEF FPC},RTLConsts{$ENDIF}{+.};
 
 
 procedure RIRegisterTStrings(cl: TPSRuntimeClassImporter; Streams: Boolean);
@@ -32,7 +32,7 @@ procedure RIRegister_Classes(Cl: TPSRuntimeClassImporter; Streams: Boolean{$IFDE
 
 implementation
 uses
-  Classes;
+  {+}SysUtils,{+.}Classes;
 
 procedure TStringsCountR(Self: TStrings; var T: Longint); begin T := Self.Count; end;
 
@@ -176,22 +176,342 @@ begin
 end;
 {$ENDIF}
 
-procedure TSTREAMPOSITION_R(Self: TSTREAM; var T: LONGINT); begin t := Self.POSITION; end;
-procedure TSTREAMPOSITION_W(Self: TSTREAM; T: LONGINT); begin Self.POSITION := t; end;
-procedure TSTREAMSIZE_R(Self: TSTREAM; var T: LONGINT); begin t := Self.SIZE; end;
+{+}
+procedure TSTREAMPOSITION_R(Self: TSTREAM; var T: {$IFNDEF PS_NOINT64}Int64{$ELSE}LONGINT{$ENDIF}); begin t := Self.POSITION; end;
+procedure TSTREAMPOSITION_W(Self: TSTREAM; T: {$IFNDEF PS_NOINT64}Int64{$ELSE}LONGINT{$ENDIF}); begin Self.POSITION := t; end;
+procedure TSTREAMSIZE_R(Self: TSTREAM; var T: {$IFNDEF PS_NOINT64}Int64{$ELSE}LONGINT{$ENDIF}); begin t := Self.SIZE; end;
 {$IFDEF DELPHI3UP}
-procedure TSTREAMSIZE_W(Self: TSTREAM; T: LONGINT); begin Self.SIZE := t; end;
+procedure TSTREAMSIZE_W(Self: TSTREAM; T: {$IFNDEF PS_NOINT64}Int64{$ELSE}LONGINT{$ENDIF}); begin Self.SIZE := t; end;
 {$ENDIF}
+
+{function TSTREAM_READ(Self: TMemoryStream; Buffer: string; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count <=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if iLen=0 then
+    Exit;
+  if Count > iLen then
+    Count := iLen;
+  Result := Self.Read(PChar(Buffer)^, Count*SizeOf(Char));
+end;
+
+function TSTREAM_WRITE(Self: TMemoryStream; Buffer: string; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count <=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if iLen=0 then
+    Exit;
+  if Count > iLen then
+    Count := iLen;
+  Result := Self.Write(PChar(Buffer)^, Count*SizeOf(Char));
+end;{}
+
+//
+// TStream.Write
+//
+
+function TSTREAM_WRITEA(Self: TMemoryStream; const Buffer: AnsiString; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count <=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if iLen=0 then
+    Exit;
+  if Count > iLen then
+    Count := iLen;
+  Result := Self.Write(PAnsiChar(Buffer)^, Count);
+end;
+
+function TSTREAM_WRITEB(Self: TMemoryStream; const Buffer: TBytes; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count <=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if iLen=0 then
+    Exit;
+  if Count > iLen then
+    Count := iLen;
+  Result := Self.Write(Buffer[0], Count);
+end;
+
+function TSTREAM_WRITEW(Self: TMemoryStream; const Buffer: tbtunicodestring; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count <=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if iLen=0 then
+    Exit;
+  if Count > iLen then
+    Count := iLen;
+  Result := Self.Write(PWideChar(Buffer)^, Count*2);
+end;
+
+//
+// TStream.Read
+//
+
+function TSTREAM_READA(Self: TMemoryStream; var Buffer: AnsiString; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count=0 then
+  begin
+    SetLength(Buffer, 0);
+    Exit;
+  end;
+  iLen := Length(Buffer);
+  if Count < 0 then
+    Count := iLen;
+  if iLen <> Count then
+    SetLength(Buffer, Count);
+  Result := Self.Read(PAnsiChar(Buffer)^, Count);
+  if Result <> Count then
+  begin
+    if Result > 0 then
+      SetLength(Buffer, Result)
+    else
+      SetLength(Buffer, 0);
+  end;
+end;
+
+function TSTREAM_READB(Self: TMemoryStream; var Buffer: TBytes; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count=0 then
+  begin
+    SetLength(Buffer, 0);
+    Exit;
+  end;
+  iLen := Length(Buffer);
+  if Count < 0 then
+    Count := iLen;
+  if iLen <> Count then
+    SetLength(Buffer, Count);
+  Result := Self.Read(Buffer[0], Count);
+  if Result <> Count then
+  begin
+    if Result > 0 then
+      SetLength(Buffer, Result)
+    else
+      SetLength(Buffer, 0);
+  end;
+end;
+
+function TSTREAM_READW(Self: TMemoryStream; var Buffer: tbtunicodestring; Count: LongInt):LongInt;
+var
+  iLen: Integer;
+begin
+  Result := 0;
+  if Count=0 then
+  begin
+    SetLength(Buffer, 0);
+    Exit;
+  end;
+  iLen := Length(Buffer);
+  if Count < 0 then
+    Count := iLen;
+  if iLen <> Count then
+    SetLength(Buffer, Count);
+  Result := Self.Read(PWideChar(Buffer)^, Count*2) div 2;
+  if Result <> Count then
+  begin
+    if Result > 0 then
+      SetLength(Buffer, Result)
+    else
+      SetLength(Buffer, 0);
+  end;
+end;
+
+//
+// TStream.WriteBuffer
+//
+
+procedure TStream_WriteBufferA(Self: TStream; const Buffer: AnsiString; Count: Longint);
+var
+  iLen: Integer;
+begin
+  if Count=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if Count<0 then
+    Count := iLen;
+  //{$IFNDEF FPC}
+  //if Count > iLen then
+  //begin
+  //  raise EWriteError.CreateRes(@SWriteError);
+  //end;
+  //{$ENDIF}
+  if iLen > 0 then
+  begin
+    if Count > iLen then
+      Count := iLen;
+    Self.WriteBuffer(PAnsiChar(Buffer)^, Count);
+  end;
+end;
+
+procedure TStream_WriteBufferB(Self: TStream; const Buffer: TBytes; Count: Longint);
+var
+  iLen: Integer;
+begin
+  if Count=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if Count<0 then
+    Count := iLen;
+  //{$IFNDEF FPC}
+  //if Count > iLen then
+  //begin
+  //  raise EWriteError.CreateRes(@SWriteError);
+  //end;
+  //{$ENDIF}
+  if iLen > 0 then
+  begin
+    if Count > iLen then
+      Count := iLen;
+    Self.WriteBuffer(Buffer[0], Count);
+  end;
+end;
+
+procedure TStream_WriteBufferW(Self: TStream; const Buffer: tbtunicodestring; Count: Longint);
+var
+  iLen: Integer;
+begin
+  if Count=0 then
+    Exit;
+  iLen := Length(Buffer);
+  if Count<0 then
+    Count := iLen;
+  //{$IFNDEF FPC}
+  //if Count > iLen then
+  //begin
+  //  raise EWriteError.CreateRes(@SWriteError);
+  //end;
+  //{$ENDIF}
+  if iLen > 0 then
+  begin
+    if Count > iLen then
+      Count := iLen;
+    Self.WriteBuffer(PWideChar(Buffer)^, Count*2);
+  end;
+end;
+
+//
+// TStream.ReadBuffer
+//
+
+procedure TStream_ReadBufferA(Self: TStream; var Buffer: AnsiString; Count: Longint);
+var
+  iLen: Integer;
+begin
+  if Count<=0 then
+  begin
+    SetLength(Buffer, 0);
+    Exit;
+  end;
+  iLen := Length(Buffer);
+  //{$IFNDEF FPC}
+  //if iLen < Count then
+  //  raise EReadError.CreateRes(@SReadError);
+  //{$ENDIF}
+  if iLen <> Count then
+    SetLength(Buffer, Count);
+  Self.ReadBuffer(PAnsiChar(Buffer)^, Count);
+end;
+
+procedure TStream_ReadBufferB(Self: TStream; var Buffer: TBytes; Count: Longint);
+var
+  iLen: Integer;
+begin
+  if Count<=0 then
+  begin
+    SetLength(Buffer, 0);
+    Exit;
+  end;
+  iLen := Length(Buffer);
+  //{$IFNDEF FPC}
+  //if iLen < Count then
+  //  raise EReadError.CreateRes(@SReadError);
+  //{$ENDIF}
+  if iLen <> Count then
+    SetLength(Buffer, Count);
+  Self.ReadBuffer(Buffer[0], Count);
+end;
+
+procedure TStream_ReadBufferW(Self: TStream; var Buffer: tbtunicodestring; Count: Longint);
+var
+  iLen: Integer;
+begin
+  if Count<=0 then
+  begin
+    SetLength(Buffer, 0);
+    Exit;
+  end;
+  iLen := Length(Buffer);
+  //{$IFNDEF FPC}
+  //if iLen < Count then
+  //  raise EReadError.CreateRes(@SReadError);
+  //{$ENDIF}
+  if iLen <> Count then
+    SetLength(Buffer, Count);
+  Self.ReadBuffer(PWideChar(Buffer)^, Count*2);
+end;
+
+{+.}
 
 procedure RIRegisterTSTREAM(Cl: TPSRuntimeClassImporter);
 begin
   with Cl.Add(TSTREAM) do
   begin
-    RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.READ, 'READ');
-    RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.WRITE, 'WRITE');
+    {+}
+    //RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.READ, 'READ');
+    //-RegisterVirtualAbstractMethod(TMemoryStream, @TSTREAM_READ, 'READ');
+    //RegisterMethod(@TSTREAM_READ, 'Read');
+    RegisterMethod(@TSTREAM_READA, 'Read');
+    //RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.WRITE, 'WRITE');
+    //-RegisterVirtualAbstractMethod(TMemoryStream, @TSTREAM_WRITE, 'WRITE');
+    //RegisterMethod(@TSTREAM_WRITE, 'Write');
+    RegisterMethod(@TSTREAM_WRITEA, 'Write');
+    {+.}
     RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.SEEK, 'SEEK');
-    RegisterMethod(@TSTREAM.READBUFFER, 'READBUFFER');
-    RegisterMethod(@TSTREAM.WRITEBUFFER, 'WRITEBUFFER');
+    {+}
+    RegisterMethod(@TSTREAM_READA, 'ReadA');
+    RegisterMethod(@TSTREAM_READB, 'ReadB');
+    RegisterMethod(@TSTREAM_READW, 'ReadW');
+    RegisterMethod(@TSTREAM_WRITEA, 'WriteA');
+    RegisterMethod(@TSTREAM_WRITEB, 'WriteB');
+    RegisterMethod(@TSTREAM_WRITEW, 'WriteW');
+    //RegisterMethod(@TSTREAM.READBUFFER, 'READBUFFER');
+    RegisterMethod(@TStream_ReadBufferA, 'READBUFFER');
+    //RegisterMethod(@TSTREAM.WRITEBUFFER, 'WRITEBUFFER');
+    RegisterMethod(@TStream_WriteBufferA, 'WRITEBUFFER');
+    //
+    RegisterMethod(@TStream_ReadBufferA, 'READBUFFERA');
+    RegisterMethod(@TStream_ReadBufferB, 'READBUFFERB');
+    RegisterMethod(@TStream_ReadBufferW, 'READBUFFERW');
+    RegisterMethod(@TStream_WriteBufferA, 'WRITEBUFFERA');
+    RegisterMethod(@TStream_WriteBufferB, 'WRITEBUFFERB');
+    RegisterMethod(@TStream_WriteBufferW, 'WRITEBUFFERW');
+    {+.}
     {$IFDEF DELPHI4UP}
     {$IFNDEF PS_NOINT64}
     RegisterMethod(@TSTREAM.COPYFROM, 'COPYFROM');

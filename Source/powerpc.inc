@@ -305,7 +305,7 @@ begin
       then begin  { var param }
         case fvar.aType.BaseType of
           { add var params here }
-          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {$ENDIF}
+          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF}
           btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
           {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: addgen(dword(fvar.dta));  { TODO: test all }
           else begin
@@ -315,7 +315,7 @@ begin
         end;  { case }
       end else begin  { not a var param }
         case fvar.aType.BaseType of
-//          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {$ENDIF}
+//          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF}
 //          btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
 //          {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: writeln('normal param');
 
@@ -327,6 +327,11 @@ begin
           btSingle:                            addfloat(fvar.dta, 1);
           btDouble, btExtended:                addfloat(fvar.dta, 2);
           btPChar:                             addgen(dword(ppchar(fvar.dta)^));
+          {+}
+          {$IFNDEF PS_NOWIDESTRING}
+          btPWideChar:                         addgen(dword(ppwordchar(fvar.dta)^));
+          {$ENDIF}
+          {+.}
           btChar:                              addgen(dword(pchar(fvar.dta)^));
           {$IFNDEF PS_NOINT64}bts64:{$ENDIF}   begin
                                                  addgen(dword(pint64(fvar.dta)^ shr 32));
@@ -388,6 +393,11 @@ begin
         btSingle:                psingle(res.dta)^ := pdouble(ppcasmcall(rint, rfloat, address, st, stindex, rtFLOAT))^;
         btDouble, btExtended:    pdouble(res.dta)^ := pdouble(ppcasmcall(rint, rfloat, address, st, stindex, rtFLOAT))^;
         btPChar:                 ppchar(res.dta)^ := pchar(pdword(ppcasmcall(rint, rfloat, address, st, stindex, rtINT))^);
+        {+}
+        {$IFNDEF PS_NOWIDESTRING}
+        btPWideChar:             ppwidechar(res.dta)^ := pwidechar(pdword(ppcasmcall(rint, rfloat, address, st, stindex, rtINT))^);
+        {$ENDIF}
+        {+.}
         btChar:                  pchar(res.dta)^ := char(pdword(ppcasmcall(rint, rfloat, address, st, stindex, rtINT))^);
         btStaticArray, btRecord: ppcasmcall(rint, rfloat, address, st, stindex, rtINT);
         btArray:                 res.dta := ppcasmcall(rint, rfloat, address, st, stindex, rtINT);

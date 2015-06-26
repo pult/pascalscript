@@ -93,6 +93,10 @@ const
 
   btUnicodeString = 28;
 
+  {+}
+  btPWideChar = 29;
+  {+.}
+
   btType = 130;
 
   btEnum = 129;
@@ -317,12 +321,26 @@ type
 {$ENDIF}
 {$IFDEF FPC}
   IPointer = PtrUInt;
+  {+}
+  NativeInt = PtrInt;
+  NativeUInt = PtrUInt;
+  {+.}
 {$ELSE}
   {$IFDEF CPUX64}
   IPointer = IntPtr;
   {$ELSE}
   {$IFDEF CPU64} IPointer = LongWord;{$ELSE}  IPointer = Cardinal;{$ENDIF}{$ENDIF}
+  {+}
+  {$IFNDEF DELPHI16UP}
+  NativeInt = Integer;
+  NativeUInt = Cardinal;
+  {$ENDIF}
+  {+.}
 {$ENDIF}
+  {+}
+  PNativeInt=^NativeInt;
+  PNativeUInt=^NativeUInt;
+  {+.}
   TPSCallingConvention = (cdRegister, cdPascal, cdCdecl, cdStdCall, cdSafeCall);
 
 
@@ -615,6 +633,10 @@ function FastUpperCase(const s: TbtString): TbtString;
 function GRFW(var s: TbtString): TbtString;
 function GRLW(var s: TbtString): TbtString;
 
+{+}
+function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer;
+{+.}
+
 const
 
   FCapacityInc = 32;
@@ -719,6 +741,21 @@ begin
   s := '';
 end;
 
+{+}
+function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer;
+begin
+  {$IFDEF FPC}
+  Result := Pointer(NativeUInt(NativeUInt(Ptr) + Offset));
+  {$ELSE}
+  Result := Pointer(NativeUInt(NativeInt(Ptr) + Offset));
+  {$ENDIF}
+end;
+
+type
+  EPSConvertError = class(Exception);
+  Exception = EPSConvertError;
+{+.}
+
 function StrToFloat(const s: TbtString): Extended;
 var
   i: longint;
@@ -738,12 +775,17 @@ end;
 //-------------------------------------------------------------------
 
 function FloatToStr(E: Extended): TbtString;
-var
+{+}
+begin
+  Result := TbtString(SysUtils.FloatToStr(E));
+end;
+{var
   s: tbtstring;
 begin
   Str(e:0:12, s);
   result := s;
 end;
+{+.}
 
 function StrToInt(const S: TbtString): LongInt;
 var
@@ -998,9 +1040,9 @@ end;
 
 procedure TPSStringList.Clear;
 begin
-  while List.Count > 0 do Delete(Pred(List.Count));
+  while List.Count > 0 do
+    Delete(Pred(List.Count));
 end;
-
 
 constructor TPSStringList.Create;
 begin

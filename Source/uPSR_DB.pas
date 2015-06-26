@@ -1863,9 +1863,9 @@ with Cl.Add(TLOOKUPLIST) do
   begin
   RegisterConstructor(@TLOOKUPLIST.CREATE, 'CREATE');
   {$IFDEF DELPHI2009UP}
-  RegisterVirtualAbstractMethod(TDefaultLookupList, @TDefaultLookupList.ADD, 'ADD');  
-  RegisterVirtualAbstractMethod(TDefaultLookupList, @TDefaultLookupList.CLEAR, 'CLEAR');  
-  RegisterVirtualAbstractMethod(TDefaultLookupList, @TDefaultLookupList.VALUEOFKEY, 'VALUEOFKEY');  
+  RegisterVirtualAbstractMethod(TDefaultLookupList, @TDefaultLookupList.ADD, 'ADD');
+  RegisterVirtualAbstractMethod(TDefaultLookupList, @TDefaultLookupList.CLEAR, 'CLEAR');
+  RegisterVirtualAbstractMethod(TDefaultLookupList, @TDefaultLookupList.VALUEOFKEY, 'VALUEOFKEY');
   {$ELSE}
   RegisterMethod(@TLOOKUPLIST.ADD, 'ADD');
   RegisterMethod(@TLOOKUPLIST.CLEAR, 'CLEAR');

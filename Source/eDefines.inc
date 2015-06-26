@@ -961,3 +961,17 @@
     {$DEFINE DELPHI_ANDROID32}
   {$ENDIF}
 {$ENDIF}
+
+{+}
+{.$if defined(cpuarm)}
+{$ifdef wince}
+  {$UNDEF UNICODE} // todo: need check on fpc 2.5.x
+{$endif}
+{.$ifend}
+
+{$R-}
+{$D+}
+{$IFNDEF FPC}
+  {$L+}
+{$ENDIF}
+{+.}

@@ -231,7 +231,7 @@ begin
     except
       on E: Exception do
       begin
-        WriteLn('Exception: '+ E.Message);
+        WriteLn('Exception: '+ {+}StringReplace(E.Message,#13#10,' ',[rfReplaceAll]){+.});
         Exit;
       end;
     end;

@@ -16,41 +16,41 @@ implementation
 
 procedure SIRegisterTMENUITEMSTACK(CL: TPSPascalCompiler);
 begin
-	With cl.AddClassN(Cl.FindClass('TSTACK'),'TMENUITEMSTACK') do
-	begin
-	  RegisterMethod('Procedure CLEARITEM( AITEM : TMENUITEM)');
-	end;
+  With cl.AddClassN(Cl.FindClass('TSTACK'),'TMENUITEMSTACK') do
+  begin
+    RegisterMethod('Procedure CLEARITEM( AITEM : TMENUITEM)');
+  end;
 end;
 
 procedure SIRegisterTPOPUPLIST(CL: TPSPascalCompiler);
 begin
-	With cl.AddClassN(Cl.FindClass('TLIST'),'TPOPUPLIST') do
-	begin
-		RegisterProperty('WINDOW', 'HWND', iptr);
-		RegisterMethod('Procedure ADD( POPUP : TPOPUPMENU)');
-		RegisterMethod('Procedure REMOVE( POPUP : TPOPUPMENU)');
-	end;
+  With cl.AddClassN(Cl.FindClass('TLIST'),'TPOPUPLIST') do
+  begin
+    RegisterProperty('WINDOW', 'HWND', iptr);
+    RegisterMethod('Procedure ADD( POPUP : TPOPUPMENU)');
+    RegisterMethod('Procedure REMOVE( POPUP : TPOPUPMENU)');
+  end;
 end;
 
 procedure SIRegisterTPOPUPMENU(CL: TPSPascalCompiler);
 var
-	cc: TPSCompileTimeClass;
+  cc: TPSCompileTimeClass;
 begin
-	With cl.AddClassN(Cl.FindClass('TMENU'),'TPOPUPMENU') do
-	begin
-		cc := Cl.FindClass('TLabel');
-		if cc <> nil then
-			RegisterProperty('POPUPMENU', 'TPOPUPMENU', iptRW);
-		with Cl.FindClass('TForm') do
-		begin
-			RegisterProperty('POPUPMENU', 'TPOPUPMENU', iptRW);
-		end;
-	RegisterMethod('Constructor CREATE( AOWNER : TCOMPONENT)');
-	RegisterMethod('Procedure POPUP( X, Y : INTEGER)');
-	RegisterProperty('POPUPCOMPONENT', 'TCOMPONENT', iptrw);
-	RegisterProperty('ALIGNMENT', 'TPOPUPALIGNMENT', iptrw);
-	RegisterProperty('AUTOPOPUP', 'BOOLEAN', iptrw);
-	RegisterProperty('HELPCONTEXT', 'THELPCONTEXT', iptrw);
+  With cl.AddClassN(Cl.FindClass('TMENU'),'TPOPUPMENU') do
+  begin
+    cc := Cl.FindClass('TLabel');
+    if cc <> nil then
+      RegisterProperty('POPUPMENU', 'TPOPUPMENU', iptRW);
+    with Cl.FindClass('TForm') do
+    begin
+      RegisterProperty('POPUPMENU', 'TPOPUPMENU', iptRW);
+    end;
+  RegisterMethod('Constructor CREATE( AOWNER : TCOMPONENT)');
+  RegisterMethod('Procedure POPUP( X, Y : INTEGER)');
+  RegisterProperty('POPUPCOMPONENT', 'TCOMPONENT', iptrw);
+  RegisterProperty('ALIGNMENT', 'TPOPUPALIGNMENT', iptrw);
+  RegisterProperty('AUTOPOPUP', 'BOOLEAN', iptrw);
+  RegisterProperty('HELPCONTEXT', 'THELPCONTEXT', iptrw);
     RegisterProperty('MENUANIMATION', 'TMENUANIMATION', iptrw);
     RegisterProperty('TRACKBUTTON', 'TTRACKBUTTON', iptrw);
     RegisterProperty('ONPOPUP', 'TNOTIFYEVENT', iptrw);

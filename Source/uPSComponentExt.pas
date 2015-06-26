@@ -186,7 +186,7 @@ begin
   result := inherited Compile;
   if result then FillMethods;
 
-  
+
  FNeedCompiling := not result;
 end;
 
@@ -631,13 +631,13 @@ var
   // yes it's ugly, but I don't know an other way to fix it
   function GetParamFlags(P: Byte): TParamFlags;
   begin
-	result := [];
-	if (Ord(pfVar) and P <> 0) then Include(result, pfVar);
-	if (Ord(pfConst) and P <> 0) then Include(result, pfConst);
-	if (Ord(pfArray) and P <> 0) then Include(result, pfArray);
-	if (Ord(pfAddress) and P <> 0) then Include(result, pfAddress);
-	if (Ord(pfReference) and P <> 0) then Include(result, pfReference);
-	if (Ord(pfOut) and P <> 0) then Include(result, pfOut);
+  result := [];
+  if (Ord(pfVar) and P <> 0) then Include(result, pfVar);
+  if (Ord(pfConst) and P <> 0) then Include(result, pfConst);
+  if (Ord(pfArray) and P <> 0) then Include(result, pfArray);
+  if (Ord(pfAddress) and P <> 0) then Include(result, pfAddress);
+  if (Ord(pfReference) and P <> 0) then Include(result, pfReference);
+  if (Ord(pfOut) and P <> 0) then Include(result, pfOut);
   end;
   {$ENDIF}
 
@@ -687,7 +687,7 @@ var
   nProcs  : Integer;
   line, test : tbtstring;
 
- 
+
   function IsItem(line,item:tbtstring; First :Boolean = false):Boolean;
   var
    nPos : Integer;
@@ -720,27 +720,27 @@ var
     sProcDecl := Line;
     iLineNo := x;
     bIsFunc := isItem(AnOriginalProcDecl,'FUNCTION',true);
- 
+
     if bIsFunc
       then sProcKey := 'FUNCTION'
       else sProcKey := 'PROCEDURE';
- 
+
     sProcDecl := copy(sProcDecl,Pos(sProcKey,sProcDecl),Length(sProcDecl));
- 
+
     while not IsItem(sProcDecl,'BEGIN') do
     begin
       inc(iLineNo);
       if iLineNo > (fowner.script.Count - 1) then exit;
       sProcDecl := sProcDecl + ' ' + uppercase(trim(fowner.script[iLineNo])) + ' ';
     end;
- 
+
     sProcDecl := DelSpaces(sProcDecl);
     AnOriginalProcDecl := DelSpaces(AnOriginalProcDecl);
- 
+
     sProcDecl := copy(sProcDecl,1,Length(AnOriginalProcDecl));
- 
+
     Result := sProcDecl = AnOriginalProcDecl;
- 
+
   end;
 begin
   sl := TStringList.create;
@@ -803,7 +803,7 @@ begin
     FOwner.script.EndUpdate;
   end;
 end;
- 
+
 destructor TMethodList.Destroy;
 begin
   fProcList.Free;  {<< Needs Eventlist for removing Methods}

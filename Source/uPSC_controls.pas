@@ -143,7 +143,9 @@ begin
   cl.AddTypeS('TKeyPressEvent', 'procedure(Sender: TObject; var Key: Char);');
   cl.AddTypeS('TDragOverEvent', 'procedure(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean)');
   cl.AddTypeS('TDragDropEvent', 'procedure(Sender, Source: TObject;X, Y: Integer)');
-  cl.AddTypeS('HWND', 'Longint');
+  {+}
+  cl.AddTypeS('HWND', 'NativeUInt');
+  {+.}
 
   cl.AddTypeS('TEndDragEvent', 'procedure(Sender, Target: TObject; X, Y: Integer)');
 

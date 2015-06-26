@@ -21,6 +21,11 @@ procedure RIRegister_Graphics(Cl: TPSRuntimeClassImporter; Streams: Boolean);
 implementation
 {$IFNDEF FPC}
 uses
+  {+}
+  {$IFDEF DELPHI16UP}
+  UITypes,
+  {$ENDIF}
+  {+.}
   Classes{$IFDEF CLX}, QGraphics{$ELSE}, Windows, Graphics{$ENDIF};
 {$ELSE}
 uses

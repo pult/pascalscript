@@ -18,11 +18,11 @@ const
 
 type
   TPSScript = class;
-  
+
   TDelphiCallingConvention = uPSRuntime.TPSCallingConvention;
   {Alias to @link(ifps3.TPSRuntimeClassImporter)}
   TPSRuntimeClassImporter = uPSRuntime.TPSRuntimeClassImporter;
-  
+
   TPSPlugin = class(TComponent)
   public
     procedure CompOnUses(CompExec: TPSScript); virtual;
@@ -37,15 +37,15 @@ type
 
     procedure ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); virtual;
   end;
-  
+
   TIFPS3Plugin = class(TPSPlugin);
-  
+
   TPSDllPlugin = class(TPSPlugin)
   public
     procedure CompOnUses(CompExec: TPSScript); override;
     procedure ExecOnUses(CompExec: TPSScript); override;
   end;
-  
+
   TIFPS3DllPlugin = class(TPSDllPlugin);
 
 
@@ -61,7 +61,7 @@ type
     property Plugin: TPSPlugin read FPlugin write SetPlugin;
   end;
 
-  
+
   TIFPS3CEPluginItem = class(TPSPluginItem);
 
 
@@ -69,24 +69,24 @@ type
   private
     FCompExec: TPSScript;
   protected
-    
+
     function GetOwner: TPersistent; override;
   public
-    
+
     constructor Create(CE: TPSScript);
   end;
- 
+
  TIFPS3CEPlugins = class(TPSPlugins);
 
-  
+
   TPSOnGetNotVariant = function (Sender: TPSScript; const Name: tbtstring): Variant of object;
   TPSOnSetNotVariant = procedure (Sender: TPSScript; const Name: tbtstring; V: Variant) of object;
   TPSCompOptions = set of (icAllowNoBegin, icAllowUnit, icAllowNoEnd, icBooleanShortCircuit);
-  
+
   TPSVerifyProc = procedure (Sender: TPSScript; Proc: TPSInternalProcedure; const Decl: tbtstring; var Error: Boolean) of object;
-  
+
   TPSEvent = procedure (Sender: TPSScript) of object;
-  
+
   TPSOnCompImportEvent = procedure (Sender: TObject; x: TPSPascalCompiler) of object;
 
   TPSOnExecImportEvent = procedure (Sender: TObject; se: TPSExec; x: TPSRuntimeClassImporter) of object;
@@ -268,9 +268,9 @@ type
     property OnCompile: TPSEvent read FOnCompile write FOnCompile;
 
     property OnExecute: TPSEvent read FOnExecute write FOnExecute;
-    
+
     property OnAfterExecute: TPSEvent read FOnAfterExecute write FOnAfterExecute;
-    
+
     property OnCompImport: TPSOnCompImportEvent read FOnCompImport write FOnCompImport;
 
     property OnExecImport: TPSOnExecImportEvent read FOnExecImport write FOnExecImport;
@@ -300,7 +300,7 @@ type
 
   TIFPS3CompExec = class(TPSScript);
 
-  
+
   TPSBreakPointInfo = class
   private
     FLine: Longint;
@@ -312,12 +312,12 @@ type
     property FileName: tbtstring read FFileName write SetFileName;
 
     property FileNameHash: Longint read FFileNameHash;
-    
+
     property Line: Longint read FLine write FLine;
   end;
-  
+
   TPSOnLineInfo = procedure (Sender: TObject; const FileName: tbtstring; Position, Row, Col: Cardinal) of object;
-  
+
   TPSScriptDebugger = class(TPSScript)
   private
     FOnIdle: TNotifyEvent;
@@ -333,16 +333,16 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    
+
     procedure Pause; virtual;
 
     procedure Resume; virtual;
 
-    
+
     procedure StepInto; virtual;
 
     procedure StepOver; virtual;
-    
+
     procedure SetBreakPoint(const Fn: tbtstring; Line: Longint);
 
     procedure ClearBreakPoint(const Fn: tbtstring; Line: Longint);
@@ -364,9 +364,9 @@ type
 
     property OnBreakpoint: TPSOnLineInfo read FOnBreakpoint write FOnBreakpoint;
   end;
-  
+
   TIFPS3DebugCompExec = class(TPSScriptDebugger);
-  
+
   TPSCustomPlugin = class(TPSPlugin)
   private
     FOnCompileImport2: TPSEvent;
@@ -387,11 +387,11 @@ type
   published
     property OnCompOnUses : TPSEvent read FOnCompOnUses write FOnCompOnUses;
     property OnExecOnUses: TPSEvent read FOnExecOnUses write FOnExecOnUses;
-    property OnCompileImport1: TPSEvent read FOnCompileImport1 write FOnCompileImport1; 
+    property OnCompileImport1: TPSEvent read FOnCompileImport1 write FOnCompileImport1;
     property OnCompileImport2: TPSEvent read FOnCompileImport2 write FOnCompileImport2;
     property OnExecImport1: TPSOnExecImportEvent read FOnExecImport1 write FOnExecImport1;
     property OnExecImport2: TPSOnExecImportEvent read FOnExecImport2 write FOnExecImport2;
-  end;  
+  end;
 
 implementation
 
@@ -570,7 +570,7 @@ begin
   end;
 
   DoOnExecImport (RI);
-  
+
   for i := 0 to FPlugins.Count -1 do
   begin
     if (TPSPluginItem(FPlugins.Items[i]) <> nil)and (TPSPluginItem(FPlugins.Items[i]).Plugin <> nil) then
@@ -1393,7 +1393,7 @@ begin
   end;
 end;
 
-procedure TPSScriptDebugger.StepInto;            
+procedure TPSScriptDebugger.StepInto;
 begin
   if (FExec.Status = isRunning) or (FExec.Status = isLoaded) then
     FExec.StepInto

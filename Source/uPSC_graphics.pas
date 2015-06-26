@@ -205,8 +205,10 @@ begin
   cl.addTypeS('TColor', 'integer');
 
 {$IFNDEF CLX}
-  cl.addTypeS('HBITMAP', 'Integer');
-  cl.addTypeS('HPALETTE', 'Integer');
+  {+}
+  cl.addTypeS('HBITMAP', 'NativeUInt');
+  cl.addTypeS('HPALETTE', 'NativeUInt');
+  {+.}
 {$ENDIF}
 end;
 

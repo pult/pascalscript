@@ -125,9 +125,23 @@ begin
       Filename := s2;
       {$ENDIF}
       if loadwithalteredsearchpath then
-        dllhandle := LoadLibraryEx(PChar(Filename), 0, LOAD_WITH_ALTERED_SEARCH_PATH)
+      {+}
+      begin
+        {$ifdef wince}
+        dllhandle := LoadLibraryEx(PWideChar(WideString(Filename)), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+        {$else}
+        dllhandle := LoadLibraryEx(PChar(Filename), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+        {$endif}
+      end
       else
+      begin
+        {$ifdef wince}
+        dllhandle := LoadLibrary(PWideChar(WideString(Filename)));
+        {$else}
         dllhandle := LoadLibrary(PChar(Filename));
+        {$endif}
+      end;
+      {+.}
       {$ENDIF}
       if dllhandle = 0 then
       begin
@@ -146,7 +160,13 @@ begin
       dllhandle := ph^.dllhandle;
     end;
   until dllhandle <> 0;
+  {+}
+  {$ifdef wince}
+  p.Ext1 := GetProcAddress(dllhandle, pwidechar(widestring(s3)));
+  {$else}
   p.Ext1 := GetProcAddress(dllhandle, pansichar(s3));
+  {$endif}
+  {+.}
   if p.Ext1 = nil then
   begin
     p.Ext2 := Pointer(1);

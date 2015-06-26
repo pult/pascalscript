@@ -4964,13 +4964,13 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
           case srctype.BaseType of
             btu32{+},bts32{+.}:
               begin
-                Pointer(Dest^) := Pointer(Src^);
+                Pointer(Dest^) := Pointer(Src^); // TODO: ?: btu32(Dest^) := btu32(Src^);
               end;
             {+}
             {$IFDEF CPU64}
             bts64:
               begin
-                Pointer(Dest^) := Pointer(Src^);
+                Pointer(Dest^) := Pointer(Src^); // TODO: ?: bts64(Dest^) := bts64(Src^);
               end;
             {$ENDIF}
             btPointer:

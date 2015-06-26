@@ -109,15 +109,15 @@ type
   public
 
     property OrgName: tbtString read FOrgName write FOrgName;
-	
+
     property Name: tbtString read FName write SetName;
 
     property NameHash: Longint read FNameHash;
-	
+
     property Decl: TPSParametersDecl read FDecl;
-	
+
     property ExportName: Boolean read FExportName write FExportName;
-	
+
     property ImportDecl: tbtString read FImportDecl write FImportDecl;
 
 
@@ -939,8 +939,8 @@ type
     FOnFunctionEnd: TPSOnFunction;
 
 
-		FWithCount: Integer;
-		FTryCount: Integer;
+    FWithCount: Integer;
+    FTryCount: Integer;
     FExceptFinallyCount: Integer;
 
 
@@ -1023,7 +1023,7 @@ type
     function IsDuplicate(const s: tbtString; const check: TPSDuplicCheck): Boolean;
     {$IFDEF PS_USESSUPPORT}
     function IsInLocalUnitList(s: tbtString): Boolean;
-	{$ENDIF}
+  {$ENDIF}
 
     function NewProc(const OriginalName, Name: tbtString): TPSInternalProcedure;
 
@@ -1137,29 +1137,29 @@ type
     function Compile(const s: tbtString): Boolean;
 
     function GetOutput(var s: tbtString): Boolean;
-	
+
     function GetDebugOutput(var s: tbtString): Boolean;
 
     procedure Clear;
 
     constructor Create;
-	
+
     destructor Destroy; override;
 
     property MsgCount: Longint read GetMsgCount;
-	
+
     property Msg[l: Longint]: TPSPascalCompilerMessage read GetMsg;
 
     property OnTranslateLineInfo: TPSOnTranslateLineInfoProc read FOnTranslateLineInfo write FOnTranslateLineInfo;
 
     property OnUses: TPSOnUses read FOnUses write FOnUses;
-	
+
     property OnExportCheck: TPSOnExportCheck read FOnExportCheck write FOnExportCheck;
-	
+
     property OnWriteLine: TPSOnWriteLineEvent read FOnWriteLine write FOnWriteLine;
 
     property OnExternalProc: TPSOnExternalProc read FOnExternalProc write FOnExternalProc;
-	
+
     property OnUseVariable: TPSOnUseVariable read FOnUseVariable write FOnUseVariable;
 
     property OnBeforeOutput: TPSOnNotify read FOnBeforeOutput write FOnBeforeOutput;
@@ -1169,13 +1169,13 @@ type
     property OnFunctionStart: TPSOnFunction read FOnFunctionStart write FOnFunctionStart;
 
     property OnFunctionEnd: TPSOnFunction read FOnFunctionEnd write FOnFunctionEnd;
-	
+
     property IsUnit: Boolean read FIsUnit;
-	
+
     property AllowNoBegin: Boolean read FAllowNoBegin write FAllowNoBegin;
-	
+
     property AllowUnit: Boolean read FAllowUnit write FAllowUnit;
-	
+
     property AllowNoEnd: Boolean read FAllowNoEnd write FAllowNoEnd;
 
     property AllowDuplicateRegister : Boolean read FAllowDuplicateRegister write FAllowDuplicateRegister;
@@ -1671,11 +1671,11 @@ type
   public
 
     function SelfType: TPSType; virtual;
-	
+
     constructor Create(Se: TPSPascalCompiler; TypeNo: TPSType);
 
     function ClassFunc_Find(const Name: tbtString; var Index: Cardinal): Boolean; virtual;
-	
+
     function ClassFunc_Call(Index: Cardinal; var ProcNo: Cardinal): Boolean; virtual;
 
     function Func_Find(const Name: tbtString; var Index: Cardinal): Boolean; virtual;
@@ -1897,7 +1897,7 @@ begin
         du16 := tbtu16(p^.tu32);
         BlockWriteData(BlockInfo, du16, 2)
       end;
-	end;
+  end;
 
   bts8,btu8: BlockWriteData(BlockInfo, p^.tu8, 1);
   bts16,btu16: BlockWriteData(BlockInfo, p^.tu16, 2);
@@ -3095,7 +3095,7 @@ begin
     ((p1.BaseType = btChar) and (p2.BaseType = btChar)) or
     ((p1.BaseType = btSet) and (p2.BaseType = btSet)) or
     {$IFNDEF PS_NOWIDESTRING}
-    ((p1.BaseType = btChar) and (p2.BaseType = btWideChar)) or 
+    ((p1.BaseType = btChar) and (p2.BaseType = btWideChar)) or
     ((p1.BaseType = btWideChar) and (p2.BaseType = btChar)) or
     ((p1.BaseType = btWideChar) and (p2.BaseType = btWideChar)) or
     ((p1.BaseType = btWidestring) and (p2.BaseType = btChar)) or
@@ -5208,7 +5208,7 @@ begin
 {$IFNDEF PS_NOWIDESTRING}
           if Params[c].ExpectedType.BaseType = btWideChar then
             Params[c].ExpectedType := FindBaseType(btUnicodeString);
-{$ENDIF}            
+{$ENDIF}
         end else if (PType.BaseType = btArray) and (GetTypeNo(BlockInfo, Params[c].Val).BaseType = btArray) then
         begin
           if TPSArrayType(GetTypeNo(BlockInfo, Params[c].Val)).ArrayTypeNo <> TPSArrayType(PType).ArrayTypeNo then
@@ -5908,9 +5908,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
       begin
         {$ifdef FPC_REQUIRES_PROPER_ALIGNMENT}
         unaligned(Cardinal((@BlockInfo.Proc.FData[jover+1])^)) := Cardinal(Length(BlockInfo.Proc.FData)) - jend;
-	{$else}
+  {$else}
         Cardinal((@BlockInfo.Proc.FData[jover+1])^) := Cardinal(Length(BlockInfo.Proc.FData)) - jend;
-	{$endif}
+  {$endif}
       end;
       AfterWriteOutRec(Output);
     end;
@@ -6157,7 +6157,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
       end;
       if TPSType(FarrType).BaseType = btVariant then
         FArrType := at2ut(FindAndAddType(self, '!OPENARRAYOFVARIANT', 'array of variant'));
-      if TPSType(FarrType).BaseType <> btArray then 
+      if TPSType(FarrType).BaseType <> btArray then
         FArrType := at2ut(FindAndAddType(self, '!OPENARRAYOFVARIANT', 'array of variant'));
 
       tmpp := AllocStackReg(FArrType);
@@ -8108,7 +8108,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
                 result := nil;
                 exit;
               end;
-              if (GetTypeNo(BlockInfo, NewVar) = nil) or 
+              if (GetTypeNo(BlockInfo, NewVar) = nil) or
                 ((GetTypeNo(BlockInfo, NewVar).BaseType <> btClass) and
                 (GetTypeNo(BlockInfo, NewVar).BaseType <> btInterface) and
                 (GetTypeNo(BlockInfo, NewVar).BaseType <> btPChar) and
@@ -9530,32 +9530,32 @@ begin
     Result := True;
   end; {ProcessVarFunction}
 
-	function HasInvalidJumps(StartPos, EndPos: Cardinal): Boolean;
+  function HasInvalidJumps(StartPos, EndPos: Cardinal): Boolean;
   var
     I, J: Longint;
     Ok: LongBool;
     FLabelsInBlock: TIfStringList;
     s: tbtString;
-	begin
-		FLabelsInBlock := TIfStringList.Create;
-		for i := 0 to BlockInfo.Proc.FLabels.Count -1 do
-		begin
-			s := BlockInfo.Proc.FLabels[I];
-			if (Cardinal((@s[1])^) >= StartPos) and (Cardinal((@s[1])^) <= EndPos) then
-			begin
-				Delete(s, 1, 8);
-				FLabelsInBlock.Add(s);
-			end;
-		end;
-		for i := 0 to BlockInfo.Proc.FGotos.Count -1 do
-		begin
-			s := BlockInfo.Proc.FGotos[I];
-			if (Cardinal((@s[1])^) >= StartPos) and (Cardinal((@s[1])^) <= EndPos) then
-			begin
-				Delete(s, 1, 4);
-				s := BlockInfo.Proc.FLabels[Cardinal((@s[1])^)];
-				Delete(s,1,8);
-				OK := False;
+  begin
+    FLabelsInBlock := TIfStringList.Create;
+    for i := 0 to BlockInfo.Proc.FLabels.Count -1 do
+    begin
+      s := BlockInfo.Proc.FLabels[I];
+      if (Cardinal((@s[1])^) >= StartPos) and (Cardinal((@s[1])^) <= EndPos) then
+      begin
+        Delete(s, 1, 8);
+        FLabelsInBlock.Add(s);
+      end;
+    end;
+    for i := 0 to BlockInfo.Proc.FGotos.Count -1 do
+    begin
+      s := BlockInfo.Proc.FGotos[I];
+      if (Cardinal((@s[1])^) >= StartPos) and (Cardinal((@s[1])^) <= EndPos) then
+      begin
+        Delete(s, 1, 4);
+        s := BlockInfo.Proc.FLabels[Cardinal((@s[1])^)];
+        Delete(s,1,8);
+        OK := False;
         for J := 0 to FLabelsInBlock.Count -1 do
         begin
           if FLabelsInBlock[J] = s then
@@ -9572,10 +9572,10 @@ begin
           exit;
         end;
       end else begin
-				Delete(s, 1, 4);
-				s := BlockInfo.Proc.FLabels[Cardinal((@s[1])^)];
-				Delete(s,1,8);
-				OK := True;
+        Delete(s, 1, 4);
+        s := BlockInfo.Proc.FLabels[Cardinal((@s[1])^)];
+        Delete(s,1,8);
+        OK := True;
         for J := 0 to FLabelsInBlock.Count -1 do
         begin
           if FLabelsInBlock[J] = s then
@@ -9609,9 +9609,9 @@ begin
     FPos, NPos, EPos, RPos: Longint;
     OldCO, OldBO: TPSList;
     I: Longint;
-		iOldWithCount: Integer;
-		iOldTryCount: Integer;
-		iOldExFnlCount: Integer;
+    iOldWithCount: Integer;
+    iOldTryCount: Integer;
+    iOldExFnlCount: Integer;
     lType: TPSType;
   begin
     Debug_WriteLine(BlockInfo);
@@ -9746,11 +9746,11 @@ begin
     Block := TPSBlockInfo.Create(BlockInfo);
     Block.SubType := tOneLiner;
 
-		iOldWithCount := FWithCount;
-		FWithCount := 0;
-		iOldTryCount := FTryCount;
-		FTryCount := 0;
-		iOldExFnlCount := FExceptFinallyCount;
+    iOldWithCount := FWithCount;
+    FWithCount := 0;
+    iOldTryCount := FTryCount;
+    FTryCount := 0;
+    iOldExFnlCount := FExceptFinallyCount;
     FExceptFinallyCount := 0;
 
     if not ProcessSub(Block) then
@@ -9763,25 +9763,25 @@ begin
       FContinueOffsets := OldCO;
       FBreakOffsets := OldBo;
 
-			FWithCount := iOldWithCount;
-			FTryCount := iOldTryCount;
+      FWithCount := iOldWithCount;
+      FTryCount := iOldTryCount;
       FExceptFinallyCount := iOldExFnlCount;
 
-			exit;
-		end;
-		Block.Free;
-		FPos := Length(BlockInfo.Proc.Data);
-		if not PreWriteOutRec(VariableVar, nil) then
-		begin
-			TempBool.Free;
-			VariableVar.Free;
-			FBreakOffsets.Free;
-			FContinueOffsets.Free;
-			FContinueOffsets := OldCO;
-			FBreakOffsets := OldBo;
+      exit;
+    end;
+    Block.Free;
+    FPos := Length(BlockInfo.Proc.Data);
+    if not PreWriteOutRec(VariableVar, nil) then
+    begin
+      TempBool.Free;
+      VariableVar.Free;
+      FBreakOffsets.Free;
+      FContinueOffsets.Free;
+      FContinueOffsets := OldCO;
+      FBreakOffsets := OldBo;
 
-			FWithCount := iOldWithCount;
-			FTryCount := iOldTryCount;
+      FWithCount := iOldWithCount;
+      FTryCount := iOldTryCount;
       FExceptFinallyCount := iOldExFnlCount;
 
       exit;
@@ -9799,8 +9799,8 @@ begin
       FContinueOffsets := OldCO;
       FBreakOffsets := OldBo;
 
-			FWithCount := iOldWithCount;
-			FTryCount := iOldTryCount;
+      FWithCount := iOldWithCount;
+      FTryCount := iOldTryCount;
       FExceptFinallyCount := iOldExFnlCount;
 
       exit;
@@ -9836,13 +9836,13 @@ begin
     FContinueOffsets := OldCO;
     FBreakOffsets := OldBo;
 
-		FWithCount := iOldWithCount;
+    FWithCount := iOldWithCount;
     FTryCount := iOldTryCount;
     FExceptFinallyCount := iOldExFnlCount;
 
-		TempBool.Free;
-		VariableVar.Free;
-		if HasInvalidJumps(RPos, Length(BlockInfo.Proc.Data)) then
+    TempBool.Free;
+    VariableVar.Free;
+    if HasInvalidJumps(RPos, Length(BlockInfo.Proc.Data)) then
     begin
       Result := False;
       exit;
@@ -9858,7 +9858,7 @@ begin
     I: Longint;
     Block: TPSBlockInfo;
 
-		iOldWithCount: Integer;
+    iOldWithCount: Integer;
     iOldTryCount: Integer;
     iOldExFnlCount: Integer;
 
@@ -9926,7 +9926,7 @@ begin
       FBreakOffsets := OldBo;
 
       FWithCount := iOldWithCount;
-			FTryCount := iOldTryCount;
+      FTryCount := iOldTryCount;
       FExceptFinallyCount := iOldExFnlCount;
 
       exit;
@@ -9968,7 +9968,7 @@ begin
     FExceptFinallyCount := iOldExFnlCount;
 
     vin.Free;
-		if HasInvalidJumps(EPos, Length(BlockInfo.Proc.Data)) then
+    if HasInvalidJumps(EPos, Length(BlockInfo.Proc.Data)) then
     begin
       Result := False;
       exit;
@@ -10499,9 +10499,9 @@ begin
         begin
           {$ifdef FPC_REQUIRES_PROPER_ALIGNMENT}
           unaligned(Byte((@BlockInfo.Proc.Data[Longint(FContinueOffsets[i]) - 4])^)) := Cm_P2G;
-	  {$else}
+    {$else}
           Byte((@BlockInfo.Proc.Data[Longint(FContinueOffsets[i]) - 4])^) := Cm_P2G;
-	  {$endif}
+    {$endif}
         end;
       end;
     end;
@@ -10513,9 +10513,9 @@ begin
         begin
           {$ifdef FPC_REQUIRES_PROPER_ALIGNMENT}
           unaligned(Byte((@BlockInfo.Proc.Data[Longint(FBreakOffsets[i]) - 4])^)) := Cm_P2G;
-	  {$else}
+    {$else}
           Byte((@BlockInfo.Proc.Data[Longint(FBreakOffsets[i]) - 4])^) := Cm_P2G;
-	  {$endif}
+    {$endif}
         end;
       end;
     end;
@@ -10526,7 +10526,7 @@ begin
     end;
     Result := True;
   end; {ProcessCase}
-	function ProcessGoto: Boolean;
+  function ProcessGoto: Boolean;
   var
     I, H: Longint;
     s: tbtString;
@@ -10534,7 +10534,7 @@ begin
     Debug_WriteLine(BlockInfo);
     FParser.Next;
     h := MakeHash(FParser.GetToken);
-		for i := 0 to BlockInfo.Proc.FLabels.Count -1 do
+    for i := 0 to BlockInfo.Proc.FLabels.Count -1 do
     begin
       s := BlockInfo.Proc.FLabels[I];
       delete(s, 1, 4);
@@ -10957,7 +10957,7 @@ begin
                 end;
 
                 for i := 0 to FWithCount - 1 do
-									BlockWriteByte(BlockInfo,cm_po);
+                  BlockWriteByte(BlockInfo,cm_po);
                 BlockWriteByte(BlockInfo, Cm_G);
                 BlockWriteLong(BlockInfo, $12345678);
                 FBreakOffsets.Add(Pointer(Length(BlockInfo.Proc.Data)));
@@ -10986,7 +10986,7 @@ begin
                 end;
 
                 for i := 0 to FWithCount - 1 do
-									BlockWriteByte(BlockInfo,cm_po);
+                  BlockWriteByte(BlockInfo,cm_po);
                 BlockWriteByte(BlockInfo, Cm_G);
                 BlockWriteLong(BlockInfo, $12345678);
                 FContinueOffsets.Add(Pointer(Length(BlockInfo.Proc.Data)));
@@ -11000,7 +11000,7 @@ begin
                 break;
             end;
           end; {case}
-          
+
           if (BlockInfo.SubType = tifOneliner) or (BlockInfo.SubType = TOneLiner) then
             break;
 
@@ -11931,7 +11931,7 @@ begin
     {$IFNDEF PS_NOSTANDARDTYPES}
     DefineStandardTypes;
     DefineStandardProcedures;
-	{$ENDIF}
+  {$ENDIF}
     if @FOnUses <> nil then
     begin
       try

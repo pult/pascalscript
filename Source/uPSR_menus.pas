@@ -22,10 +22,10 @@ Uses
   Libc, SysUtils, Classes, QControls, QMenus, QGraphics;
 {$ELSE}
 Uses
-  SysUtils, Classes, Controls, Menus, Graphics, LCLType, ImgList;
+  SysUtils, Classes, Controls, Menus, Graphics, LCLType, ImgList {+}{$IFDEF DELPHI17UP}, System.UITypes{$ENDIF}{+.};
 {$ENDIF}
 {$ELSE}
-Uses {$IFNDEF FPC}WINDOWS,{$ELSE} LCLType,{$ENDIF} SYSUTILS, CLASSES, CONTNRS, MESSAGES, GRAPHICS, IMGLIST, ACTNLIST, Menus;
+Uses {$IFNDEF FPC}WINDOWS,{$ELSE} LCLType,{$ENDIF} SYSUTILS, CLASSES, CONTNRS, MESSAGES, GRAPHICS, IMGLIST{+}{$IFDEF DELPHI17UP}, System.UITypes{$ENDIF}{+.}, ACTNLIST, Menus;
 {$ENDIF}
 
 

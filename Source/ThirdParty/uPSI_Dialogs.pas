@@ -703,18 +703,18 @@ begin
   RIRegister_TReplaceDialog(CL);
 end;
 
- 
- 
+
+
 { TPSImport_Dialogs }
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.CompOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.ExecOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.CompileImport1(CompExec: TPSScript);
@@ -724,7 +724,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.CompileImport2(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
@@ -735,7 +735,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
 begin
-  { nothing } 
+  { nothing }
 end;
- 
+
 end.

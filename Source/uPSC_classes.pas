@@ -126,11 +126,36 @@ begin
   with Cl.AddClassN(cl.FindClass('TOBJECT'), 'TStream') do
   begin
     IsAbstract := True;
-    RegisterMethod('function Read(Buffer:String;Count:LongInt):LongInt');
-    RegisterMethod('function Write(Buffer:String;Count:LongInt):LongInt');
+    {+}
+    //RegisterMethod('function Read(Buffer:String;Count:LongInt):LongInt');
+    RegisterMethod('function Read(var Buffer:AnsiString;Count:LongInt):LongInt');
+    //RegisterMethod('function Write(Buffer:String;Count:LongInt):LongInt');
+    RegisterMethod('function Write(const Buffer:AnsiString;Count:LongInt):LongInt');
+    {+}
+    RegisterMethod('function ReadA(var Buffer:AnsiString;Count:LongInt):LongInt');
+    RegisterMethod('function ReadB(var Buffer:TBytes;Count:LongInt):LongInt');
+    RegisterMethod('function ReadW(var Buffer:UnicodeString;Count:LongInt):LongInt');
+    RegisterMethod('function WriteA(const Buffer:AnsiString;Count:LongInt):LongInt');
+    RegisterMethod('function WriteB(const Buffer:TBytes;Count:LongInt):LongInt');
+    RegisterMethod('function WriteW(const Buffer:UnicodeString;Count:LongInt):LongInt');
+    {.$IFNDEF PS_NOINT64}
+    {$IFDEF UNICODE}
+    RegisterMethod('function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64');
+    {$ELSE}
     RegisterMethod('function Seek(Offset:LongInt;Origin:Word):LongInt');
-    RegisterMethod('procedure ReadBuffer(Buffer:String;Count:LongInt)');
-    RegisterMethod('procedure WriteBuffer(Buffer:String;Count:LongInt)');
+    {$ENDIF}
+    //RegisterMethod('procedure ReadBuffer(Buffer:String;Count:LongInt)');
+    RegisterMethod('procedure ReadBuffer(const Buffer:AnsiString;Count:LongInt)');
+    //RegisterMethod('procedure WriteBuffer(Buffer:String;Count:LongInt)');
+    RegisterMethod('procedure WriteBuffer(var Buffer:AnsiString;Count:LongInt)');
+    //
+    RegisterMethod('procedure ReadBufferA(const Buffer:AnsiString;Count:LongInt)');
+    RegisterMethod('procedure ReadBufferB(const Buffer:TBytes;Count:LongInt)');
+    RegisterMethod('procedure ReadBufferW(const Buffer:UnicodeString;Count:LongInt)');
+    RegisterMethod('procedure WriteBufferA(var Buffer:AnsiString;Count:LongInt)');
+    RegisterMethod('procedure WriteBufferB(var Buffer:TBytes;Count:LongInt)');
+    RegisterMethod('procedure WriteBufferW(var Buffer:UnicodeString;Count:LongInt)');
+    {+.}
     {$IFDEF DELPHI4UP}
     {$IFNDEF PS_NOINT64}
     RegisterMethod('function CopyFrom(Source:TStream;Count:Int64):LongInt');
@@ -138,8 +163,15 @@ begin
     {$ELSE}
     RegisterMethod('function CopyFrom(Source:TStream;Count:Integer):LongInt');
     {$ENDIF}
+    {+}
+    {$IFNDEF PS_NOINT64}
+    RegisterProperty('Position', 'Int64', iptrw);
+    RegisterProperty('Size', 'Int64', iptrw);
+    {$ELSE}
     RegisterProperty('Position', 'LongInt', iptrw);
     RegisterProperty('Size', 'LongInt', iptrw);
+    {$ENDIF}
+    {+.}
   end;
 end;
 
@@ -272,9 +304,24 @@ end;
 
 procedure SIRegister_Classes_TypesAndConsts(Cl: TPSPascalCompiler);
 begin
+  {+}
+  {.$IFNDEF PS_NOINT64}
+  {$IFDEF UNICODE}
+  cl.AddTypeS('TSeekOrigin', '( soBeginning, soCurrent, soEnd )');
+  //
+  CL.AddConstantN('soFromBeginning','TSeekOrigin').Value.tu8 := 0;//Byte(soBeginning);
+  CL.AddConstantN('soFromCurrent','TSeekOrigin').Value.tu8 := 1;//Byte(soCurrent);
+  CL.AddConstantN('soFromEnd','TSeekOrigin').Value.tu8 := 2;//Byte(soEnd);
+  {$ELSE}
   cl.AddConstantN('soFromBeginning', 'Longint').Value.ts32 := 0;
   cl.AddConstantN('soFromCurrent', 'Longint').Value.ts32 := 1;
   cl.AddConstantN('soFromEnd', 'Longint').Value.ts32 := 2;
+  //
+  cl.AddConstantN('soBeginning', 'Longint').Value.ts32 := 0;
+  cl.AddConstantN('soCurrent', 'Longint').Value.ts32 := 1;
+  cl.AddConstantN('soEnd', 'Longint').Value.ts32 := 2;
+  {$ENDIF}
+  {+.}
   cl.AddConstantN('toEOF', 'Char').SetString(#0);
   cl.AddConstantN('toSymbol', 'Char').SetString(#1);
   cl.AddConstantN('toString', 'Char').SetString(#2);
@@ -297,8 +344,9 @@ begin
   cl.AddTypeS('TGetStrProc', 'procedure(const S: string)');
   cl.AddTypeS('TDuplicates', '(dupIgnore, dupAccept, dupError)');
   cl.AddTypeS('TOperation', '(opInsert, opRemove)');
-  cl.AddTypeS('THANDLE', 'Longint');
-
+  {+}
+  cl.AddTypeS('THANDLE', {$IFDEF MSWINDOWS}'NativeUInt'{$ELSE}'Cardinal'{$ENDIF}); // 'Longint'
+  {+.}
   cl.AddTypeS('TNotifyEvent', 'procedure (Sender: TObject)');
 end;
 

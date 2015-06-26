@@ -643,12 +643,12 @@ var
   function GetParamFlags(P: Byte): TParamFlags;
   begin
   result := [];
-  if (Ord(pfVar) and P <> 0) then Include(result, pfVar);
-  if (Ord(pfConst) and P <> 0) then Include(result, pfConst);
-  if (Ord(pfArray) and P <> 0) then Include(result, pfArray);
-  if (Ord(pfAddress) and P <> 0) then Include(result, pfAddress);
-  if (Ord(pfReference) and P <> 0) then Include(result, pfReference);
-  if (Ord(pfOut) and P <> 0) then Include(result, pfOut);
+    if (Ord(pfVar) and P <> 0) then Include(result, pfVar);
+    if (Ord(pfConst) and P <> 0) then Include(result, pfConst);
+    if (Ord(pfArray) and P <> 0) then Include(result, pfArray);
+    if (Ord(pfAddress) and P <> 0) then Include(result, pfAddress);
+    if (Ord(pfReference) and P <> 0) then Include(result, pfReference);
+    if (Ord(pfOut) and P <> 0) then Include(result, pfOut);
   end;
   {$ENDIF}
 

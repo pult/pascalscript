@@ -112,7 +112,7 @@ begin
 {$ENDIF}
   cl.RegisterDelphiFunction(@CreateOleObject, 'CREATEOLEOBJECT', cdRegister);
   cl.RegisterDelphiFunction(@GetActiveOleObject, 'GETACTIVEOLEOBJECT', cdRegister);
-{$ENDIF}  
+{$ENDIF}
 end;
 
 end.

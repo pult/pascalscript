@@ -20,7 +20,7 @@ type
                             const Active: Boolean;
                             const DirectiveName, DirectiveParam: tbtString;
                             Var Continue: Boolean); //- jgv - application set continue to false to stop the normal directive processing
-  
+
   TPSLineInfo = class(TObject)
   private
     function GetLineOffset(I: Integer): Cardinal;
@@ -31,32 +31,32 @@ type
     FFileName: tbtstring;
     FLineOffsets: TIfList;
   public
-    
+
     property FileName: tbtstring read FFileName;
-    
+
     property StartPos: Cardinal read FStartPos;
-    
+
     property EndPos: Cardinal read FEndPos;
-    
+
     property LineOffsetCount: Longint read GetLineOffsetCount;
-    
+
     property LineOffset[I: Longint]: Cardinal read GetLineOffset;
 
-    
+
     constructor Create;
-    
+
     destructor Destroy; override;
   end;
-  
+
   TPSLineInfoResults = record
-    
+
     Row,
     Col,
     Pos: Cardinal;
-    
+
     Name: tbtstring;
   end;
-  
+
   TPSLineInfoList = class(TObject)
   private
     FItems: TIfList;
@@ -67,24 +67,24 @@ type
 
     function Add: TPSLineInfo;
   public
-    
+
     property Count: Longint read GetCount;
-    
+
     property Items[I: Longint]: TPSLineInfo read GetItem; default;
 
     procedure Clear;
-    
+
     function GetLineInfo(const ModuleName: tbtstring; Pos: Cardinal; var Res: TPSLineInfoResults): Boolean;
-    
+
     property Current: Longint read FCurrent write FCurrent;
 
-    
+
     constructor Create;
-    
+
     destructor Destroy; override;
   end;
   TPSDefineStates = class;
-  
+
   TPSPreProcessor = class(TObject)
   private
     FID: Pointer;
@@ -134,9 +134,9 @@ type
   end;
 
   TPSPascalPreProcessorType = (ptEOF, ptOther, ptDefine);
-  
+
   TPSOnNewLine = procedure (Sender: TPSPascalPreProcessorParser; Row, Col, Pos: Cardinal) of object;
-  
+
   TPSPascalPreProcessorParser = class(TObject)
   private
     FData: tbtstring;
@@ -146,32 +146,32 @@ type
     FLastEnterPos, FLen, FRow, FCol, FPos: Cardinal;
     FOnNewLine: TPSOnNewLine;
   public
-    
+
     procedure SetText(const dta: tbtstring);
-    
+
     procedure Next;
-    
+
     property Token: tbtstring read FToken;
-    
+
     property TokenId: TPSPascalPreProcessorType read FTokenId;
-    
+
     property Row: Cardinal read FRow;
-    
+
     property Col: Cardinal read FCol;
-    
+
     property Pos: Cardinal read FPos;
-    
+
     property OnNewLine: TPSOnNewLine read FOnNewLine write FOnNewLine;
   end;
-  
+
   TPSDefineState = class(TObject)
   private
     FInElse: Boolean;
     FDoWrite: Boolean;
   public
-    
+
     property InElse: Boolean read FInElse write FInElse;
-    
+
     property DoWrite: Boolean read FDoWrite write FDoWrite;
   end;
 
@@ -187,18 +187,18 @@ type
     property Count: Longint read GetCount;
 
     property Item[I: Longint]: TPSDefineState read GetItem; default;
-    
+
     function Add: TPSDefineState;
-    
+
     procedure Delete(I: Longint);
 
-    
+
     constructor Create;
-    
+
     destructor Destroy; override;
 
     procedure Clear;
-    
+
     property DoWrite: Boolean read GetWrite;
     property DoPrevWrite: Boolean read GetPrevWrite; //JeromeWelsh - nesting fix
   end;
@@ -682,7 +682,7 @@ begin
             end;
             If AppContinue then
             //-- end jgv
-          
+
               raise EPSPreProcessor.CreateFmt(RPS_UnknownCompilerDirective, [Parser.Row, Parser.Col]);
           end;
       end;
@@ -799,4 +799,4 @@ begin
   else Result := TPSDefineState(FItems[FItems.Count -2]).DoWrite;
 end;
 
-end.
+end.

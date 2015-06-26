@@ -11,21 +11,26 @@ uses
 procedure RIRegister_ComObj(cl: TPSExec);
 
 implementation
+{+}
+uses
+  SysUtils
 {$IFDEF FPC}
   {$IFDEF PS_FPC_HAS_COM}
-   uses SysUtils, ComObj;
+  ,ComObj
   {$ENDIF}
 {$ELSE}
   {$IFDEF DELPHI3UP}
-   uses ComObj;
+  ,ComObj
   {$ELSE}
-   uses SysUtils, Ole2;
+  ,Ole2
   {$ENDIF}
 {$ENDIF}
+;
+{+.}
 {$IFNDEF DELPHI3UP}
 
 {$IFDEF DELPHI3UP }
-resourceString
+resourcestring
 {$ELSE }
 const
 {$ENDIF }
@@ -37,6 +42,12 @@ begin
   if Result = '' then
     Result := Format(RPS_OLEError, [ErrorCode]);
 end;
+
+{+}
+type
+  EPSOleError = class(EPSError);
+  Exception = EPSOleError;
+{+.}
 
 procedure OleError(ErrorCode: HResult);
 begin
@@ -89,30 +100,65 @@ begin
   end;
 end;
 
-{$ENDIF}
+{$ENDIF !DELPHI3UP}
 
+{+}
+{$IFNDEF PS_NOINTERFACES}
+{$IFDEF DELPHI3UP}
+function CreateGUID(var GUID: TGUID): HRESULT;
+begin
+  Result := SysUtils.CreateGUID(GUID);
+end;
+
+function StringToGUID(const S: string): TGUID;
+begin
+  Result := SysUtils.StringToGUID(S);
+end;
+
+function GUIDToString(const GUID: TGUID): string;
+begin
+  Result := SysUtils.GUIDToString(GUID);
+end;
+
+function IsEqualGUID(const guid1, guid2: TGUID): Boolean;
+begin
+  Result := SysUtils.IsEqualGUID(guid1, guid2);
+end;
+{$ENDIF}
+{$ENDIF}
+{+.}
 
 procedure RIRegister_ComObj(cl: TPSExec);
 begin
+{+}
 {$IFDEF FPC}
-    {$IFDEF PS_FPC_HAS_COM}
-    cl.RegisterDelphiFunction(@OleCheck, 'OleCheck', cdRegister);
-    cl.RegisterDelphiFunction(@StringToGUID, 'StringToGUID', cdRegister);
-    cl.RegisterDelphiFunction(@CreateComObject, 'CreateComObject', cdRegister);
-    cl.RegisterDelphiFunction(@CreateOleObject, 'CREATEOLEOBJECT', cdRegister);
-    cl.RegisterDelphiFunction(@GetActiveOleObject, 'GETACTIVEOLEOBJECT', cdRegister);
-    {$ENDIF}
-{$ELSE}
+  {$IFDEF PS_FPC_HAS_COM}
   cl.RegisterDelphiFunction(@OleCheck, 'OleCheck', cdRegister);
-{$IFNDEF PS_NOINTERFACES}
-{$IFDEF DELPHI3UP}
+  //
+  cl.RegisterDelphiFunction(@CreateGUID, 'CreateGUID', cdRegister);
   cl.RegisterDelphiFunction(@StringToGUID, 'StringToGUID', cdRegister);
+  cl.RegisterDelphiFunction(@GUIDToString, 'GUIDToString', cdRegister);
+  cl.RegisterDelphiFunction(@IsEqualGUID, 'IsEqualGUID', cdRegister);
   cl.RegisterDelphiFunction(@CreateComObject, 'CreateComObject', cdRegister);
-{$ENDIF}
-{$ENDIF}
-  cl.RegisterDelphiFunction(@CreateOleObject, 'CREATEOLEOBJECT', cdRegister);
-  cl.RegisterDelphiFunction(@GetActiveOleObject, 'GETACTIVEOLEOBJECT', cdRegister);
-{$ENDIF}
+  //
+  cl.RegisterDelphiFunction(@CreateOleObject, 'CreateOleObject', cdRegister);
+  cl.RegisterDelphiFunction(@GetActiveOleObject, 'GetActiveOleObject', cdRegister);
+  {$ENDIF}
+{$ELSE !FPC}
+  cl.RegisterDelphiFunction(@OleCheck, 'OleCheck', cdRegister);
+  {$IFNDEF PS_NOINTERFACES}
+  {$IFDEF DELPHI3UP}
+  cl.RegisterDelphiFunction(@CreateGUID, 'CreateGUID', cdRegister);
+  cl.RegisterDelphiFunction(@StringToGUID, 'StringToGUID', cdRegister);
+  cl.RegisterDelphiFunction(@GUIDToString, 'GUIDToString', cdRegister);
+  cl.RegisterDelphiFunction(@IsEqualGUID, 'IsEqualGUID', cdRegister);
+  cl.RegisterDelphiFunction(@CreateComObject, 'CreateComObject', cdRegister);
+  {$ENDIF}
+  {$ENDIF}
+  cl.RegisterDelphiFunction(@CreateOleObject, 'CreateOleObject', cdRegister);
+  cl.RegisterDelphiFunction(@GetActiveOleObject, 'GetActiveOleObject', cdRegister);
+{$ENDIF !FPC}
+{+.}
 end;
 
 end.

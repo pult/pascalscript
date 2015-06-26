@@ -35,142 +35,142 @@ label
 { resulttype: 0 = int, 1 = int64, 2 = float }
 function ppcasmcall(rint: Trint; rfloat: Trfloat; proc, stack: pointer; stacksize, resulttype: integer): pointer; assembler; nostackframe;
 asm
-	mflr	r0
-	stw	r0, 8(r1)
+  mflr  r0
+  stw r0, 8(r1)
 
-	{ save non-volatile register/s - make sure the stack size is sufficient! }
-	stw	r31, -4(r1)	{ stacksize }
+  { save non-volatile register/s - make sure the stack size is sufficient! }
+  stw r31, -4(r1) { stacksize }
 
-	stwu	r1, -240(r1)	{ create stack }
+  stwu  r1, -240(r1)  { create stack }
 
-	{ get all the params into the stack }
-	stw	r3, 48(r1)	{ rint }
-	stw	r4, 52(r1)	{ rfloat }
-	stw	r5, 56(r1)	{ proc }
-	stw	r6, 60(r1)	{ stack }
-	stw	r7, 64(r1)	{ stacksize }
-	stw	r8, 68(r1)	{ resulttype }
-	{ result is stored in 72(r1) and 76(r1) (if returning int64) }
+  { get all the params into the stack }
+  stw r3, 48(r1)  { rint }
+  stw r4, 52(r1)  { rfloat }
+  stw r5, 56(r1)  { proc }
+  stw r6, 60(r1)  { stack }
+  stw r7, 64(r1)  { stacksize }
+  stw r8, 68(r1)  { resulttype }
+  { result is stored in 72(r1) and 76(r1) (if returning int64) }
 
-	{ write rint array into stack }
-	lwz	r2, 48(r1)	{ rint }
-	lfd	f0, 0(r2)
-	stfd	f0, 80(r1)	{ rint[1], rint[2] }
-	lfd	f0, 8(r2)
-	stfd	f0, 88(r1)	{ rint[3], rint[4] }
-	lfd	f0, 16(r2)
-	stfd	f0, 96(r1)	{ rint[5], rint[6] }
-	lfd	f0, 24(r2)
-	stfd	f0, 104(r1)	{ rint[7], rint[8] }
+  { write rint array into stack }
+  lwz r2, 48(r1)  { rint }
+  lfd f0, 0(r2)
+  stfd  f0, 80(r1)  { rint[1], rint[2] }
+  lfd f0, 8(r2)
+  stfd  f0, 88(r1)  { rint[3], rint[4] }
+  lfd f0, 16(r2)
+  stfd  f0, 96(r1)  { rint[5], rint[6] }
+  lfd f0, 24(r2)
+  stfd  f0, 104(r1) { rint[7], rint[8] }
 
-	{ write rfloat array into stack }
-	lwz	r2, 52(r1)	{ rfloat }
-	addi	r4, r1, 112	{ rfloat[1] from here upwards (8 bytes apart) }
-	subi	r2, r2, 8	{ src }
-	subi	r4, r4, 8	{ dest }
-	li	r3, 13		{ counter }
+  { write rfloat array into stack }
+  lwz r2, 52(r1)  { rfloat }
+  addi  r4, r1, 112 { rfloat[1] from here upwards (8 bytes apart) }
+  subi  r2, r2, 8 { src }
+  subi  r4, r4, 8 { dest }
+  li  r3, 13    { counter }
 
 rfloat_loop:
-	subic.	r3, r3, 1	{ dec counter }
-	lfdu	f0, 8(r2)	{ load rfloat[x] + update }
-	stfdu	f0, 8(r4)	{ store rfloat[x] + update }
-	bne	cr0, rfloat_loop
+  subic.  r3, r3, 1 { dec counter }
+  lfdu  f0, 8(r2) { load rfloat[x] + update }
+  stfdu f0, 8(r4) { store rfloat[x] + update }
+  bne cr0, rfloat_loop
 
-	{ create new stack }
-	mflr	r0
-	stw	r0, 8(r1)
-	mr	r12, r1		{ remember previous stack to fill in regs later }
+  { create new stack }
+  mflr  r0
+  stw r0, 8(r1)
+  mr  r12, r1   { remember previous stack to fill in regs later }
 
-	lwz	r31, 64(r12)	{ load stacksize into r31 }
-	neg	r3, r31		{ negate }
-	stwux	r1, r1, r3	{ create new stack }
+  lwz r31, 64(r12)  { load stacksize into r31 }
+  neg r3, r31   { negate }
+  stwux r1, r1, r3  { create new stack }
 
-	{ build up the stack here }
-	mr	r3, r31		{ counter }
-	subic.	r3, r3, 24	{ don't write first 24 }
-	ble	cr0, load_regs	{ don't fill in stack if there is none }
+  { build up the stack here }
+  mr  r3, r31   { counter }
+  subic.  r3, r3, 24  { don't write first 24 }
+  ble cr0, load_regs  { don't fill in stack if there is none }
 
-	lwz	r2, 60(r12)	{ pointer to stack }
-	addi	r2, r2, 24	{ start of params }
-	subi	r2, r2, 1	{ src }
+  lwz r2, 60(r12) { pointer to stack }
+  addi  r2, r2, 24  { start of params }
+  subi  r2, r2, 1 { src }
 
-	addi	r4, r1, 24	{ start of params }
-	subi	r4, r4, 1	{ dest }
+  addi  r4, r1, 24  { start of params }
+  subi  r4, r4, 1 { dest }
 
 stack_loop:
-	subic.	r3, r3, 1	{ dec counter }
-	lbzu	r5, 1(r2)	{ load stack + update }
-	stbu	r5, 1(r4)	{ store stack + update }
-	bne	cr0, stack_loop
+  subic.  r3, r3, 1 { dec counter }
+  lbzu  r5, 1(r2) { load stack + update }
+  stbu  r5, 1(r4) { store stack + update }
+  bne cr0, stack_loop
 
-load_regs:			{ now load the registers from the previous stack in r12 }
-	lwz	r3, 80(r12)
-	lwz	r4, 84(r12)
-	lwz	r5, 88(r12)
-	lwz	r6, 92(r12)
-	lwz	r7, 96(r12)
-	lwz	r8, 100(r12)
-	lwz	r9, 104(r12)
-	lwz	r10, 108(r12)
+load_regs:      { now load the registers from the previous stack in r12 }
+  lwz r3, 80(r12)
+  lwz r4, 84(r12)
+  lwz r5, 88(r12)
+  lwz r6, 92(r12)
+  lwz r7, 96(r12)
+  lwz r8, 100(r12)
+  lwz r9, 104(r12)
+  lwz r10, 108(r12)
 
-	lfd	f1, 112(r12)
-	lfd	f2, 120(r12)
-	lfd	f3, 128(r12)
-	lfd	f4, 136(r12)
-	lfd	f5, 144(r12)
-	lfd	f6, 152(r12)
-	lfd	f7, 160(r12)
-	lfd	f8, 168(r12)
-	lfd	f9, 176(r12)
-	lfd	f10, 184(r12)
-	lfd	f11, 192(r12)
-	lfd	f12, 200(r12)
-	lfd	f13, 208(r12)
+  lfd f1, 112(r12)
+  lfd f2, 120(r12)
+  lfd f3, 128(r12)
+  lfd f4, 136(r12)
+  lfd f5, 144(r12)
+  lfd f6, 152(r12)
+  lfd f7, 160(r12)
+  lfd f8, 168(r12)
+  lfd f9, 176(r12)
+  lfd f10, 184(r12)
+  lfd f11, 192(r12)
+  lfd f12, 200(r12)
+  lfd f13, 208(r12)
 
-	{ now call this function }
-	lwz	r2, 56(r12)	{ proc }
-	mtctr	r2		{ move to ctr }
-	bctrl			{ branch and link to ctr }
+  { now call this function }
+  lwz r2, 56(r12) { proc }
+  mtctr r2    { move to ctr }
+  bctrl     { branch and link to ctr }
 
-	{ restore stack - use stacksize in r31 }
-	add	r1, r1, r31
-	lwz	r0, 8(r1)
-	mtlr	r0
+  { restore stack - use stacksize in r31 }
+  add r1, r1, r31
+  lwz r0, 8(r1)
+  mtlr  r0
 
-	{ check resulttype and put appropriate pointer into r3 }
-	lwz	r2, 68(r1)		{ resulttype }
-	cmpwi	cr0, r2, 0		{ int result? }
-	beq	cr0, int_result		{ branch if equal }
+  { check resulttype and put appropriate pointer into r3 }
+  lwz r2, 68(r1)    { resulttype }
+  cmpwi cr0, r2, 0    { int result? }
+  beq cr0, int_result   { branch if equal }
 
-	cmpwi	cr0, r2, 1		{ single result? }
-	beq	cr0, int64_result	{ branch if equal }
-
-
-float_result:			{ the result is a double}
-	stfd	f1, 72(r1)	{ write f1 to result on stack }
-	b	asmcall_end
+  cmpwi cr0, r2, 1    { single result? }
+  beq cr0, int64_result { branch if equal }
 
 
-int64_result:			{ the result is a single }
-	stw	r3, 72(r1)	{ write high dword to result on stack }
-	stw	r4, 76(r1)	{ write low dword to result on stack }
-	b	asmcall_end
+float_result:     { the result is a double}
+  stfd  f1, 72(r1)  { write f1 to result on stack }
+  b asmcall_end
 
 
-int_result:			{ the result is dword }
-	stw	r3, 72(r1)	{ write r3 to result on stack }
+int64_result:     { the result is a single }
+  stw r3, 72(r1)  { write high dword to result on stack }
+  stw r4, 76(r1)  { write low dword to result on stack }
+  b asmcall_end
 
 
-asmcall_end:			{ epilogue }
-	addi	r3, r1, 72	{ pointer to result on the stack }
-	addi	r1, r1, 240	{ restore stack }
+int_result:     { the result is dword }
+  stw r3, 72(r1)  { write r3 to result on stack }
 
-	{ restore non-volatile register/s }
-	lwz	r31, -4(r1)
 
-	lwz	r0, 8(r1)
-	mtlr	r0
-	blr
+asmcall_end:      { epilogue }
+  addi  r3, r1, 72  { pointer to result on the stack }
+  addi  r1, r1, 240 { restore stack }
+
+  { restore non-volatile register/s }
+  lwz r31, -4(r1)
+
+  lwz r0, 8(r1)
+  mtlr  r0
+  blr
 end;
 
 function FlipHiLo(v: byte): byte;
@@ -191,9 +191,9 @@ end;
 
 function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingConvention; Params: TPSList; res: PPSVariantIFC): Boolean;
 var
-  rint: Trint;			{ registers r3 to r10 }
-  rfloat: Trfloat;		{ registers f1 to f13 }
-  st: packed array of byte;	{ stack }
+  rint: Trint;      { registers r3 to r10 }
+  rfloat: Trfloat;    { registers f1 to f13 }
+  st: packed array of byte; { stack }
   i, j, n, m, rindex, findex, stindex: integer;
   fvar: PPSVariantIFC;
   IsConstructor: Boolean;

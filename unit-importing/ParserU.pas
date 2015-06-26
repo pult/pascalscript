@@ -10,7 +10,7 @@
 
 unit ParserU;
 {version: 20041219}
-
+{$B-,O-,D+}
 interface
   uses uPSUtils, SysUtils, StrUtils, ParserUtils, BigIni, Classes;
 
@@ -777,9 +777,9 @@ begin
     OutPutList.Add(GetLicence);
 //    OutPutList.Add('{$I PascalScript.inc}');
     OutPutList.Add('interface');
-    OutPutList.Add(' ');
+    {+}OutPutList.Add('');{+.}
     OutPutList.Add(FAfterInterfaceDeclaration);
-    OutPutList.Add(' ');
+    {+}OutPutList.Add('');{+.}
 
     { interface uses clause list }
     AddToUsesList(InterfaceUsesList, nil, 'SysUtils');
@@ -799,10 +799,10 @@ begin
     List.Assign(InterfaceUsesList);
     ProcessUsesList(List);
     OutPutList.AddStrings(List);
-    OutPutList.Add(' ');
+    {+}OutPutList.Add('');{+.}
 
     sClassName := FCompPrefix + '_' + UnitName ;
-    OutPutList.Add('type ');
+    {+}OutPutList.Add('type');{+.}
     OutPutList.Add('(*----------------------------------------------------------------------------*)');
     OutPutList.Add(Format('  %s = class(TPSPlugin)', [sClassName]));
     OutPutList.Add('  public');
@@ -813,8 +813,8 @@ begin
     OutPutList.Add('    procedure ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;');
 //  OutPutList.Add('    procedure ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;');
     OutPutList.Add('  end;');
-    OutPutList.Add(' ');
-    OutPutList.Add(' ');
+    {+}OutPutList.Add('');{+.}
+    {+}OutPutList.Add('');{+.}
 
 
     { compile-time function declarations }
@@ -894,8 +894,8 @@ begin
 
 
     OutPutList.AddStrings(List);
-    OutPutList.Add(' ');
-    OutPutList.Add(' ');
+    {+}OutPutList.Add('');{+.}
+    {+}OutPutList.Add('');{+.}
           OutPutList.Add('procedure Register;');
           OutPutList.Add('begin');
           OutPutList.Add('  RegisterComponents('''+FCompPage+''', ['+FCompPrefix + '_' + UnitName+']);');
@@ -957,8 +957,8 @@ begin
       end;
     end;
 
-    OutPutList.Add(' ');
-    OutPutList.Add(' ');
+    {+}OutPutList.Add('');{+.}
+    {+}OutPutList.Add('');{+.}
     OutPutList.Add(Format('{ %s }', [sClassName]));
     OutPutList.Add('(*----------------------------------------------------------------------------*)');
     OutPutList.Add(Format('procedure %s.CompileImport1(CompExec: TPSScript);', [sClassName]));
@@ -981,8 +981,8 @@ begin
     OutPutList.Add('(*----------------------------------------------------------------------------*)');
 
 
-    OutPutList.Add(' ');
-    OutPutList.Add(' ');
+    {+}OutPutList.Add('');{+.}
+    {+}OutPutList.Add('');{+.}
 
     OutPutList.Add('end.');
   finally
@@ -1309,6 +1309,11 @@ begin
   until (TokenID <> CSTI_Identifier);
 end; {ParseVariables}
 
+{+}
+type
+  TPSPascalParserAccess = class(TPSPascalParser);
+{+.}
+
 function TUnitParser.ParseProcDecl(var ProcName, decl, CallingConvention: string;
   Options: TProcDeclOptions; OwnerClass:String=''): TProcDeclInfo;
 var
@@ -1320,6 +1325,10 @@ var
   Index: integer;
   CheckSemiColon: boolean;
   Proc: TProcList;
+  {+}
+  AParser_RealPosition: Cardinal;
+  AOverloadName: string;
+  {+.}
 begin
   Result := [];
   if IfMatch(CSTII_function) then
@@ -1545,16 +1554,60 @@ begin
 //                  if (IsPointer in Options) then
 //                    RaiseError('overload directive does not applies to function/method pointers', TokenRow, TokenCol);
                   Writeln('Overloading isnt supported. Remapping of name required '+OwnerClass +Decl);
+                  {+}
+                  AParser_RealPosition := TPSPascalParserAccess(fParser).FRealPosition;
+                  fParser.EnableComments := True;
+                  fParser.next;
+                  //NextToken;
+                  fParser.EnableComments := False;
+                  //TPSPascalParserAccess(fParser).FRealPosition := AParser_RealPosition;
+                  AOverloadName := '';
+                  if fParser.CurrTokenID = CSTIINT_Comment then
+                  begin
+                    OldProcName := fParser.GetToken;
+                    //NextToken;
+                    //NextToken;
+                    //fParser.Next;
+                    if (Length(OldProcName) > 2) and (OldProcName[1] = '{') and (OldProcName[Length(OldProcName)]='}') then
+                    begin
+                      AOverloadName := Trim(Copy(OldProcName, 2, Length(OldProcName)-2));
+                      Index := Length(AOverloadName);
+                      if Index > 64 then
+                        AOverloadName := ''
+                      else
+                      begin
+                        for Index := 1 to Index do
+                        begin
+                          if not (AOverloadName[Index] in ['0'..'9','a'..'z','A'..'Z','_']) then
+                          begin
+                            AOverloadName := '';
+                            Break;
+                          end;
+                        end;
+                      end;
+                       
+                    end;
+                  end
+                  else
+                    TPSPascalParserAccess(fParser).FRealPosition := AParser_RealPosition;
+                  {+.}
                   OldProcName := ProcName;
                   Olddecl := decl;
                   s := '';
-                  ProcName := OldProcName + InttoStr(FRenamingHelper);
+                  {+}
+                  if AOverloadName = '' then
+                    ProcName := OldProcName + InttoStr(FRenamingHelper)
+                  else
+                    ProcName := AOverloadName;
+                  {+.}
                   Inc(FRenamingHelper);
                   repeat
-                    if FAutoRenameOverloadedMethods then
+                    if FAutoRenameOverloadedMethods {+}or (AOverloadName <> ''){+.} then
                       Writeln('Auto-remapped')
                     else
-                      Readln(ProcName, s+'Current declaration :' + '''' + OwnerClass +decl + '''', 'Enter new name.');
+                      Readln(ProcName, s+'Current declaration :' + '''' + OwnerClass +decl + ''''
+                        + #13'File Pos: ' + Format('(%d, %d)',[TokenRow, TokenCol]),
+                       'Enter new name.');
 
                     if ProcName = '' then
                       ProcName := OldProcName;
@@ -1612,7 +1665,7 @@ begin
                       Add('Begin '+s+UnitName + '.' + OldProcName +ParamStr+ '; END;');
                   end;
                 end;
-                NextToken;
+                NextToken; // dbg: PChar(@fParser.FText[fParser.CurrTokenPos])
                 Match(CSTI_Semicolon);
               end
               else
@@ -2070,9 +2123,15 @@ var
       decl := trim(StringReplace(ParamTypes.Text, NewLine, ' ', [rfreplaceAll]));
     // build the design time declaration
       decl := '    RegisterProperty(''' + PropertyName + ''', ''' + decl + ''', ipt';
+      {+}
+      if (Read = False) and (Write=False) then
+      begin
+        Writeln('Warning, could not parse property "' + PropertyName + '" access read/write. Line ' + IntToStr(fParser.Col));
+      end;
+      {+.}
       if Read then decl := decl + 'r';
       if Write then decl := decl + 'w';
-      fCurrentDTProc.Add(decl + ');');
+      fCurrentDTProc.Add(decl + ');');  {+}{@dbg: fParser.Row    fParser.Col    fToken.row    fToken.col {+.}
     // write out the runtime version
       if Read then
       begin // create the helper function to read from the property

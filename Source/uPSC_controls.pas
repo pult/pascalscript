@@ -8,17 +8,17 @@ uses
 {
   Will register files from:
     Controls
- 
+
   Register the STD, Classes (at least the types&consts) and Graphics libraries first
- 
+
 }
 
 procedure SIRegister_Controls_TypesAndConsts(Cl: TPSPascalCompiler);
 
 procedure SIRegisterTControl(Cl: TPSPascalCompiler);
-procedure SIRegisterTWinControl(Cl: TPSPascalCompiler); 
-procedure SIRegisterTGraphicControl(cl: TPSPascalCompiler); 
-procedure SIRegisterTCustomControl(cl: TPSPascalCompiler); 
+procedure SIRegisterTWinControl(Cl: TPSPascalCompiler);
+procedure SIRegisterTGraphicControl(cl: TPSPascalCompiler);
+procedure SIRegisterTCustomControl(cl: TPSPascalCompiler);
 procedure SIRegisterTDragObject(cl: TPSPascalCompiler);
 
 procedure SIRegister_Controls(Cl: TPSPascalCompiler);

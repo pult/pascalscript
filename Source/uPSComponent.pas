@@ -1508,7 +1508,7 @@ procedure TPSCustomPlugin.ExecImport2(CompExec: TPSScript;
   const ri: TPSRuntimeClassImporter);
 begin
   IF @FOnExecImport2 <> nil then
-    FOnExecImport1(CompExec, compExec.Exec, ri)
+    FOnExecImport2(CompExec, compExec.Exec, ri)
   else
     inherited;
 end;

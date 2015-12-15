@@ -1817,9 +1817,9 @@ const
   RPS_UnableToRegister = 'Unable to register %s';
   {$ENDIF}
 
-  RPS_NotArrayProperty = 'Not an array property';
-  RPS_NotProperty = 'Not a property';
-  RPS_UnknownProperty = 'Unknown Property';
+  RPS_NotArrayProperty = 'Not an array property : ''%s''';
+  RPS_NotProperty = 'Not a property : ''%s''';
+  RPS_UnknownProperty = 'Unknown Property : ''%s''';
 
 function DeclToBits(const Decl: TPSParametersDecl): tbtString;
 var
@@ -13772,6 +13772,12 @@ begin
   Result := FindClass(tbtstring(aClass.ClassName));
   if (Result<>nil) and not(FAllowDuplicateRegister) then
     Raise EPSCompilerException.CreateFmt(RPS_DuplicateIdent, [aClass.ClassName]);
+  if Result <> nil then
+  begin
+    if InheritsFrom <> nil then
+      Result.FInheritsFrom := InheritsFrom;
+    exit;
+  end;
   f := AddType(tbtstring(aClass.ClassName), btClass);
   Result := TPSCompileTimeClass.CreateC(aClass, Self, f);
   Result.FInheritsFrom := InheritsFrom;
@@ -15192,13 +15198,13 @@ begin
       if p is TPSDelphiClassItemProperty then
       begin
         if p.Decl.ParamCount = 0 then
-          Raise EPSCompilerException.Create(RPS_NotArrayProperty);
+          raise EPSCompilerException.CreateFmt(RPS_NotArrayProperty, [Name]);
         FDefaultProperty := I;
         exit;
-      end else Raise EPSCompilerException.Create(RPS_NotProperty);
+      end else raise EPSCompilerException.CreateFmt(RPS_NotProperty, [Name]);
     end;
   end;
-  raise EPSCompilerException.Create(RPS_UnknownProperty);
+  raise EPSCompilerException.CreateFmt(RPS_UnknownProperty, [Name]);
 end;
 
 function TPSCompileTimeClass.SetNil(var ProcNo: Cardinal): Boolean;

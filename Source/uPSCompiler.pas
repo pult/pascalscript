@@ -12466,62 +12466,64 @@ begin
   AddType('Byte', btU8);
   FDefaultBoolType := AddTypeS('Boolean', '(False, True)');
   FDefaultBoolType.ExportName := True;
+
   with TPSEnumType(AddType('LongBool', btEnum)) do
-  begin
     HighValue := 2147483647; // make sure it's gonna be a 4 byte var
-  end;
+
   with TPSEnumType(AddType('WordBool', btEnum)) do
-  begin
     HighValue := 65535; // make sure it's gonna be a 2 byte var
-  end;
+
   with TPSEnumType(AddType('ByteBool', btEnum)) do
-  begin
     HighValue := 255; // make sure it's gonna be a 1 byte var
-  end;
-  //following 2 IFDEFs should actually be UNICODE IFDEFs...
+
   {+}
-  //AddType({$IFDEF PS_PANSICHAR}'AnsiChar'{$ELSE}'Char'{$ENDIF}, btChar);
   AddType('AnsiChar', btChar);
-  //AddType('Char', btChar);
-  (*{$IFDEF PS_PANSICHAR}
-  AddType('Char', btChar);
-  {$ELSE}
-  AddType('Char', btChar);
-    {$IFNDEF PS_NOWIDESTRING}
-      {$IFDEF DELPHI2009UP}
-      AddType('Char', btWideChar);
-      {$ELSE}
-      AddType('Char', btChar);
-      {$ENDIF}
-    {$ELSE}
-     AddType('Char', btChar);
-    {$ENDIF}
-  {$ENDIF}
-  {+.}//*)
-  {$IFNDEF PS_NOWIDESTRING}
-  AddType('WideChar', btWideChar);
-  AddType('WideString', btWideString);
-  AddType('UnicodeString', btUnicodeString);
-  {$ENDIF}
+  AddType('PAnsiChar', btPChar);
   AddType('AnsiString', btString);
-  {$IFNDEF PS_NOWIDESTRING}
-    {$IFDEF DELPHI2009UP}
-    {+}AddType('Char', btWideChar);{+.}
+  AddTypeCopyN('RawByteString', 'AnsiString');
+  AddTypeCopyN('UTF8String', 'AnsiString');
+  {$IFDEF UNICODE}
+    AddType('Char', btWideChar);
     AddType('String', btUnicodeString);
-    AddType('NativeString', btUnicodeString);
-    {$ELSE}
-    {+}AddType('Char', btChar);{+.}
-    AddType('String', btString);
-    AddType('NativeString', btString);
+    AddType('PChar', btPWideChar);
+    AddTypeCopyN('NativeChar', 'Char');
+    AddTypeCopyN('NativeString', 'String');
+    AddTypeCopyN('NativePChar', 'PChar');
+    {$IFNDEF PS_NOWIDESTRING}
+    AddTypeCopyN('WideChar', 'Char');
+    AddType('WideString', btWideString);
+    AddTypeCopyN('UnicodeChar', 'Char');
+    AddTypeCopyN('UnicodeString', 'String');
+    AddTypeCopyN('PWideChar', 'PChar');
+    AddTypeCopyN('PUnicodeChar', 'PChar');
     {$ENDIF}
   {$ELSE}
-  {+}AddType('Char', btChar);{+.}
-  AddType('String', btString);
-  AddType('NativeString', btString);
+    AddTypeCopyN('Char', 'AnsiChar');
+    AddTypeCopyN('String', 'AnsiString');
+    AddTypeCopyN('PChar', 'PAnsiChar');
+    {$IFNDEF PS_NOWIDESTRING}
+    AddType('WideChar', btWideChar);
+    AddType('WideString', btWideString);
+    AddTypeCopyN('UnicodeChar', 'WideChar');
+    AddTypeCopyN('UnicodeString', 'WideString');
+    AddType('PWideChar', btPWideChar);
+    AddTypeCopyN('PUnicodeChar', 'PWideChar');
+    AddTypeCopyN('NativeChar', 'WideChar');
+    AddTypeCopyN('NativePChar', 'PWideChar');
+    AddTypeCopyN('NativeString', 'WideString');
+    {$ELSE}
+    AddType('NativeChar', btWideChar);
+    AddType('NativePChar', btPWideChar);
+    AddType('NativeString', btWideString);
+    {$ENDIF}
   {$ENDIF}
-  {+}
-  AddType('RawByteString', btString);
-  AddType('UTF8String', btString);
+
+  AddType('tbtString', btString);
+  {$IFNDEF PS_NOWIDESTRING}
+  AddType('tbtWideString', btWideString);
+  AddType('tbtUnicodeString', btUnicodeString);
+  {$ENDIF}
+
   AddTypeS('TBytes', 'array of Byte');
   {+.}
   FAnyString := AddType('AnyString', btString);
@@ -12533,7 +12535,7 @@ begin
   AddType('LongWord', btU32);
   AddTypeCopyN('Integer', 'LONGINT');
   AddTypeCopyN('Cardinal', 'LONGWORD');
-  AddType('tbtString', btString);
+
   {$IFNDEF PS_NOINT64}
   AddType('Int64', btS64);
   {$ENDIF}
@@ -12541,43 +12543,28 @@ begin
   //PointerSize = IPointer({$IFDEF CPU64}8{$ELSE}4{$ENDIF});
   AddType('NativeInt', {$IFDEF CPU64}btS64{$ELSE}btS32{$ENDIF});
   AddType('NativeUInt', {$IFDEF CPU64}btS64{$ELSE}btU32{$ENDIF});
-  //AddType('Pointer', {$IFDEF CPU64}btS64{$ELSE}btU32{$ENDIF});
-  AddType('Pointer', btPointer);
+  //AddType('Pointer', btPointer);
+  AddTypeCopyN('Pointer', 'NativeUInt');
   {+.}
   AddType('Single', btSingle);
   AddType('Double', btDouble);
   AddType('Extended', btExtended);
   AddType('Currency', btCurrency);
-  {+}
-  //AddType({$IFDEF PS_PANSICHAR}'PAnsiChar'{$ELSE}'PChar'{$ENDIF}, btPChar);
-  AddType('PAnsiChar', btPChar);
-  {.$IFNDEF PS_PANSICHAR}
-  AddType('PChar', btPChar);
-  {.$ENDIF}
-  {$IFNDEF PS_NOWIDESTRING}
-  AddType('PWideChar', btPWideChar);
-  //{$ELSE}
-  //AddType('PWideChar', btPChar);
-  {$ENDIF}
-  {+.}
+
   AddType('Variant', btVariant);
   AddType('!NotificationVariant', btNotificationVariant);
-  for i := FTypes.Count -1 downto 0 do AT2UT(FTypes[i]);
+  for i := FTypes.Count -1 downto 0
+    do AT2UT(FTypes[i]);
   TPSArrayType(AddType('TVariantArray', btArray)).ArrayTypeNo := FindType('VARIANT');
 
   with AddFunction('function Assigned(I: Longint): Boolean;') do
-  begin
     Name := '!ASSIGNED';
-  end;
 
   with AddFunction('procedure _T(Name: tbtString; v: Variant);') do
-  begin
     Name := '!NOTIFICATIONVARIANTSET';
-  end;
+
   with AddFunction('function _T(Name: tbtString): Variant;') do
-  begin
     Name := '!NOTIFICATIONVARIANTGET';
-  end;
 end;
 
 
@@ -13520,7 +13507,8 @@ function TPSPascalCompiler.AddTypeCopy(const Name: tbtString;
 begin
   if FProcs = nil then raise EPSCompilerException.Create(RPS_OnUseEventOnly);
   TypeNo := GetTypeCopyLink(TypeNo);
-  if Typeno = nil then raise EPSCompilerException.Create(RPS_InvalidType);
+  if Typeno = nil then
+    raise EPSCompilerException.Create(RPS_InvalidType);
   Result := AddType(Name, BtTypeCopy);
   TPSTypeLink(Result).LinkTypeNo := TypeNo;
 end;

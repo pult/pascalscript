@@ -38,7 +38,7 @@ begin
   with Cl.Add(TSHAPE) do
   begin
     {$IFNDEF PS_MINIVCL}
-    RegisterMethod(@TSHAPE.STYLECHANGED, 'STYLECHANGED');
+    RegisterMethod(@TSHAPE.STYLECHANGED, 'StyleChanged');
     {$ENDIF}
   end;
 end;
@@ -49,7 +49,7 @@ procedure RIRegisterTIMAGE(Cl: TPSRuntimeClassImporter);
 begin
   with Cl.Add(TIMAGE) do
   begin
-    RegisterPropertyHelper(@TIMAGECANVAS_R, nil, 'CANVAS');
+    RegisterPropertyHelper(@TIMAGECANVAS_R, nil, 'Canvas');
   end;
 end;
 
@@ -59,7 +59,7 @@ procedure RIRegisterTPAINTBOX(Cl: TPSRuntimeClassImporter);
 begin
   with Cl.Add(TPAINTBOX) do
   begin
-    RegisterPropertyHelper(@TPAINTBOXCANVAS_R, nil, 'CANVAS');
+    RegisterPropertyHelper(@TPAINTBOXCANVAS_R, nil, 'Canvas');
   end;
 end;
 
@@ -99,10 +99,10 @@ procedure THEADERSECTIONWIDTH_W(Self: THEADER; T: INTEGER; t1: INTEGER); begin S
 
 procedure RIRegisterTHEADER(Cl: TPSRuntimeClassImporter);
 begin
-	with Cl.Add(THEADER) do
-	begin
-		RegisterPropertyHelper(@THEADERSECTIONWIDTH_R, @THEADERSECTIONWIDTH_W, 'SECTIONWIDTH');
-	end;
+  with Cl.Add(THEADER) do
+  begin
+    RegisterPropertyHelper(@THEADERSECTIONWIDTH_R, @THEADERSECTIONWIDTH_W, 'SectionWidth');
+  end;
 end;
 {$ENDIF}
 {$ENDIF}
@@ -135,9 +135,9 @@ begin
   {$IFNDEF PS_MINIVCL}
 {$IFNDEF CLX}
   RIRegisterTPAGE(Cl);
-	RIRegisterTNOTEBOOK(Cl);
+  RIRegisterTNOTEBOOK(Cl);
  {$IFNDEF FPC}
-	RIRegisterTHEADER(Cl);
+  RIRegisterTHEADER(Cl);
  {$ENDIF}{FPC}
 {$ENDIF}
   RIRegisterTCUSTOMRADIOGROUP(Cl);
@@ -146,5 +146,3 @@ begin
 end;
 
 end.
-
-

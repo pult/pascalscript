@@ -36,8 +36,8 @@ begin
     cl.AddDelphiFunction('function IsEqualGUID(const guid1, guid2: TGUID): Boolean;');
     //
     cl.AddDelphiFunction('function CreateComObject(const ClassID: TGUID): IUnknown;');
-    cl.AddDelphiFunction('function CreateOleObject(const ClassName: String): IDispatch;');
-    cl.AddDelphiFunction('function GetActiveOleObject(const ClassName: String): IDispatch;');
+    cl.AddDelphiFunction('function CreateOleObject(const ClassName: string): IDispatch;');
+    cl.AddDelphiFunction('function GetActiveOleObject(const ClassName: string): IDispatch;');
     {$ENDIF}
 {$ELSE !FPC}
   cl.AddDelphiFunction('procedure OleCheck(Result: HResult);');
@@ -50,8 +50,8 @@ begin
   cl.AddDelphiFunction('function CreateComObject(const ClassID: TGUID): IUnknown;');
   {$ENDIF}
   {$ENDIF}
-  cl.AddDelphiFunction('function CreateOleObject(const ClassName: String): IDispatch;');
-  cl.AddDelphiFunction('function GetActiveOleObject(const ClassName: String): IDispatch;');
+  cl.AddDelphiFunction('function CreateOleObject(const ClassName: string): IDispatch;');
+  cl.AddDelphiFunction('function GetActiveOleObject(const ClassName: string): IDispatch;');
 {$ENDIF !FPC}
 {+.}
 end;

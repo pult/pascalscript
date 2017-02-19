@@ -11,7 +11,7 @@ interface
 uses
   uPSCompiler, uPSUtils;
 
-  
+
 {$IFDEF DELPHI3UP }
 resourceString
 {$ELSE }
@@ -148,11 +148,10 @@ end;
 procedure RegisterDll_Compiletime(cs: TPSPascalCompiler);
 begin
   cs.OnExternalProc := DllExternalProc;
-  cs.AddFunction('procedure UnloadDll(s: string)');
-  cs.AddFunction('function DLLGetLastError: Longint');
+  cs.AddFunction('procedure UnloadDll(S: string)');
+  cs.AddFunction('function DllGetLastError: LongInt');
 end;
 
 begin
   DefaultCc := clRegister;
 end.
-

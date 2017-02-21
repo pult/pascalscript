@@ -12008,7 +12008,7 @@ begin
       begin
         {+}
         //Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := data.Data;
-        Pointer(PointerShift(n.dta, PointerSize2)^) := data.Code;
+        Pointer(PointerShift(n.dta, PointerSize)^) := data.Code;
         //Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := data.Code;
         Pointer(PointerShift(n.dta, PointerSize2)^) := data.Code;
         {+.}
@@ -12996,7 +12996,7 @@ begin
           //CopyArrayContents(Pointer(Longint(Stack)-PointerSize2), @PPSVariantData(res)^.Data, 1, Res^.FType);
           {+}
           //CopyArrayContents(Pointer(Longint(Stack)-Longint(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
-          CopyArrayContents(PointerShift(Stack,-PointerSize), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          CopyArrayContents(PointerShift(Stack,-PointerSize2), @PPSVariantData(res)^.Data, 1, Res^.FType);
           {+.}
       end;
     end;

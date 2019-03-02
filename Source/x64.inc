@@ -1086,12 +1086,16 @@ var
   end;
   {$ENDIF !WINDOWS}
 
+  {+} // [#velter#]: https://github.com/remobjects/pascalscript/pull/107
+  //                 https://github.com/velter/pascalscript/commit/44cefba3328bd9cc041e11715d217c97c97199e7
+  //                 https://github.com/remobjects/pascalscript/pull/107/files#diff-0
   type
     TMethodCallData = record
       AType: Byte;
       Data: TMethod;
     end;
     PMethodCallData=^TMethodCallData;
+  {+.}
   function GetPtr(fVar: PPSVariantIFC): Boolean;
   var
     varPtr: Pointer;
@@ -1106,8 +1110,10 @@ var
             if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
               p := CreateOpenArray(True, Self, fVar);
               if p = nil then exit;
-              if CallData = nil then
+              {+} // [#velter#]
+              if CallData = nil then // [#velter#]
                 CallData := TPSList.Create;
+              {+.}
               CallData.Add(p);
               StoreReg(IPointer(POpenArray(p)^.Data));
               StoreReg(IPointer(POpenArray(p)^.ItemCount -1));
@@ -1124,7 +1130,7 @@ var
         btRecord,
         btInterface,
         btClass,
-        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar,{$ENDIF} btU8, btS8, btU16,
+        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF} btU8, btS8, btU16,
         btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
         {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: begin
             Varptr := fVar.Dta;
@@ -1150,8 +1156,10 @@ var
             if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
               p := CreateOpenArray(False, Self, fVar);
               if p =nil then exit;
-              if CallData = nil then
+              {+} // [#velter#]
+              if CallData = nil then // [#velter#]
                 CallData := TPSList.Create;
+              {+.}
               CallData.Add(p);
               StoreReg(IPointer(POpenArray(p)^.Data));
               StoreReg(IPointer(POpenArray(p)^.ItemCount -1));
@@ -1196,6 +1204,17 @@ var
             else
               StoreReg(IPointer(fVar.dta^));
           end;
+        {+}
+        {$IFNDEF PS_NOWIDESTRING}
+        btPWideChar:
+          begin
+            if pointer(fvar^.dta^) = nil then
+              StoreReg(IPointer(@EmptyPchar))
+            else
+              StoreReg(IPointer(fvar^.dta^));
+          end;
+        {$ENDIF}
+        {+.}
         btClass, btInterface, btString: begin
             StoreReg(IPointer(fVar.dta^));
           end;
@@ -1206,13 +1225,25 @@ var
             StoreReg(IPointer(fVar.dta^));
           end;
         btProcPtr: begin
+            {+} // [#velter#]
+            {
+            GetMem(p, PointerSize2);
+            TMethod(p^) := MKMethod(Self, Longint(fVar.Dta^));
+            StoreStack(p^, Pointersize2);
+            FreeMem(p);
+            }
+            //GetMem(p, sizeof(TMethodCallData));
             p := New(PMethodCallData);
             TMethodCallData(p^).AType:=255;
             if CallData = nil then
               CallData := TPSList.Create;
             CallData.Add(p);
+      // Uncomment when Handler will be implemented
+            //TMethodCallData(p^).Data.Code:=nil;
+            //TMethodCallData(p^).Data.Data:=nil;
             TMethodCallData(p^).Data := MKMethod(Self, Longint(fVar.Dta^)); // It requires the implementation of "Handled"
             StoreReg(IPointer(@TMethodCallData(p^).Data));
+            // [#velter#]. {+.}
           end;
         btS64: begin
             StoreReg(IPointer(int64(fVar.dta^)));
@@ -1235,11 +1266,14 @@ begin // function TPSExec.InnerfuseCall
   end else
     IsConstructor := false;
   {$ENDIF}
+  // TODO: FPC: OpenArray fail (AV). Sample script: "begin format('%s; %s',['2','2']); end."
   InnerfuseCall := False;
   if Address = nil then
     exit; // need address
   SetLength(Stack, 0);
+  {+} // [#velter#]
   CallData := nil;
+  {+.}
   res := rp(res);
   if res <> nil then
     res.VarParam := true;
@@ -1283,7 +1317,10 @@ begin // function TPSExec.InnerfuseCall
         btString,
         {.$ENDIF}
         {$ENDIF x64_string_result_as_varparameter}
-        btInterface, btArray, btVariant, btStaticArray:
+        {.$IFNDEF FPC}
+        btArray,
+        {.$ENDIF}
+        btInterface, btVariant, btStaticArray:
           GetPtr(res);
         btRecord,
         btSet:
@@ -1409,8 +1446,9 @@ begin // function TPSExec.InnerfuseCall
           0: begin
             DestroyOpenArray(Self, Pointer(pp));
           end;
-          255: begin
-            Dispose(PMethodCallData(pp)); // release TMethodCallData
+          255: begin // [#velter#]: https://github.com/velter/pascalscript/commit/1c598a1406390e2e762368b07a185ecb187182a7
+            //FreeMem(Pointer(pp), sizeof(TMethodCallData)); // release TMethodCallData
+            Dispose(PMethodCallData(pp));
           end;
         end;
       end;

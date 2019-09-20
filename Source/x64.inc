@@ -38,7 +38,7 @@ type
   {$ENDIF}
 {$ELSE !MSWINDOWS}
 
-  {$DEFINE X64CALL_ASM} { optional } // TODO: Check pas version (disable "X64CALL_ASM").
+  {.$DEFINE X64CALL_ASM} { optional } // TODO: Check pas version (disable "X64CALL_ASM").
 
 {$ENDIF !MSWINDOWS}
 
@@ -1130,7 +1130,7 @@ var
         btRecord,
         btInterface,
         btClass,
-        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF} btU8, btS8, btU16,
+        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}{$ENDIF} btU8, btS8, btU16,
         btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
         {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: begin
             Varptr := fVar.Dta;
@@ -1206,6 +1206,7 @@ var
           end;
         {+}
         {$IFNDEF PS_NOWIDESTRING}
+        {$if declared(btPWideChar)}
         btPWideChar:
           begin
             if pointer(fvar^.dta^) = nil then
@@ -1213,6 +1214,7 @@ var
             else
               StoreReg(IPointer(fvar^.dta^));
           end;
+        {$ifend}
         {$ENDIF}
         {+.}
         btClass, btInterface, btString: begin

@@ -51,30 +51,30 @@ begin
 {$IFDEF DELPHI2005UP}
     RegisterMethod('constructor Create;');
 {$ENDIF}
-    RegisterMethod('function Add(S: string): Integer;');
-    RegisterMethod('procedure Append(S: string);');
+    RegisterMethod('function Add(S: '+C_NAME_TYPE_NATIVE_STRING+'): Integer;');
+    RegisterMethod('procedure Append(S: '+C_NAME_TYPE_NATIVE_STRING+');');
     RegisterMethod('procedure AddStrings(Strings: TStrings);');
     RegisterMethod('procedure Clear;');
     RegisterMethod('procedure Delete(Index: Integer);');
-    RegisterMethod('function IndexOf(const S: string): Integer; ');
-    RegisterMethod('procedure Insert(Index: Integer; S: string); ');
+    RegisterMethod('function IndexOf(const S: '+C_NAME_TYPE_NATIVE_STRING+'): Integer; ');
+    RegisterMethod('procedure Insert(Index: Integer; S: '+C_NAME_TYPE_NATIVE_STRING+'); ');
     RegisterProperty('Capacity', 'Integer', iptRW);
-    RegisterProperty('Delimiter', 'Char', iptRW);
+    RegisterProperty('Delimiter', C_NAME_TYPE_NATIVE_CHAR, iptRW);
 {$IFDEF DELPHI2006UP}
     RegisterProperty('StrictDelimiter', 'Boolean', iptRW);
 {$ENDIF}
-    RegisterProperty('DelimitedText', 'string', iptrw);
-    RegisterProperty('NameValueSeparator', 'Char', iptRW);
-    RegisterProperty('QuoteChar', 'Char', iptRW);
+    RegisterProperty('DelimitedText', C_NAME_TYPE_NATIVE_STRING, iptrw);
+    RegisterProperty('NameValueSeparator', C_NAME_TYPE_NATIVE_CHAR, iptRW);
+    RegisterProperty('QuoteChar', C_NAME_TYPE_NATIVE_CHAR, iptRW);
     RegisterProperty('Count', 'Integer', iptR);
-    RegisterProperty('Text', 'string', iptrw);
-    RegisterProperty('CommaText', 'string', iptrw);
+    RegisterProperty('Text', C_NAME_TYPE_NATIVE_STRING, iptrw);
+    RegisterProperty('CommaText', C_NAME_TYPE_NATIVE_STRING, iptrw);
     if Streams then
     begin
-      RegisterMethod('procedure LoadFromFile(FileName: string); ');
-      RegisterMethod('procedure SaveToFile(FileName: string); ');
+      RegisterMethod('procedure LoadFromFile(FileName: '+C_NAME_TYPE_NATIVE_STRING+'); ');
+      RegisterMethod('procedure SaveToFile(FileName: '+C_NAME_TYPE_NATIVE_STRING+'); ');
     end;
-    RegisterProperty('Strings', 'string Integer', iptRW);
+    RegisterProperty('Strings', C_NAME_TYPE_NATIVE_STRING+' Integer', iptRW);
     SetDefaultPropery('Strings');
     RegisterProperty('Objects', 'TObject Integer', iptRW);
 
@@ -83,20 +83,20 @@ begin
     RegisterMethod('procedure EndUpdate;');
     RegisterMethod('function Equals(Strings: TStrings): Boolean;');
     RegisterMethod('procedure Exchange(Index1, Index2: Integer);');
-    RegisterMethod('function IndexOfName(Name: string): Integer;');
+    RegisterMethod('function IndexOfName(Name: '+C_NAME_TYPE_NATIVE_STRING+'): Integer;');
     if Streams then
       RegisterMethod('procedure LoadFromStream(Stream: TStream); ');
     RegisterMethod('procedure Move(CurIndex, NewIndex: Integer); ');
     if Streams then
       RegisterMethod('procedure SaveToStream(Stream: TStream); ');
-    RegisterMethod('procedure SetText(Text: PChar); ');
-    RegisterProperty('Names', 'string Integer', iptr);
-    RegisterProperty('Values', 'string string', iptRW);
-    RegisterProperty('ValueFromIndex', 'string Integer', iptRW);
-    RegisterMethod('function AddObject(S: string; AObject: TObject): Integer');
-    RegisterMethod('function GetText: PChar');
+    RegisterMethod('procedure SetText(Text: '+C_NAME_TYPE_NATIVE_PCHAR+'); ');
+    RegisterProperty('Names', C_NAME_TYPE_NATIVE_STRING+' Integer', iptr);
+    RegisterProperty('Values', C_NAME_TYPE_NATIVE_STRING+' string', iptRW);
+    RegisterProperty('ValueFromIndex', C_NAME_TYPE_NATIVE_STRING+' Integer', iptRW);
+    RegisterMethod('function AddObject(S: '+C_NAME_TYPE_NATIVE_STRING+'; AObject: TObject): Integer');
+    RegisterMethod('function GetText: '+C_NAME_TYPE_NATIVE_PCHAR);
     RegisterMethod('function IndexOfObject(AObject: TObject): Integer');
-    RegisterMethod('procedure InsertObject(Index: Integer; S: string; AObject: TObject)');
+    RegisterMethod('procedure InsertObject(Index: Integer; S: '+C_NAME_TYPE_NATIVE_STRING+'; AObject: TObject)');
     {$ENDIF}
   end;
 end;
@@ -108,7 +108,7 @@ begin
 {$IFDEF DELPHI2005UP}
     RegisterMethod('constructor Create;');
 {$ENDIF}
-    RegisterMethod('function Find(S: string; var Index: Integer): Boolean');
+    RegisterMethod('function Find(S: '+C_NAME_TYPE_NATIVE_STRING+'; var Index: Integer): Boolean');
     RegisterMethod('procedure Sort');
     RegisterProperty('CaseSensitive', 'Boolean', iptrw);
     RegisterProperty('Duplicates', 'TDuplicates', iptrw);
@@ -136,9 +136,9 @@ begin
   begin
     IsAbstract := True;
     {+}
-    //RegisterMethod('function Read(Buffer:String;Count:LongInt):LongInt');
+    //RegisterMethod('function Read(Buffer: string; Count: LongInt): LongInt');
     RegisterMethod('function Read(var Buffer:AnsiString;Count:LongInt):LongInt');
-    //RegisterMethod('function Write(Buffer:String;Count:LongInt):LongInt');
+    //RegisterMethod('function Write(Buffer: string; Count: LongInt): LongInt');
     RegisterMethod('function Write(const Buffer:AnsiString;Count:LongInt):LongInt');
     {+}
     RegisterMethod('function ReadA(var Buffer:AnsiString;Count:LongInt):LongInt');
@@ -151,26 +151,26 @@ begin
     {$IFDEF UNICODE}
     RegisterMethod('function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64');
     {$ELSE}
-    RegisterMethod('function Seek(Offset:LongInt;Origin:Word):LongInt');
+    RegisterMethod('function Seek(Offset: LongInt; Origin: Word): LongInt');
     {$ENDIF}
-    //RegisterMethod('procedure ReadBuffer(Buffer:String;Count:LongInt)');
+    //RegisterMethod('procedure ReadBuffer(Buffer: string; Count: LongInt)');
     RegisterMethod('procedure ReadBuffer(const Buffer:AnsiString;Count:LongInt)');
-    //RegisterMethod('procedure WriteBuffer(Buffer:String;Count:LongInt)');
+    //RegisterMethod('procedure WriteBuffer(Buffer: string; Count: LongInt)');
     RegisterMethod('procedure WriteBuffer(var Buffer:AnsiString;Count:LongInt)');
     //
-    RegisterMethod('procedure ReadBufferA(const Buffer:AnsiString;Count:LongInt)');
-    RegisterMethod('procedure ReadBufferB(const Buffer:TBytes;Count:LongInt)');
-    RegisterMethod('procedure ReadBufferW(const Buffer:UnicodeString;Count:LongInt)');
-    RegisterMethod('procedure WriteBufferA(var Buffer:AnsiString;Count:LongInt)');
-    RegisterMethod('procedure WriteBufferB(var Buffer:TBytes;Count:LongInt)');
-    RegisterMethod('procedure WriteBufferW(var Buffer:UnicodeString;Count:LongInt)');
+    RegisterMethod('procedure ReadBufferA(var Buffer:AnsiString;Count:LongInt)');
+    RegisterMethod('procedure ReadBufferB(var Buffer:TBytes;Count:LongInt)');
+    RegisterMethod('procedure ReadBufferW(var Buffer:UnicodeString;Count:LongInt)');
+    RegisterMethod('procedure WriteBufferA(const Buffer:AnsiString;Count:LongInt)');
+    RegisterMethod('procedure WriteBufferB(const Buffer:TBytes;Count:LongInt)');
+    RegisterMethod('procedure WriteBufferW(const Buffer:UnicodeString;Count:LongInt)');
     {+.}
     {$IFDEF DELPHI4UP}
     {$IFNDEF PS_NOINT64}
-    RegisterMethod('function CopyFrom(Source:TStream;Count:Int64):LongInt');
+    RegisterMethod('function CopyFrom(Source: TStream; Count: Int64): Int64');
     {$ENDIF}
     {$ELSE}
-    RegisterMethod('function CopyFrom(Source:TStream;Count:Integer):LongInt');
+    RegisterMethod('function CopyFrom(Source: TStream; Count: Integer): LongInt');
     {$ENDIF}
     {+}
     {$IFNDEF PS_NOINT64}
@@ -180,6 +180,7 @@ begin
     RegisterProperty('Position', 'LongInt', iptrw);
     RegisterProperty('Size', 'LongInt', iptrw);
     {$ENDIF}
+    RegisterProperty('DataBytes', 'TBytes', iptr);
     {+.}
   end;
 end;
@@ -188,8 +189,10 @@ procedure SIRegisterTHANDLESTREAM(Cl: TPSPascalCompiler);
 begin
   with Cl.AddClassN(cl.FindClass('TStream'), 'THandleStream') do
   begin
-    RegisterMethod('constructor Create(AHandle:Integer)');
-    RegisterProperty('Handle', 'Integer', iptr);
+    RegisterMethod('constructor Create(AHandle: Integer)');
+    {+}
+    RegisterProperty('Handle', 'NativeUInt', iptr); // THandle == NativeUInt
+    {+.}
   end;
 end;
 
@@ -218,7 +221,14 @@ procedure SIRegisterTSTRINGSTREAM(Cl: TPSPascalCompiler);
 begin
   with Cl.AddClassN(cl.FindClass('TStream'), 'TStringStream') do
   begin
+    {+}
     RegisterMethod('constructor Create(AString: string)');
+    //RegisterMethod('constructor Create(AString: '+C_NAME_TYPE_NATIVE_STRING+')');
+    {+.}
+    {+}
+    //RegisterProperty('DataString', C_NAME_TYPE_NATIVE_STRING, iptr);
+    RegisterProperty('DataString', 'string', iptr);
+    {+.}
   end;
 end;
 
@@ -285,7 +295,7 @@ Begin
   if cr = nil then cr := cl.AddClassN(cl.FindClass('TPersistent'), 'TCollection');
 With cr do
   begin
-//  RegisterMethod('constructor Create( ItemClass : TCollectionItemClass)');
+//  RegisterMethod('constructor Create(ItemClass: TCollectionItemClass)');
 {$IFDEF DELPHI3UP}  RegisterMethod('function Owner: TPersistent'); {$ENDIF}
   RegisterMethod('function Add: TCollectionItem');
   RegisterMethod('procedure BeginUpdate');
@@ -305,7 +315,7 @@ procedure SIRegisterTOWNEDCOLLECTION(CL: TPSPascalCompiler);
 Begin
 With Cl.AddClassN(cl.FindClass('TCollection'),'TOwnedCollection') do
   begin
-//  RegisterMethod('Constructor CREATE( AOWNER : TPERSISTENT; ITEMCLASS : TCOLLECTIONITEMCLASS)');
+//  RegisterMethod('constructor Create(AOwner: TPersistent; ItemClass: TCollectionItemClass)');
   end;
 end;
 {$ENDIF}
@@ -334,7 +344,7 @@ begin
   cl.AddConstantN('toEOF', 'Char').SetString(#0);
   cl.AddConstantN('toSymbol', 'Char').SetString(#1);
   cl.AddConstantN('toString', 'Char').SetString(#2);
-  cl.AddConstantN('toInteger', 'Char').SetString(#3);
+  cl.AddConstantN('ToInteger', 'Char').SetString(#3);
   cl.AddConstantN('toFloat', 'Char').SetString(#4);
   cl.AddConstantN('fmCreate', 'LongInt').Value.ts32 := $FFFF;
   cl.AddConstantN('fmOpenRead', 'LongInt').Value.ts32 := 0;
@@ -354,7 +364,7 @@ begin
   cl.AddTypeS('TDuplicates', '(dupIgnore, dupAccept, dupError)');
   cl.AddTypeS('TOperation', '(opInsert, opRemove)');
   {+}
-  cl.AddTypeS('THANDLE', {$IFDEF MSWINDOWS}'NativeUInt'{$ELSE}'Cardinal'{$ENDIF}); // 'LongInt'
+  cl.AddTypeS('THandle', {$IFDEF MSWINDOWS}'NativeUInt'{$ELSE}'Cardinal'{$ENDIF}); // 'Longint'
   {+.}
   cl.AddTypeS('TNotifyEvent', 'procedure (Sender: TObject)');
 end;
@@ -391,6 +401,5 @@ begin
 end;
 
 // PS_MINIVCL changes by Martijn Laan (mlaan at wintax _dot_ nl)
-
 
 end.

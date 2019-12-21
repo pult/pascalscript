@@ -122,6 +122,8 @@
 { DARWIN64        64bit Mac OS X                                             }
 {----------------------------------------------------------------------------}
 
+{$IFNDEF FPC}
+// -----------------------------------------------------------------------------
 { defines for Borland Pascal 7.0 }
 {$IFDEF VER70}
   {$DEFINE BP}
@@ -403,7 +405,6 @@
     {$DEFINE BDS7UP}
   {$ENDIF}
 
-
   {$IFDEF WIN32}
     {$DEFINE MSWINDOWS} //not automatically defined for Delphi 2 thru 5
     {$DEFINE 32BIT}
@@ -497,7 +498,6 @@
     {$DEFINE CPU32}
   {$ENDIF}
 {$ENDIF}
-
 
 { defines for Delphi XE3 }
 {$IFDEF VER240}
@@ -639,7 +639,6 @@
   {$DEFINE DELPHIXE3UP}
   {$DEFINE DELPHIXE4UP}
   {$DEFINE DELPHIXE5UP}
-
 
   {$DEFINE BDS}
   {$DEFINE BDS12}
@@ -1146,11 +1145,12 @@
   {$ENDIF}
 {$ENDIF}
 
-
 { defines for "Delphi for .NET" }
 {$IFDEF CLR}
   {$DEFINE DOTNET}
 {$ENDIF}
+
+// -----------------------------------------------------------------------------
 
 {$IFDEF DELPHI}
   {$IFDEF DELPHI2UP}
@@ -1162,46 +1162,73 @@
   {$DEFINE CBUILDER_32BIT}
 {$ENDIF}
 
-{$IFNDEF FPC}
-  {$IFNDEF DelphiXE11UP}
-    { Kylix 1.0 thru 3.0 }
-    {$IFDEF LINUX}
+{$IFNDEF DelphiXE11UP}
+  { Kylix 1.0 thru 3.0 }
+  {$IFDEF LINUX}
 
-      {$DEFINE VER140UP}
+    {$DEFINE VER140UP}
 
-      { Any Kylix }
-      {$DEFINE 32BIT}
-      {$DEFINE LINUX32}
-      {$DEFINE KYLIX_32BIT}
-      {$DEFINE KYLIX}
-      {$DEFINE KYLIX1UP}
+    { Any Kylix }
+    {$DEFINE 32BIT}
+    {$DEFINE LINUX32}
+    {$DEFINE KYLIX_32BIT}
+    {$DEFINE KYLIX}
+    {$DEFINE KYLIX1UP}
 
-      {$IFDEF CONDITIONALEXPRESSIONS}
-        {$IF Declared(CompilerVersion)}
+    {$IFDEF CONDITIONALEXPRESSIONS}
+      {$IF Declared(CompilerVersion)}
 
-           { Kylix 2.0 }
-           {$IF Declared(RTLVersion) and (RTLVersion = 14.1)}
-             {$DEFINE KYLIX2}
-             {$DEFINE KYLIX1UP}
-             {$DEFINE KYLIX2UP}
-           {$IFEND}
+         { Kylix 2.0 }
+         {$IF Declared(RTLVersion) and (RTLVersion = 14.1)}
+           {$DEFINE KYLIX2}
+           {$DEFINE KYLIX1UP}
+           {$DEFINE KYLIX2UP}
+         {$IFEND}
 
-           { Kylix 3.0 - Delphi portion }
-           {$IF Declared(RTLVersion) and (RTLVersion = 14.5)}
-             {$DEFINE KYLIX3}
-             {$DEFINE KYLIX1UP}
-             {$DEFINE KYLIX2UP}
-             {$DEFINE KYLIX3UP}
-           {$IFEND}
+         { Kylix 3.0 - Delphi portion }
+         {$IF Declared(RTLVersion) and (RTLVersion = 14.5)}
+           {$DEFINE KYLIX3}
+           {$DEFINE KYLIX1UP}
+           {$DEFINE KYLIX2UP}
+           {$DEFINE KYLIX3UP}
+         {$IFEND}
 
-        { Kylix 1.0 }
-        {$ELSE}
-          {$DEFINE KYLIX1}
-        {$IFEND}
-      {$ENDIF CONDITIONALEXPRESSIONS}
-    {$ENDIF LINUX}
-  {$ENDIF DelphiXE11UP}
+      { Kylix 1.0 }
+      {$ELSE}
+        {$DEFINE KYLIX1}
+      {$IFEND}
+    {$ENDIF CONDITIONALEXPRESSIONS}
+  {$ENDIF LINUX}
+{$ENDIF DelphiXE11UP}
+
+{$IFDEF DELPHI9UP}
+  {$DEFINE _INLINE_} { optional }
+{$ENDIF DELPHI9UP}
+
+// -----------------------------------------------------------------------------
+{$ENDIF !FPC}
+
+{+}
+{$IFDEF FPC}
+// -----------------------------------------------------------------------------
+  {$ifdef CPU64}
+    {$DEFINE CPUX64}
+  {$else}
+    {$DEFINE CPUX86}
+  {$endif}
+  {$DEFINE CONDITIONALEXPRESSIONS}
+{$ELSE}
+  {$IFDEF CPU64BITS} // XE2-XE7 (CPUX64), XE8+ (CPU64BITS)
+    {$DEFINE CPUX64}
+  {$ENDIF}
+  {$IFNDEF CPUX64}
+    {$DEFINE CPUX86}
+  {$ENDIF}
+
+  {$DEFINE _INLINE_} { optional }
+// -----------------------------------------------------------------------------
 {$ENDIF}
+{+.}
 
 { CPU }
 
@@ -1294,9 +1321,16 @@
   {$DEFINE FPC_SAFECALL_BUG}          // nextgen&linux compiler causes bug with safecall declarations
 {$ENDIF}
 
-{$IFDEF DELPHI2005UP}
-  {$DEFINE INLINE_SUPPORT}
+{+}
+{.$if defined(cpuarm)}
+{$ifdef wince}
+  {$UNDEF UNICODE} // todo: need check on fpc 2.5.x
+{$endif}
+{.$ifend}
+
+{$R-}
+{$D+}
+{$IFNDEF FPC}
+  {$L+}
 {$ENDIF}
-{$IFDEF FPC}
-  {$DEFINE INLINE_SUPPORT}
-{$ENDIF}
+{+.}

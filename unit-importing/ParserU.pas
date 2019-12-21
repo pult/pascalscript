@@ -9,8 +9,8 @@
 }
 
 unit ParserU;
-{version: 20041219}
-{$B-,O-,D+}
+{version: 2018.0307.1849}
+{$i FxtVer.inc}{$B-,O-,D+}
 interface
   uses uPSUtils, SysUtils, StrUtils, ParserUtils, BigIni, Classes;
 
@@ -46,7 +46,7 @@ type
   private
     fWriteln: TWriteln;
     fReadln: TReadln;
-    FUnitPrefix,
+    FUnitPrefix, {+}FUnitFileSufix,{+.}
     FCompPage,
     fCompPrefix : String;
     FSingleUnit: Boolean;
@@ -101,7 +101,7 @@ type
       TimeMode: TTimeMode;
       InterfaceSection: boolean);
     function RegisterProc(const ProcName: string; TimeMode: TTimeMode; Attr: TProcAttr): TProcList;
-  //  Procedure AddVarToProc(const ProcName : string;CompileTime : TCompileTime;
+  //  procedure AddVarToProc(const ProcName : string;CompileTime : TCompileTime;
   //                         const VarString : string);
     procedure FinishProcs;
   private
@@ -148,6 +148,9 @@ type
     function  UnitNameRT: string;
     function  UnitNameCT: string;
     function  UnitNameCmp: string;
+    {+}
+    function  UnitFileCmp: string;
+    {+.}
     procedure SaveToPath(const Path: string);
 
     property Writeln: TWriteln read fWriteln write SetWriteln;
@@ -155,17 +158,20 @@ type
 
     property SingleUnit : Boolean read FSingleUnit write FSingleUnit;  // teo
     property UnitPrefix : string read FUnitPrefix write FUnitPrefix;   // teo
+    {+}
+    property UnitFileSufix : string read FUnitFileSufix write FUnitFileSufix;
+    {+.}
     property CompPage   : String read FCompPage write FCompPage; // Niels
     property CompPrefix : String read FCompPrefix write FCompPrefix; // Niels
     property AfterInterfaceDeclaration: string read FAfterInterfaceDeclaration write FAfterInterfaceDeclaration;
     property AutoRenameOverloadedMethods: Boolean read FAutoRenameOverloadedMethods write FAutoRenameOverloadedMethods;
-
 
     property OutUnitList : TStringList read FOutUnitList;              // teo
   end; {TUnitParser}
 
 const
   MaxSearchCount = 100;
+  cCodeBlockDelim: string = '(*----------------------------------------------------------------------------*)';
 
 implementation
 
@@ -436,7 +442,7 @@ begin
 end; {FinishProcs}
 
 (*
-Procedure TUnitParser.AddVarToProc(const ProcName : string;
+procedure TUnitParser.AddVarToProc(const ProcName : string;
                                    CompileTime : TCompileTime;
                                    const VarString : string);
 var
@@ -444,7 +450,7 @@ var
 begin
 proc := RegisterProc(ProcName,CompileTime,false);
 If Proc = nil then
-  RaiseError('Procedure :"'+ProcName+'" can not be found');
+  RaiseError('procedure :"'+ProcName+'" can not be found');
 If fastUppercase(Proc[1]) = 'VAR' then
   Proc.Insert(2,VarString)
 else
@@ -469,7 +475,7 @@ end; {StartParse}
 (*----------------------------------------------------------------------------*)
 function  TUnitParser.UnitNameRT: string;
 begin
-  Result := Format('%sR_%s.pas', [FUnitPrefix, UnitName]);
+  Result := Format('%sR_%s%s.pas', [FUnitPrefix, UnitName]);
 end;
 (*----------------------------------------------------------------------------*)
 function  TUnitParser.UnitNameCT: string;
@@ -482,6 +488,12 @@ begin
   Result := Format('%sI_%s.pas', [FUnitPrefix, UnitName]);
 end;
 
+{+}
+function TUnitParser.UnitFileCmp: string;
+begin
+  Result := Format('%sI_%s%s.pas', [FUnitPrefix, UnitName, FUnitFileSufix]);
+end;
+{+.}
 
 (*----------------------------------------------------------------------------*)
 procedure TUnitParser.SaveToPath(const Path: string);
@@ -490,15 +502,15 @@ var
 begin
   if SingleUnit then
   begin
-    FOutUnitList.SaveToFile(Path + UnitNameCmp);
+    FOutUnitList.SaveToFile(Path + {+}{UnitNameCmp}UnitFileCmp{+.});
   end else begin
     List := TStringList.Create;
     try
       List.Text := OutputRT;
-      List.SaveToFile(Path + UnitnameRT);
+      List.SaveToFile(Path + UnitNameRT);
 
       List.Text := OutputDT;
-      List.SaveToFile(Path + UnitnameCT);
+      List.SaveToFile(Path + UnitNameCT);
     finally
       List.Free;
     end;
@@ -571,7 +583,7 @@ begin
           obj := FCompileTimeProcList.objects[Index];
           if (obj is TProcList) and
             (IsHelper in TProcList(obj).ProcAttr) then
-            OutPut.Add(TStringList(obj).text);
+            OutPut.Add(TrimRight(TStringList(obj).text));
         end;
 
         for Index := FCompileTimeProcList.count - 1 downto 0 do
@@ -579,7 +591,7 @@ begin
           obj := FCompileTimeProcList.objects[Index];
           if (obj is TProcList) and
             (PublicProc in TProcList(obj).ProcAttr) then
-            OutPut.Add(TStringList(obj).text);
+            OutPut.Add(TrimRight(TStringList(obj).text));
         end;
 
         // insert the Runtime unit importer code into the end of the unit
@@ -598,8 +610,6 @@ begin
         OutPut.free;
       end;
     end;
-
-
 
    {===================================================================================}
    // write out the run time import unit
@@ -712,6 +722,142 @@ begin
   end;
 end; {FinishParse}
 
+{+}(*
+procedure trim_text(LCode: TStringList; DropFirstEmptyLines: Boolean = False;
+  DropLastEmptyLines: Boolean = False; DropDupEmptyLines: Boolean = False);
+var
+  sLine: string;
+  ALines, L: TStringList;
+  iLineRaw, iLen, iLenNew, iTruncCount, iBreakCorrected, iEmptyDouble, i: integer;
+  AModified, OK: Boolean;
+begin
+  ALines := nil;
+  L := nil;
+  try
+    ALines := TStringList.Create;
+    ALines.BeginUpdate;
+
+    iTruncCount := 0;
+    iBreakCorrected := 0;
+    iEmptyDouble := -1;
+    for iLineRaw := 0 to LCode.Count -1 do begin
+      sLine := LCode[iLineRaw];
+      iLen := Length(sLine);
+      if iLen > 0 then begin // @dbg: sLine='end;'
+        iEmptyDouble := -1;
+        //sLine := AdjustLineBreaks(sLine); // correct line breaks to current OS. NB: Not needed !!!
+        //iLenNew := Length(sLine);
+        //OK := iLenNew = iLen;
+        //if OK then
+        OK := Pos({System.}sLineBreak, sLine) > 0;
+        if {(iLenNew <> iLen) or} OK then begin
+          //if (iLenNew <> iLen) then
+          //  Inc(iBreakCorrected, iLen - iLenNew);
+          if L = nil then
+            L := TStringList.Create;
+          L.Text := sLine;
+          for i := 0 to L.Count -1 do begin
+            sLine := L[i];
+            iLen := Length(sLine);
+            if iLen > 0 then begin
+              sLine := TrimRight(sLine);
+              iLenNew := Length(sLine);
+              if iLenNew <> iLen then begin
+                Inc(iTruncCount, iLen - iLenNew);
+                if iLenNew = 0 then
+                  Inc(iEmptyDouble);
+              end;
+            end else begin
+              Inc(iEmptyDouble);
+            end;
+            if iEmptyDouble <= 0 then
+              ALines.Add(sLine)
+            else begin
+              if not DropDupEmptyLines then
+                ALines.Add('')
+              else
+                Inc(iBreakCorrected);
+            end;
+          end;
+          L.Clear;
+          continue; // !
+        end
+        else//}
+        begin
+          sLine := TrimRight(sLine);
+          iLenNew := Length(sLine);
+          if iLenNew <> iLen then begin
+            Inc(iTruncCount, iLen - iLenNew);
+            if iLenNew = 0 then
+              Inc(iEmptyDouble);
+          end;
+        end;
+      end else begin
+        Inc(iEmptyDouble);
+      end;
+      if iEmptyDouble <= 0 then
+        ALines.Add(sLine)
+      else begin
+        if not DropDupEmptyLines then
+          ALines.Add('')
+        else
+          Inc(iBreakCorrected);
+      end;
+    end; // for iLineRaw
+
+    // trunc last empty lines
+    if DropLastEmptyLines and (iEmptyDouble >= 0) and (ALines.Count > 0) then begin
+      for i := ALines.Count - 1 downto 0 do begin
+        sLine := ALines[i];
+        if Length(sLine) > 0 then
+          Break;
+        ALines.Delete(ALines.Count-1);
+        Inc(iBreakCorrected);
+      end;
+    end;
+
+    // trunc first empty lines
+    if (DropFirstEmptyLines or DropDupEmptyLines) and (ALines.Count > 0) then begin
+      for i := 0 to ALines.Count - 1 do begin
+        sLine := ALines[0];
+        if Length(sLine) > 0 then
+          Break;
+        ALines.Delete(0);
+        Inc(iBreakCorrected);
+      end;
+    end;
+
+    AModified := (iTruncCount > 0) or (iBreakCorrected > 0);
+
+    if AModified then
+    begin
+      if AModified then begin
+        // fix: tstringlist save + CLRF
+        if DropDupEmptyLines and (not DropLastEmptyLines) and (iEmptyDouble >= 0) and
+          (ALines.Count > 0) then begin
+          //sLine := ALines[ALines.Count-1];
+          //if Length(sLine) = 0 then
+          ALines.Delete(ALines.Count-1);
+          //Inc(iBreakCorrected);
+        end;//}
+      end;
+
+      ALines.EndUpdate;
+      LCode.Assign(ALines); // update code
+    end;
+  finally
+    ALines.Free;
+    L.Free;
+  end;
+end;
+
+procedure trim_text_code(LCode: TStringList);
+begin
+  trim_text(LCode, {DropFirstEmptyLines:}True,
+    {DropLastEmptyLines:}True, {DropDupEmptyLines:}True);
+end;//*)
+{+.}
+
 (*----------------------------------------------------------------------------*)
 procedure TUnitParser.FinishParseSingleUnit;
   {-------------------------------------------}
@@ -775,11 +921,19 @@ begin
     { unit name, etc. }
     OutPutList.Add('unit ' + ChangeFileExt(UnitNameCmp, '') + ';');
     OutPutList.Add(GetLicence);
+    {+}
+    OutPutList.Add('//');
+    OutPutList.Add('// Unit version: ' + FormatDateTime('yyyy.mmdd.hhnn', Now));
+    OutPutList.Add('//');
+    {+.}
 //    OutPutList.Add('{$I PascalScript.inc}');
     OutPutList.Add('interface');
-    {+}OutPutList.Add('');{+.}
-    OutPutList.Add(FAfterInterfaceDeclaration);
-    {+}OutPutList.Add('');{+.}
+    {+}OutPutList.Add('');
+    if Length(FAfterInterfaceDeclaration) > 0 then begin
+      OutPutList.Add(FAfterInterfaceDeclaration);
+      OutPutList.Add('');
+    end;
+    {+.}
 
     { interface uses clause list }
     AddToUsesList(InterfaceUsesList, nil, 'SysUtils');
@@ -803,7 +957,7 @@ begin
 
     sClassName := FCompPrefix + '_' + UnitName ;
     {+}OutPutList.Add('type');{+.}
-    OutPutList.Add('(*----------------------------------------------------------------------------*)');
+    OutPutList.Add(cCodeBlockDelim);
     OutPutList.Add(Format('  %s = class(TPSPlugin)', [sClassName]));
     OutPutList.Add('  public');
 //  OutPutList.Add('    procedure CompOnUses(CompExec: TPSScript); override;');
@@ -814,8 +968,7 @@ begin
 //  OutPutList.Add('    procedure ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;');
     OutPutList.Add('  end;');
     {+}OutPutList.Add('');{+.}
-    {+}OutPutList.Add('');{+.}
-
+    {+}{OutPutList.Add('');{+.}
 
     { compile-time function declarations }
       if Assigned(FCompileTimeProcList) then
@@ -852,14 +1005,12 @@ begin
     OutPutList.Add('');
     OutPutList.Add('implementation');
     OutPutList.Add('');
-    OutPutList.Add('');
-
+    {+}{OutPutList.Add('');{+.}
 
     { implementation uses clause }
      if Assigned(FCompileTimeProcList) then
        for i := 0 to FCompileTimeUnitListImp.Count - 1 do
          AddToUsesList(ImplementationUsesList, InterfaceUsesList, FCompileTimeUnitListImp[i]);
-
 
     if Assigned(FRunTimeProcList) then
        for i := 0 to FRunTimeUnitListImp.Count - 1 do
@@ -892,10 +1043,9 @@ begin
 
 *)
 
-
     OutPutList.AddStrings(List);
     {+}OutPutList.Add('');{+.}
-    {+}OutPutList.Add('');{+.}
+    {+}{OutPutList.Add('');{+.}
           OutPutList.Add('procedure Register;');
           OutPutList.Add('begin');
           OutPutList.Add('  RegisterComponents('''+FCompPage+''', ['+FCompPrefix + '_' + UnitName+']);');
@@ -913,8 +1063,9 @@ begin
         obj := FCompileTimeProcList.objects[Index];
         if (obj is TProcList) and (IsHelper in TProcList(obj).ProcAttr) then
         begin
-          OutPutList.Add('(*----------------------------------------------------------------------------*)');
-          OutPutList.Add(TStringList(obj).text);
+          OutPutList.Add(cCodeBlockDelim);
+          OutPutList.Add(TrimRight(TStringList(obj).text));
+          {+}OutPutList.Add('');{+.}
         end;
       end;
 
@@ -923,8 +1074,9 @@ begin
         obj := FCompileTimeProcList.objects[Index];
         if (obj is TProcList) and (PublicProc in TProcList(obj).ProcAttr) then
         begin
-          OutPutList.Add('(*----------------------------------------------------------------------------*)');
-          OutPutList.Add(TStringList(obj).text);
+          OutPutList.Add(cCodeBlockDelim);
+          OutPutList.Add(TrimRight(TStringList(obj).text));
+          {+}OutPutList.Add('');{+.}
         end;
       end;
     end;
@@ -940,8 +1092,9 @@ begin
         obj := FRunTimeProcList.objects[Index];
         if (obj is TProcList) and (IsHelper in TProcList(obj).ProcAttr) then
         begin
-          OutPutList.Add('(*----------------------------------------------------------------------------*)');
-          OutPutList.Add(TProcList(obj).text);
+          OutPutList.Add(cCodeBlockDelim);
+          OutPutList.Add(TrimRight(TProcList(obj).text));
+          {+}OutPutList.Add('');{+.}
         end;
       end;
 
@@ -951,21 +1104,23 @@ begin
         obj := FRunTimeProcList.objects[Index];
         if (obj is TProcList) and (PublicProc in TProcList(obj).ProcAttr) then
         begin
-          OutPutList.Add('(*----------------------------------------------------------------------------*)');
-          OutPutList.Add(TProcList(obj).text);
+          OutPutList.Add(cCodeBlockDelim);
+          OutPutList.Add(TrimRight(TProcList(obj).text));
+          {+}OutPutList.Add('');{+.}
         end;
       end;
     end;
 
-    {+}OutPutList.Add('');{+.}
-    {+}OutPutList.Add('');{+.}
+    {+}{OutPutList.Add('');{+.}
+    {+}{OutPutList.Add('');{+.}
     OutPutList.Add(Format('{ %s }', [sClassName]));
-    OutPutList.Add('(*----------------------------------------------------------------------------*)');
+    OutPutList.Add(cCodeBlockDelim);
     OutPutList.Add(Format('procedure %s.CompileImport1(CompExec: TPSScript);', [sClassName]));
     OutPutList.Add('begin');
     OutPutList.Add(Format('  SIRegister_%s(CompExec.Comp);', [UnitName]));
     OutPutList.Add('end;');
-    OutPutList.Add('(*----------------------------------------------------------------------------*)');
+    {+}OutPutList.Add('');{+.}
+    OutPutList.Add(cCodeBlockDelim);
     OutPutList.Add(Format('procedure %s.ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);', [sClassName]));
     OutPutList.Add('begin');
 
@@ -978,11 +1133,10 @@ begin
       OutPutList.Add(Format('  RIRegister_%s_Routines(CompExec.Exec); // comment it if no routines', [UnitName]));
 
     OutPutList.Add('end;');
-    OutPutList.Add('(*----------------------------------------------------------------------------*)');
-
-
     {+}OutPutList.Add('');{+.}
-    {+}OutPutList.Add('');{+.}
+
+    {+}{OutPutList.Add(cCodeBlockDelim);{+.}
+    {+}{OutPutList.Add('');{+.}
 
     OutPutList.Add('end.');
   finally
@@ -1005,7 +1159,10 @@ begin
     List.Free;
     ImplementationUsesList.Free;
     InterfaceUsesList.Free;
-    FOutUnitList.Assign(OutPutList);
+    {+}
+//    trim_text_code(OutPutList);
+    {+.}
+    FOutUnitList.Assign(OutPutList); {!}
     OutPutList.Free;
   end;
 
@@ -1206,11 +1363,11 @@ function TUnitParser.GetAsString(const ConstType, ConstValue: string): string;
 begin
   if ConstType = 'BOOLEAN' then
   begin
-    with RegisterProc('Function BoolToStr(value : boolean) : string;', CompileTime, [IsHelper]) do
+    with RegisterProc('function BoolToStr(Value : Boolean) : string;', CompileTime, [IsHelper]) do
     begin
       if IsDone in ProcAttr then exit;
       include(ProcAttr, IsDone);
-      Add('Begin If value then Result := ''TRUE'' else Result := ''FALSE'' End;');
+      Add('begin if Value then Result := ''Ttue'' else Result := ''False'' end;');
     end;
     Result := 'BoolToStr(' + ConstValue + ')';
   end
@@ -1266,9 +1423,9 @@ begin
         ReadLn(ConstType, 'Expression (' + Expression + ') :', 'Unable to determine expression type');
       // now output the value   //   String(   //teo
       If ConstType = 'ConstSet' then
-        fCurrentDTProc.Add(' CL.AddConstantN(''' + ConstName + ''',' + '''LongInt'')' + GetAsString(FastUppercase(ConstType), ConstValue) + ';')
+        fCurrentDTProc.Add('  CL.AddConstantN(''' + ConstName + ''',' + '''LongInt'')' + GetAsString(FastUppercase(ConstType), ConstValue) + ';')
       else
-        fCurrentDTProc.Add(' CL.AddConstantN(''' + ConstName + ''',' + '''' + ConstType + ''')' + GetAsString(FastUppercase(ConstType), ConstValue) + ';');
+        fCurrentDTProc.Add('  CL.AddConstantN(''' + ConstName + ''',' + '''' + ConstType + ''')' + GetAsString(FastUppercase(ConstType), ConstValue) + ';');
     except
    // Hack: We cannot succesfully parse this, but that doesn't mean we should stop.
       on e: Exception do
@@ -1334,26 +1491,26 @@ begin
   if IfMatch(CSTII_function) then
   begin
     Include(Result, IsFunction);
-    decl := 'Function ';
+    decl := 'function ';
   end
   else if IfMatch(CSTII_Procedure) then
-    decl := 'Procedure '
+    decl := 'procedure '
   else if IfMatch(CSTII_Constructor) then
   begin
     if not (IsMethod in Options) then
-      RaiseError('Constructor directive only applies to methods: '+OwnerClass, TokenRow, TokenCol);
+      RaiseError('constructor directive only applies to methods: '+OwnerClass, TokenRow, TokenCol);
     Include(Result, IsConstructor);
-    decl := 'Constructor '
+    decl := 'constructor '
   end
   else if IfMatch(CSTII_Destructor) then
   begin
     if not (IsMethod in Options) then
       RaiseError('Destructor directive only applies to methods: '+OwnerClass, TokenRow, TokenCol);
     Include(Result, IsDestructor);
-    decl := 'Destructor '
+    decl := 'destructor '
   end
   else
-    Match(CSTII_Procedure, 'Function'' Or ''Procedure');
+    Match(CSTII_Procedure, 'function'' or ''procedure');
 
   if not (Ispointer in Options) then
   begin
@@ -1585,7 +1742,7 @@ begin
                           end;
                         end;
                       end;
-                       
+
                     end;
                   end
                   else
@@ -1624,12 +1781,12 @@ begin
                     decl2 := StringReplace(decl2, OldProcName, OwnerClass+ProcName+'_P', [rfIgnoreCase]);
                     decl := StringReplace(decl, OldProcName, ProcName, [rfIgnoreCase])+';';
                     If (IsConstructor in Result) then begin
-                      decl2 := StringReplace(decl2, 'Constructor', 'Function', [rfIgnoreCase]);
+                      decl2 := StringReplace(decl2, 'constructor', 'function', [rfIgnoreCase]);
                       decl2 := StringReplace(decl2, ')', '):TObject', [rfIgnoreCase]);
                       decl2 := StringReplace(decl2, 'Self: '+Ownerclass, 'Self: TClass; CreateNewInstance: Boolean', [rfIgnoreCase]);
                     end;
                     If (IsDestructor in Result) then
-                      decl2 := StringReplace(decl2, 'Destructor', 'Procedure', [rfIgnoreCase]);
+                      decl2 := StringReplace(decl2, 'destructor', 'procedure', [rfIgnoreCase]);
                     decl2 := decl2 +';';
                     Proc := RegisterProc(decl2, RunTime, [IsHelper]);
                     if {not} (IsDone in Proc.ProcAttr) then
@@ -1657,12 +1814,12 @@ begin
                     If (IsFunction in Result) then s := 'Result := ';
                     If ParamStr <> '' then ParamStr := '('+ParamStr +')';
                     If (IsConstructor in Result) then
-                      Add('Begin Result := '+OwnerClass+'.' + OldProcName+ParamStr+'; END;')
+                      Add('begin Result := '+OwnerClass+'.' + OldProcName+ParamStr+'; end;')
                     else
                     If (IsMethod in Options) then
-                      Add('Begin '+S+'Self.' + OldProcName+ParamStr+'; END;')
+                      Add('begin '+S+'Self.' + OldProcName+ParamStr+'; end;')
                     else
-                      Add('Begin '+s+UnitName + '.' + OldProcName +ParamStr+ '; END;');
+                      Add('begin '+s+UnitName + '.' + OldProcName +ParamStr+ '; end;');
                   end;
                 end;
                 NextToken; // dbg: PChar(@fParser.FText[fParser.CurrTokenPos])
@@ -1691,8 +1848,8 @@ begin
   ParseProcDecl(ProcName, Decl, CallingConvention, []);
   if decl <> '' then
   begin
-    fCurrentDTProc.Add(' CL.AddDelphiFunction(''' + decl + ''');');  // teo -undeclared identifier RegisterDelphiFunctionC
-    fCurrentRTProc.Add(' S.RegisterDelphiFunction(@' + ProcName + ', ''' +  ProcName + ''', ' + CallingConvention + ');');
+    fCurrentDTProc.Add('  CL.AddDelphiFunction(''' + decl + ''');');  // teo -undeclared identifier RegisterDelphiFunctionC
+    fCurrentRTProc.Add('  S.RegisterDelphiFunction(@' + ProcName + ', ''' +  ProcName + ''', ' + CallingConvention + ');');
   end;
 end; {ParseRoutines}
 
@@ -1731,8 +1888,8 @@ var
         else
         begin
           if IsAbstract in ProcDeclInfo then
-            fCurrentRTProc.Add('    RegisterVirtualAbstractMethod(@' + aClassname +
-              ', @!.' + ProcName + ', ''' + ProcName + ''');')
+            fCurrentRTProc.Add('    RegisterVirtualAbstractMethod('{+}{+'@'{+.} + aClassname +
+              {+}', @'+{'!'}aClassname+'.'{+.}+ ProcName + ', ''' + ProcName + ''');')
           else
             fCurrentRTProc.Add('    RegisterVirtualMethod(@' + PProcName +
               ', ''' + ProcName + ''');')
@@ -1760,7 +1917,7 @@ var
       begin
         if IsDone in ProcAttr then RaiseError('Duplicate reader for field :' + aClassname + VarName, TokenRow, TokenCol);
         include(ProcAttr, IsDone);
-        Add('Begin T := Self.' + VarName + '; end;');
+        Add('begin T := Self.' + VarName + '; end;');
       end;
     end; {CreateFieldReadFunc}
 
@@ -1771,7 +1928,7 @@ var
       begin
         if IsDone in ProcAttr then RaiseError('Duplicate writer for field :' + aClassname + VarName, TokenRow, TokenCol);
         include(ProcAttr, IsDone);
-        Add('Begin Self.' + VarName + ' := T; end;');
+        Add('begin Self.' + VarName + ' := T; end;');
       end;
     end; {CreateFieldWriteFunc}
   var
@@ -2184,13 +2341,13 @@ begin {ParseClassDef}
       Include(RuntimeProcType, InterfaceImporter) //Birb
     else //Birb
       begin //Birb
-      if fCurrentRTProc = nil then
-      begin
-        Include(RunTimeProcType, ClassImporter);
-        fCurrentRTProc := RegisterProc('procedure RIRegister_' + UnitName +
-          '(CL: TPSRuntimeClassImporter);', RunTime, [PublicProc]);
-      end;
-      fCurrentRTProc.Add('  with CL.Add(' + aClassname + ') do');
+        if fCurrentRTProc = nil then
+        begin
+          Include(RunTimeProcType, ClassImporter);
+          fCurrentRTProc := RegisterProc('procedure RIRegister_' + UnitName +
+            '(CL: TPSRuntimeClassImporter);', RunTime, [PublicProc]);
+        end;
+        fCurrentRTProc.Add('  with CL.Add(' + aClassname + ') do ;'); // forward import for forward declaration
       end; //Birb
     exit;
   end
@@ -2215,7 +2372,6 @@ begin {ParseClassDef}
     Match(CSTI_CloseRound);
 
     ///////////////////
-
     if TokenId = CSTI_Semicolon then //??? //Birb: I think this is an impossible case!
     begin
       if UseUnitAtDT then
@@ -2236,13 +2392,11 @@ begin {ParseClassDef}
             fCurrentRTProc := RegisterProc('procedure RIRegister_' + UnitName +
               '(CL: TPSRuntimeClassImporter);', RunTime, [PublicProc]);
           end;
-          fCurrentRTProc.Add('  with CL.Add(' + aClassname + ') do');
+          fCurrentRTProc.Add('  with CL.Add(' + aClassname + ') do ;'); // forward import for forward declaration
         end; //Birb
       exit;
     end;
-
-   ///////////////////
-
+    ///////////////////
   end
 
   else
@@ -2306,8 +2460,8 @@ begin {ParseClassDef}
       RaiseError('Found ''' + GetTokenName(TokenID) + ''' instead of [''GUID-string'']', TokenRow, TokenCol)
     else
       begin //Birb: ignore ['GUID-string']
-      Match(CSTI_String);
-      Match(CSTI_CloseBlock);
+        Match(CSTI_String);
+        Match(CSTI_CloseBlock);
       end;
 
   while not IfMatch(CSTII_End) do
@@ -2589,8 +2743,6 @@ begin {ParseTypes}
     end;
   until (TokenID <> CSTI_Identifier);
 end; {ParseTypes}
-
-
 
 procedure TUnitParser.ParserError(Parser: TObject;
   Kind: TPSParserErrorKind);

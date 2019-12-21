@@ -112,7 +112,6 @@ type
     Function  DoBeforeCleanup(Sender: TObject; aComp: TPSPascalCompiler):Boolean;
     procedure DoScriptChance(sender:TObject);
 
-
   public
     {Create an instance of the CompExec component}
     constructor Create(AOwner: TComponent); override;
@@ -153,7 +152,6 @@ type
     property OnException    : TPSOnException read FOnException write FOnException;
   end;
 
-
 implementation
 
 {+}
@@ -169,7 +167,6 @@ type
 
 resourcestring
   sMissingEndStatment = 'Missing some ''End'' statments';
-
 
 function CompExportCheck(Sender: TPSPascalCompiler; Proc: TPSInternalProcedure; const ProcDecl: tbtstring): Boolean;
 begin
@@ -196,7 +193,6 @@ begin
 
   result := inherited Compile;
   if result then FillMethods;
-
 
  FNeedCompiling := not result;
 end;
@@ -545,7 +541,6 @@ begin
   result := inherited Execute;
 end;
 
-
 procedure TPSScriptExtension.DoScriptChance(sender: TObject);
 begin
   FNeedCompiling := True;
@@ -642,7 +637,7 @@ var
   // yes it's ugly, but I don't know an other way to fix it
   function GetParamFlags(P: Byte): TParamFlags;
   begin
-  result := [];
+    result := [];
     if (Ord(pfVar) and P <> 0) then Include(result, pfVar);
     if (Ord(pfConst) and P <> 0) then Include(result, pfConst);
     if (Ord(pfArray) and P <> 0) then Include(result, pfArray);
@@ -697,7 +692,6 @@ var
   nBegins : Integer;
   nProcs  : Integer;
   line, test : tbtstring;
-
 
   function IsItem(line,item:tbtstring; First :Boolean = false):Boolean;
   var
@@ -1016,6 +1010,5 @@ begin
     FName := Value;
   end;
 end;
-
 
 end.

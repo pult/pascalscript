@@ -85,7 +85,7 @@
 {      to handle case insensitive search in languages with special chars;    }
 {      some efforts to increase speed                                        }
 {      * new web and e-mail address *                                        }
-{ 2.01 implemented modifications/suggestions from Gyula MÈsz·ros,            }
+{ 2.01 implemented modifications/suggestions from Gyula M–πsz–±ros,            }
 {      Budapest, Hungary - 100263.1465@compuserve.com                        }
 {procedure TIniFile.ReadSections(aStrings: TStrings);                        }
 {    - The extra 16K file buffer is removeable                               }
@@ -163,7 +163,7 @@
 {       tempStringList.Free;                                                 }
 { -------------------------------------------------------------------------- }
 unit BigIni;
-
+{$i FxtVer.inc}
 // activate the following line, if you want to access lines longer than 255 chars:
 { $ DEFINE UseShortStrings}
 
@@ -172,7 +172,6 @@ unit BigIni;
 {$ENDIF}
 
 interface
-
 
 uses Classes;
 
@@ -223,7 +222,7 @@ It's a descendant of TStringList with "enhanced" IndexOf function (and others)
     function    EraseDuplicates(callBackProc:TEraseSectionCallback) : Boolean;
     function    GetSectionItems(index: Integer): TStringList;
     function    IndexOf(const S: AnsiString): Integer; override;
-    function    IndexOfName(const name: string): Integer; //override;
+    function    IndexOfName(const name: string): Integer; {+}{override;} reintroduce;{+.}
     property    SectionItems[index: Integer]: TStringList Read GetSectionItems;
   end;
 
@@ -240,7 +239,6 @@ It's a descendant of TStringList with "enhanced" IndexOf function (and others)
     FFlagTrimRight        : Boolean; {set false to keep white space at end of line}
 
     FSectionList          : TSectionList;
-
 
     function    FindItemIndex(const aSection, aKey :string; CreateNew:Boolean;
                               var FoundStringList:TStringList):Integer;
@@ -1451,4 +1449,3 @@ begin
 end;
 
 end.
-

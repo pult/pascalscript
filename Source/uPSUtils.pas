@@ -282,7 +282,6 @@ const
 }
   Cm_P2G = 26;
 
-
 type
 
   TbtU8 = Byte;
@@ -343,7 +342,6 @@ type
   {+.}
   TPSCallingConvention = (cdRegister, cdPascal, cdCdecl, cdStdCall, cdSafeCall);
 
-
 const
 
   PointerSize = IPointer({$IFDEF CPU64}8{$ELSE}4{$ENDIF});
@@ -351,11 +349,12 @@ const
   MaxListSize = Maxint div 16;
 
 type
-
+  {+}
+  EPSError = class(Exception);
+  {+.}
   PPointerList = ^TPointerList;
 
   TPointerList = array[0..MaxListSize - 1] of Pointer;
-
 
   TPSList = class(TObject)
   protected
@@ -413,7 +412,6 @@ type
 
     property Items[Nr: Longint]: TbtString read GetItem write SetItem; default;
 
-
     procedure Add(const P: TbtString);
 
     procedure Delete(NR: LongInt);
@@ -460,8 +458,6 @@ type
 
     destructor Destroy; override;
   end;
-
-
 
 type
 
@@ -576,6 +572,17 @@ type
   );
   TPSParserErrorEvent = procedure (Parser: TObject; Kind: TPSParserErrorKind) of object;
 
+  {+}
+  TPSPascalParserStateLevel = (pslMini, pslFull);
+  TPSPascalParserStateData = record
+    FLevel: TPSPascalParserStateLevel;
+    //
+    FLastEnterPos, FRow, FRealPosition, FTokenLength: Cardinal;
+    FTokenId: TPSPasToken;
+    FToken: TbtString;
+    FOriginalToken: TbtString;
+  end;
+  {+.}
 
   TPSPascalParser = class(TObject)
   protected
@@ -591,6 +598,10 @@ type
     function GetCol: Cardinal;
     // only applicable when Token in [CSTI_Identifier, CSTI_Integer, CSTI_Real, CSTI_String, CSTI_Char, CSTI_HexInt]
   public
+    {+}
+    procedure StateSave(out AState: TPSPascalParserStateData; ALevel: TPSPascalParserStateLevel);
+    procedure StateRestore(var AState: TPSPascalParserStateData);
+    {+.}
 
     property EnableComments: Boolean read FEnableComments write FEnableComments;
 
@@ -615,7 +626,7 @@ type
     property OnParserError: TPSParserErrorEvent read FParserError write FParserError;
   end;
 
-function FloatToStr(E: Extended): TbtString;
+function FloatToStr(E: Extended): TbtString; {$ifdef INLINE_SUPPORT} inline; {$endif}
 
 function FastLowerCase(const s: TbtString): TbtString;
 
@@ -634,7 +645,12 @@ function GRFW(var s: TbtString): TbtString;
 function GRLW(var s: TbtString): TbtString;
 
 {+}
-function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer;
+function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer; {$ifdef INLINE_SUPPORT} inline; {$endif}
+
+function string_starts_with(const S, Look: tbtString): Boolean; {-ifdef INLINE_SUPPORT}{ inline; {$endif} overload;
+{$IFDEF UNICODE}
+function string_starts_with(const S, Look: string): Boolean; {-ifdef INLINE_SUPPORT}{ inline; {$endif} overload;
+{$ENDIF UNICODE}//*)
 {+.}
 
 const
@@ -691,7 +707,6 @@ begin
 end;
 
 {$ENDIF}
-
 
 function MakeHash(const s: TbtString): Longint;
 {small hash maker}
@@ -751,8 +766,61 @@ begin
   {$ENDIF}
 end;
 
+function string_starts_with(const S, Look: tbtString): Boolean; overload;
+var len: integer; p1,p2: PAnsiChar;
+begin
+  //Result := Copy(S, 1, Length(S)) = Look;
+
+  len := Length(Look);
+
+//[1]
+  //Result := ( Length(S) >= len )
+  //  and ( {$IFDEF DELPHI18UP}AnsiStrings.{$ENDIF}AnsiStrLComp(PAnsiChar(S), PAnsiChar(Look), len) = 0 );
+
+//[2] // best for small strings
+  Result := ( Length(S) >= len );
+  if Result then begin
+    p1 := PAnsiChar(S);
+    p2 := PAnsiChar(Look);
+    while len > 0 do begin
+      Result := p1^ = p2^;
+      if not Result then
+        Exit;
+      Inc(p1);
+      Inc(p2);
+      Dec(len);
+    end;
+  end;{}
+end;
+{$IFDEF UNICODE}
+function string_starts_with(const S, Look: string): Boolean; overload;
+var len: integer; p1,p2: PChar;
+begin
+  len := Length(Look);
+
+//[1]
+  {Result := ( Length(S) >= len )
+    and ( StrLComp(PChar(S), PChar(Look), len) = 0 );}
+
+//[2] // best for small strings
+  Result := ( Length(S) >= len );
+  if Result then begin
+    p1 := PChar(S);
+    p2 := PChar(Look);
+    while len > 0 do begin
+      Result := p1^ = p2^;
+      if not Result then
+        Exit;
+      Inc(p1);
+      Inc(p2);
+      Dec(len);
+    end;
+  end;
+end;
+{$ENDIF UNICODE}//*)
+
 type
-  EPSConvertError = class(Exception);
+  EPSConvertError = class(Exception); //TODO: ?EPSConvertError = class(EPSError);
   Exception = EPSConvertError;
 {+.}
 
@@ -824,7 +892,6 @@ begin
   GetMem(FData, FCapacity * PointerSize);
 end;
 
-
 function MM(i1,i2: Integer): Integer;
 begin
   if ((i1 div i2) * i2) < i1 then
@@ -848,7 +915,7 @@ begin
   GetMem(NewData, NewCapacity * PointerSize);
   for I := 0 to Longint(FCount) -1 do
   begin
-    NewData^[i] := FData^[I];
+    NewData^[i] := FData[I];
   end;
   FreeMem(FData, FCapacity * PointerSize);
   FData := NewData;
@@ -886,7 +953,7 @@ begin
   end;
   for L := 0 to Count -1 do
   begin
-    FData^[FCount] := List^[L];
+    FData[FCount] := List[L];
     Inc(FCount);
   end;
 {$IFNDEF PS_NOSMARTLIST}
@@ -894,7 +961,6 @@ begin
   if FCheckCount > FMaxCheckCount then Recreate;
 {$ENDIF}
 end;
-
 
 //-------------------------------------------------------------------
 
@@ -907,8 +973,6 @@ begin
     if FCheckCount > FMaxCheckCount then Recreate;
 {$ENDIF}
 end;
-
-
 
 procedure TPSList.Delete(Nr: Cardinal);
 begin
@@ -978,8 +1042,6 @@ begin
     GetItem := nil;
 end;
 
-
-
 //-------------------------------------------------------------------
 
 function TPSStringList.Count: LongInt;
@@ -1002,7 +1064,6 @@ begin
     Result := s^;
 end;
 //-------------------------------------------------------------------
-
 
 procedure TPSStringList.SetItem(Nr: LongInt; const s: TbtString);
 var
@@ -1060,7 +1121,6 @@ end;
 
 //-------------------------------------------------------------------
 
-
 function Fw(const S: TbtString): TbtString; //  First word
 var
   x: integer;
@@ -1110,7 +1170,6 @@ type
     name: TbtString;
     c: TPSPasToken;
   end;
-
 
 const
   KEYWORD_COUNT = 65;  //*NVDS
@@ -1186,6 +1245,44 @@ function TPSPascalParser.GetCol: Cardinal;
 begin
   Result := FRealPosition - FLastEnterPos + 1;
 end;
+
+{+}
+procedure TPSPascalParser.StateSave(out AState: TPSPascalParserStateData; ALevel: TPSPascalParserStateLevel);
+begin
+  AState.FLevel := ALevel;
+  //
+  // pslMini
+  AState.FRealPosition := FRealPosition;
+  AState.FTokenLength := FTokenLength;
+  if ALevel > pslMini then
+  begin
+    //
+    // pslFull
+    AState.FLastEnterPos := FLastEnterPos;
+    AState.FRow := FRow;
+    AState.FTokenId := FTokenId;
+    AState.FToken := FToken;
+    AState.FOriginalToken := FOriginalToken;
+  end;
+end;
+procedure TPSPascalParser.StateRestore(var AState: TPSPascalParserStateData);
+begin
+  //
+  // pslMini
+  FRealPosition := AState.FRealPosition;
+  FTokenLength := AState.FTokenLength;
+  if AState.FLevel > pslMini then
+  begin
+    //
+    // pslFull
+    FLastEnterPos := AState.FLastEnterPos;
+    FRow := AState.FRow;
+    FTokenId := AState.FTokenId;
+    FToken := AState.FToken;
+    FOriginalToken := AState.FOriginalToken;
+  end;
+end;
+{+.}
 
 procedure TPSPascalParser.Next;
 var
@@ -1314,7 +1411,6 @@ var
 
           CurrTokenLen := ci - ct;
         end;
-
 
       #39:
         begin
@@ -1637,7 +1733,15 @@ begin
         end;
     else
       begin
-        FOriginalToken := '';
+        {+}
+        if FTokenID >= CSTII_and then begin // NEW: allow variant/interface call like: vOutlook.Class or vOutlook.Type
+          SetLength(FOriginalToken, FTokenLength);
+          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+        end
+        else begin
+          FOriginalToken := '';
+        end;
+        {+.}
         FToken := '';
       end;
     end;
@@ -1767,6 +1871,5 @@ procedure TPSUnit.SetUnitName(const Value: TbtString);
 begin
   fUnitName := FastUpperCase(Value);
 end;
-
 
 end.

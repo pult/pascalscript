@@ -1,4 +1,3 @@
-
 unit uPSPreProcessor;
 {$I PascalScript.inc}
 
@@ -6,10 +5,9 @@ interface
 uses
   Classes, SysUtils, uPSCompiler, uPSUtils;
 
-
-
 type
   EPSPreProcessor = class(Exception); //- jgv
+  //TODO: ?EPSPreProcessor = class({+}EPSError{+.}); //- jgv
   TPSPreProcessor = class;
   TPSPascalPreProcessorParser = class;
 
@@ -41,7 +39,6 @@ type
     property LineOffsetCount: Longint read GetLineOffsetCount;
 
     property LineOffset[I: Longint]: Cardinal read GetLineOffset;
-
 
     constructor Create;
 
@@ -77,7 +74,6 @@ type
     function GetLineInfo(const ModuleName: tbtstring; Pos: Cardinal; var Res: TPSLineInfoResults): Boolean;
 
     property Current: Longint read FCurrent write FCurrent;
-
 
     constructor Create;
 
@@ -123,7 +119,6 @@ type
     procedure PreProcess(const Filename: tbtstring; var Output: tbtstring);
 
     procedure Clear;
-
 
     constructor Create;
 
@@ -192,7 +187,6 @@ type
 
     procedure Delete(I: Longint);
 
-
     constructor Create;
 
     destructor Destroy; override;
@@ -212,12 +206,11 @@ uses
 {$ENDIF}
 {+.}
 
-{$IFDEF DELPHI3UP }
-resourceString
-{$ELSE }
+{$if (defined(DELPHI3UP) or defined(FPC))} // {+} TODO: check "resourcestring" for modern FPC {+.}
+resourcestring
+{$else}
 const
-{$ENDIF }
-
+{$ifend}
   RPS_TooManyNestedInclude = 'Too many nested include files while processing ''%s'' from ''%s''';
   {+}
   RPS_IncludeNotFound = 'Unable to find file ''%s''';
@@ -279,7 +272,7 @@ var
 begin
   lModuleName := FastUpperCase(ModuleName);
 
-  for i := FItems.Count -1 downto 0 do
+  for i := FItems.Count-1 downto 0 do
   begin
     Item := FItems[i];
     if (Pos >= Item.StartPos) and (Pos < Item.EndPos) and
@@ -323,7 +316,6 @@ begin
   FLineOffsets.Free;
   inherited Destroy;
 end;
-
 
 function TPSLineInfo.GetLineOffset(I: Integer): Cardinal;
 begin
@@ -517,7 +509,7 @@ var
   i: Longint;
 begin
   for i := 0 to Comp.MsgCount -1 do
-    AdjustMessage (Comp.Msg[i]);
+    AdjustMessage(Comp.Msg[i]);
 end;
 
 procedure TPSPreProcessor.Clear;

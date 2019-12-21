@@ -140,6 +140,18 @@ begin
   Result := r;
 end;
 
+{+}
+{$if not declared(OleCheck)}
+type
+  EInvocationError = class(Exception);
+procedure OleCheck(Result: Longint{HResult});
+begin
+  if not (Result and $80000000 = 0) then
+    raise EInvocationError.CreateFmt('Safecall error %.8x', [Result]);
+end;
+{$ifend}
+{+.}
+
 function RealCall_Other(p: Pointer;
   StackData: Pointer;
   StackDataLen: Longint; // stack length are in 4 bytes. (so 1 = 4 bytes)
@@ -558,7 +570,7 @@ begin
   res := rp(res);
   if res <> nil then
     res.VarParam := true;
-  try
+  try //try
     case CallingConv of
       cdRegister: begin
           EAX := 0;
@@ -617,12 +629,16 @@ begin
               {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
               btClass :
               begin
-              {$IFDEF FPC}
+              {+}
+              {$warnings off}
+              {$IF DEFINED (fpc) and (fpc_version < 3)}
+              {$warnings on}
+              {+.}
                 if IsConstructor or IsVirtualCons then
                   tbtu32(res.dta^) := RealCall_Register(Address, EDX, EAX, ECX,
                   @Stack[Length(Stack) - 3], Length(Stack) div 4, 4, nil)
                 else
-             {$ENDIF}
+              {$IFEND}
                   tbtu32(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX,
                   @Stack[Length(Stack) - 3], Length(Stack) div 4, 4, nil);
               end;
@@ -691,10 +707,10 @@ begin
               btChar, btU8, btS8:    tbtu8(res^.Dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
               {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.Dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
               btClass, btu32, bts32:  tbtu32(res^.Dta^):= RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-              btPChar:       TBTSTRING(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+              btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}
-              btPWideChar:   tbtWideString(res^.dta^) := tbtWideString(PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil)));
+              btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {$ENDIF}
               {+.}
               {$IFNDEF PS_NOINT64}bts64:
@@ -755,10 +771,10 @@ begin
               btCHar, btU8, btS8:    tbtu8(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
               {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
               btClass, btu32, bts32:  tbtu32(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-              btPChar:       TBTSTRING(res^.dta^) := Pansichar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+              btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}
-              btPWideChar:   tbtWideString(res^.dta^) := WideString(PWideChar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil)));
+              btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {$ENDIF}
               {+.}
               {$IFNDEF PS_NOINT64}bts64:
@@ -795,10 +811,10 @@ begin
               btChar, btU8, btS8:    tbtu8(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
               {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
               btclass, btu32, bts32:  tbtu32(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-              btPChar:       TBTSTRING(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+              btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}
-              btPWideChar:   tbtWideString(res^.dta^) := WideString(PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil)));
+              btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {$ENDIF}
               {+.}
               {$IFNDEF PS_NOINT64}bts64:
@@ -818,6 +834,12 @@ begin
           Result := True;
         end;
     end;
+  {except
+    //--on e: Exception do
+    begin
+      raise;
+    end;
+  end;}
   finally
     {+} // [#velter#]
     if CallData<>nil then

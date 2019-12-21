@@ -154,7 +154,8 @@ begin
         {$ENDIF}
         {+.}
         btSingle:                          Arg := TValue.From(PSingle(fvar.dta)^);
-        btDouble, btExtended:              Arg := TValue.From(PDouble(fvar.dta)^);
+        btDouble:                          Arg := TValue.From(PDouble(fvar.dta)^);
+        btExtended:                        Arg := TValue.From(PExtended(fvar.dta)^);
         {+}
       //btPChar:                           Arg := TValue.From(ppchar(fvar.dta)^);
         btPChar:                           Arg := TValue.From(ppansichar(fvar.dta)^);
@@ -258,7 +259,9 @@ begin
       //TODO: XE3: Error: E2089 Invalid typecast
       btSingle:                psingle(res.dta)^ := Double(Invoke(Address,Args,SysCalConv,TypeInfo(Single),False,IsConstr).AsExtended);
       //TODO: XE3: Error: E2089 Invalid typecast
-      btDouble, btExtended:    pdouble(res.dta)^ := Double(Invoke(Address,Args,SysCalConv,TypeInfo(Double),False,IsConstr).AsExtended);
+      btDouble:                pdouble(res.dta)^ := Double(Invoke(Address,Args,SysCalConv,TypeInfo(Double),False,IsConstr).AsExtended);
+      btExtended:              pextended(res.dta)^ := Extended(Invoke(Address,Args,SysCalConv,TypeInfo(Extended),False,IsConstr).AsExtended);
+
       {+}
     //btPChar:                 ppchar(res.dta)^ := pchar(Invoke(Address,Args,SysCalConv,TypeInfo(PChar),False,IsConstr).AsType<PChar>());
       btPChar:                 ppansichar(res.dta)^ := pansichar(Invoke(Address,Args,SysCalConv,TypeInfo(PAnsiChar),False,IsConstr).AsType<PAnsiChar>());

@@ -1,5 +1,5 @@
 unit Main;
-
+{$i FxtVer.inc}
 interface
 
 uses
@@ -110,7 +110,9 @@ var
 
 implementation
 
+{+}
 {$R *.dfm}
+{+.}
 
 uses
   ParserU, FormSettings, StrUtils, UFrmGotoLine;
@@ -181,7 +183,6 @@ begin
   end;
 end;
 
-
 { methods }
 (*----------------------------------------------------------------------------*)
 function TfrmMain.SaveCheck: Boolean;
@@ -248,10 +249,10 @@ begin
     Parser.SaveToPath(Path);}
     if FSingleUnit then
     begin
-      list := TstringList.create;
-      TabControl1.tabs.AddObject(parser.UnitNameCmp,list);
+      list := TstringList.Create;
+      TabControl1.tabs.AddObject(parser.{+}{UnitNameCmp}UnitFileCmp{+.}, List);
       List.Text := parser.OutUnitList.Text;
-      List.SaveToFile(Path + parser.UnitNameCmp);
+      List.SaveToFile(Path + parser.{+}{UnitNameCmp}UnitFileCmp{+.});
     end else begin
       List := TStringList.Create;
       List.Text := parser.OutputRT;

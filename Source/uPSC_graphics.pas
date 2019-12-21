@@ -6,8 +6,6 @@ interface
 uses
   uPSCompiler, uPSUtils;
 
-
-
 procedure SIRegister_Graphics_TypesAndConsts(Cl: TPSPascalCompiler);
 procedure SIRegisterTGRAPHICSOBJECT(Cl: TPSPascalCompiler);
 procedure SIRegisterTFont(Cl: TPSPascalCompiler);
@@ -47,7 +45,9 @@ begin
   begin
     RegisterMethod('constructor Create;');
 {$IFNDEF CLX}
-    RegisterProperty('Handle', 'Integer', iptRW);
+    {+}
+    RegisterProperty('Handle', 'NativeUInt', iptRW);  // THandle == NativeUInt
+    {+.}
 {$ENDIF}
     RegisterProperty('Color', 'TColor', iptRW);
     RegisterProperty('Height', 'Integer', iptRW);
@@ -81,7 +81,9 @@ begin
     RegisterMethod('procedure TextOut(X, Y: Integer; Text: string);');
     RegisterMethod('function TextWidth(Text: string): Integer;');
 {$IFNDEF CLX}
-    RegisterProperty('Handle', 'Integer', iptRw);
+    {+}
+    RegisterProperty('Handle', 'NativeUInt', iptRw); // THandle == NativeUInt
+    {+.}
 {$ENDIF}
     RegisterProperty('Pixels', 'Integer Integer Integer', iptRW);
     RegisterProperty('Brush', 'TBrush', iptR);
@@ -206,8 +208,8 @@ begin
 
 {$IFNDEF CLX}
   {+}
-  cl.addTypeS('HBITMAP', 'NativeUInt');
-  cl.addTypeS('HPALETTE', 'NativeUInt');
+  cl.addTypeS('HBITMAP', 'NativeUInt');  // THandle == NativeUInt
+  cl.addTypeS('HPALETTE', 'NativeUInt'); // THandle == NativeUInt
   {+.}
 {$ENDIF}
 end;

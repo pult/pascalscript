@@ -24,8 +24,7 @@ type
   TPSAttributes = class;
   TPSAttribute = class;
 
-  EPSCompilerException = class(Exception) end;
-  //TODO: ? EPSCompilerException = class({+}EPSError{+.}) end;
+  EPSCompilerException = class(Exception) end; // TODO: ? EPSCompilerException = class({+}EPSError{+.}) end;
 
   TPSParameterDecl = class(TObject)
   private
@@ -1708,7 +1707,7 @@ function GetString(Src: PIfRVariant; var s: Boolean): tbtString;
 procedure DisposeVariant(p: PIfRVariant);
 
 {+}
-const
+const // {+} TODO: check for modern FPC : {+.}
   C_NAME_TYPE_NATIVE_STRING = {$IFDEF UNICODE}'UnicodeString'{$ELSE}'AnsiString'{$ENDIF};
   C_NAME_TYPE_NATIVE_CHAR = {$IFDEF UNICODE}'WideChar'{$ELSE}'Char'{$ENDIF};
   C_NAME_TYPE_NATIVE_PCHAR = {$IFDEF UNICODE}'PWideChar'{$ELSE}'PChar'{$ENDIF};
@@ -1716,14 +1715,17 @@ const
 
 implementation
 
-uses {$IFDEF DELPHI5}ComObj, {$ENDIF}{$IFDEF PS_FPC_HAS_COM}ComObj, {$ENDIF}Classes, typInfo;
+uses
+  {$if defined(DELPHI5) or (defined(FPC) and defined(PS_FPC_HAS_COM))}
+  ComObj,
+  {$ifend}
+  Classes, TypInfo;
 
-{$IFDEF DELPHI3UP}
-resourceString
+{$IFDEF DELPHI3UP} // {+} TODO: check "resourcestring" for modern FPC {+.}
+resourcestring
 {$ELSE}
 const
 {$ENDIF}
-
   RPS_OnUseEventOnly = 'This function can only be called from within the OnUses event';
   RPS_UnableToRegisterFunction = 'Unable to register function %s';
   RPS_UnableToRegisterConst = 'Unable to register constant %s';
@@ -2102,8 +2104,8 @@ begin
               case VCType.BaseType of
                 btU8: VCType := FindAndAddType(Owner, '!OPENARRAYOFU8', 'array of Byte');
                 btS8: VCType := FindAndAddType(Owner, '!OPENARRAYOFS8', 'array of ShortInt');
-                btU16: VCType := FindAndAddType(Owner, '!OPENARRAYOFU16', 'array of SmallInt');
-                btS16: VCType := FindAndAddType(Owner, '!OPENARRAYOFS16', 'array of Word');
+                btU16: VCType := FindAndAddType(Owner, '!OPENARRAYOFU16', 'array of Word');
+                btS16: VCType := FindAndAddType(Owner, '!OPENARRAYOFS16', 'array of SmallInt');
                 btU32: VCType := FindAndAddType(Owner, '!OPENARRAYOFU32', 'array of Cardinal');
                 btS32: VCType := FindAndAddType(Owner, '!OPENARRAYOFS32', 'array of LongInt');
                 btSingle: VCType := FindAndAddType(Owner, '!OPENARRAYOFSINGLE', 'array of Single');
@@ -2213,6 +2215,12 @@ begin
         if SameText(Parser.OriginalToken, 'safecall') then
         begin
           CC := cdSafecall;
+          Parser.StateSave(AParserState, pslMini);
+          Parser.Next;
+        end
+        else if SameText(Parser.OriginalToken, 'stdcall') then
+        begin
+          CC := cdStdCall;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
@@ -2393,7 +2401,7 @@ begin
 
   case BaseType of
     {+}
-    btPChar{$IFNDEF PS_NOWIDESTRING},btPWideChar{$ENDIF}: Result := TPSPCharType.Create;
+    btPChar{$IFNDEF PS_NOWIDESTRING}{$if declared(btPWideChar)},btPWideChar{$ifend}{$ENDIF}: Result := TPSPCharType.Create;
     {+.}
     btProcPtr: Result := TPSProceduralType.Create;
     BtTypeCopy: Result := TPSTypeLink.Create;
@@ -2738,7 +2746,7 @@ end;
 function IsStrType(b: TPSBaseType): Boolean;
 begin
   case b of
-    btChar, btPchar, btString{$IFNDEF PS_NOWIDESTRING},btWideChar,btPWideChar,btWidestring,btUnicodeString{$ENDIF}:
+    btChar, btPchar, btString{$IFNDEF PS_NOWIDESTRING},btWideChar,{$if declared(btPWideChar)}btPWideChar,{$ifend}btWidestring,btUnicodeString{$ENDIF}:
       Result := True;
   else
     Result := False;
@@ -2899,7 +2907,7 @@ begin
     btChar{+}, btPChar{+.}: Result := Src^.tchar;
     btString: Result := tbtstring(src^.tstring);
     {$IFNDEF PS_NOWIDESTRING}
-    btWideChar{+}, btPWideChar{+.}: Result := tbtstring(src^.twidechar);
+    btWideChar{+}{$if declared(btPWideChar)},btPWideChar{$ifend}{+.}: Result := tbtstring(src^.twidechar);
     btWideString: Result := tbtstring(tbtWideString(src^.twidestring));
     btUnicodeString: Result := tbtstring(tbtUnicodeString(src^.tunistring));
     {$ENDIF}
@@ -2922,7 +2930,9 @@ begin
     btUnicodeString: result := tbtUnicodeString(src^.tunistring);
 //    {+}
 //    btPChar: Result := tbtWidestring(tbtString((tbtPChar((Src^.tpchar))));
+//      {$if declared(btPWideChar)}
 //    btPWideChar: Result := tbtWidestring(tbtWideString((tbtPWideChar((Src^.tpwidechar))));
+//      {$ifend}
 //    {+.}
   else
     begin
@@ -2941,7 +2951,9 @@ begin
     btUnicodeString: result := tbtUnicodeString(src^.tunistring);
 //    {+}
 //    btPChar: Result := tbtUnicodeString(tbtWidestring(btString((btPChar((Src^.tchar)))));
+//      {$if declared(btPWideChar)}
 //    btPWideChar: Result := tbtUnicodeString(tbtWidestring(btWideString((btPWideChar((Src^.twidechar)))));
+//      {$ifend}
 //    {+.}
   else
     begin
@@ -3105,7 +3117,7 @@ end;
 
 function TPSPascalCompiler.IsCompatibleType(p1, p2: TPSType; Cast: Boolean): Boolean;
 begin {+}{@dbg@:hook.checktype}{+.} // dbg.cond: (FParser.FRow = 77) and (p1.fname='STRING') and (p2.fname='ANSISTRING')
-  if // {+}((p1.BaseType = p2.BaseType) and ((p1.BaseType < btRecord) or (p1.BaseType in [btPointer,btPChar,btVariant..Prev(btProcPtr),btCurrency,btUnicodeString,btPWideChar])) )or {+.} // TODO: check it
+  if // {+}((p1.BaseType = p2.BaseType) and ((p1.BaseType < btRecord) or (p1.BaseType in [btPointer,btPChar,btVariant..Prev(btProcPtr),btCurrency,btUnicodeString{$if declared(btPWideChar)},btPWideChar{$ifend}])) )or {+.} // TODO: check it
     ((p1.BaseType = btProcPtr) and (p2 = p1)) or
     (p1.BaseType = btPointer) or
     (p2.BaseType = btPointer) or
@@ -3131,10 +3143,10 @@ begin {+}{@dbg@:hook.checktype}{+.} // dbg.cond: (FParser.FRow = 77) and (p1.fna
     ((p1.BaseType = btWideChar) and {+}((p2.BaseType = btWideChar) or
       // autoconvert IntType into WideChar
       IsIntType(p2.BaseType)){+.}) or
-    ({+}((p1.basetype = btPwidechar) or (p1.BaseType = btWidestring)){+.} and (p2.BaseType = btChar)) or
-    ({+}((p1.basetype = btPwidechar) or (p1.BaseType = btWidestring)){+.} and (p2.BaseType = btWideChar)) or
-    ({+}((p1.basetype = btPwidechar) or (p1.BaseType = btWidestring)){+.} and ((p2.BaseType = btString) or (p2.BaseType = btPchar) or
-        {+}(p2.basetype = btPwidechar) or (p2.BaseType = btWidestring) or
+    ({+}({$if declared(btPWideChar)}(p1.basetype = btPwidechar) or {$ifend} (p1.BaseType = btWidestring)){+.} and (p2.BaseType = btChar)) or
+    ({+}({$if declared(btPWideChar)}(p1.basetype = btPwidechar) or {$ifend} (p1.BaseType = btWidestring)){+.} and (p2.BaseType = btWideChar)) or
+    ({+}({$if declared(btPWideChar)}(p1.basetype = btPwidechar) or {$ifend} (p1.BaseType = btWidestring)){+.} and ((p2.BaseType = btString) or (p2.BaseType = btPchar) or
+        {+}{$if declared(btPWideChar)}(p2.basetype = btPwidechar) or {$ifend} (p2.BaseType = btWidestring) or
         // autocopy Array Of IntType into StrType
         ((TPSArrayType(p2).FBaseType in [btArray, btStaticArray]) and IsIntType(TPSArrayType(p2).ArrayTypeNo.FBaseType)) or
         {+.}
@@ -3142,8 +3154,8 @@ begin {+}{@dbg@:hook.checktype}{+.} // dbg.cond: (FParser.FRow = 77) and (p1.fna
     ((p1.BaseType = btWidestring) and ((p2.BaseType = btWidestring))) or
     ((p1.BaseType = btUnicodeString) and (p2.BaseType = btChar)) or
     ((p1.BaseType = btUnicodeString) and (p2.BaseType = btWideChar)) or
-    ({+}((p1.basetype = btPwidechar) or (p1.BaseType = btUnicodeString)){+.} and ((p2.BaseType = btString) or (p2.BaseType = btPchar) or
-        {+}(p2.basetype = btPwidechar) or (p2.basetype = btWidechar)or (p2.basetype = btwideString) or
+    ({+}({$if declared(btPWideChar)}(p1.basetype = btPwidechar) or {$ifend} (p1.BaseType = btUnicodeString)){+.} and ((p2.BaseType = btString) or (p2.BaseType = btPchar) or
+        {+}{$if declared(btPWideChar)}(p2.basetype = btPwidechar) or {$ifend} (p2.basetype = btWidechar)or (p2.basetype = btwideString) or
         // autocopy Array Of IntType into StrType
         ((TPSArrayType(p2).FBaseType in [btArray, btStaticArray]) and IsIntType(TPSArrayType(p2).ArrayTypeNo.FBaseType)) or
         {+.}
@@ -4091,8 +4103,19 @@ begin
       p := TPSArrayType.Create;
       p.BaseType := btArray;
     end;
-    p.Name := FastUpperCase(Name);
-    p.OriginalName := Name;
+    if Name <> '' then
+    begin
+      p.OriginalName := Name;
+      p.Name := FastUppercase(Name);
+    end
+    else
+    begin
+      if TypeNo.OriginalName = '' then
+        p.OriginalName := 'array of ' + TypeNo.Name
+      else
+        p.OriginalName := 'array of ' + TypeNo.OriginalName;
+      p.Name := FastUpperCase(p.OriginalName);
+    end;
     {$IFDEF PS_USESSUPPORT}
     p.DeclareUnit:=fModule;
     {$ENDIF}
@@ -5690,7 +5713,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
       Result := True;
     {+}
     {$IFNDEF PS_NOWIDESTRING}
-    end else if (pf.BaseType = btUnicodeString) or (pf.BaseType = btWideString) or (pf.BaseType = btPWideChar) then
+    end else if (pf.BaseType = btUnicodeString) or (pf.BaseType = btWideString) {$if declared(btPWideChar)} or (pf.BaseType = btPWideChar){$ifend} then
     begin
       if not PreWriteOutRec(iVar, nil) then
       begin
@@ -8220,7 +8243,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
                 (GetTypeNoValue.BaseType <> btPChar) and
                 {+}
                 {$IFNDEF PS_NOWIDESTRING}
+                  {$if declared(btPWideChar)}
                 (GetTypeNoValue.BaseType <> btPWideChar) and
+                  {$ifend}
                 (GetTypeNoValue.BaseType <> btWideString) and
                 (GetTypeNoValue.BaseType <> btUnicodeString) and
                 {$ENDIF}
@@ -8296,7 +8321,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               (t2.BaseType = btUnicodestring) or
               (t2.BaseType = btwidechar) or
               {+}
+                {$if declared(btPWideChar)}
               (t2.BaseType = btPWideChar) or
+                {$ifend}
               {+.}
               {$ENDIF}
               (t2.BaseType = btPchar) or
@@ -8312,7 +8339,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               (t1.BaseType = btwideString) or
               (t1.BaseType = btwidechar) or
               {+}
+                {$if declared(btPWideChar)}
               (t1.BaseType = btPWideChar) or
+                {$ifend}
               {+.}
               {$ENDIF}
               (t1.BaseType = btPchar) or
@@ -8338,7 +8367,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
             else if ((t1.BaseType = btPchar) or(t1.BaseType = btString) or (t1.BaseType = btChar)) and ((t2.BaseType = btPchar) or(t2.BaseType = btString) or (t2.BaseType = btChar) {+}or IsIntType(t2.BaseType){+.}) then
               Result := at2ut(FindBaseType(btString))
             {$IFNDEF PS_NOWIDESTRING}
-            else if (({+}t1.BaseType = btPWideChar) or{+.} (t1.BaseType = btString) or (t1.BaseType = btChar) or (t1.BaseType = btPchar)or (t1.BaseType = btWideString) or (t1.BaseType = btWideChar) or (t1.BaseType = btUnicodeString)) and
+            else if ({+}{$if declared(btPWideChar)}(t1.BaseType = btPWideChar) or {$ifend}{+.} (t1.BaseType = btString) or (t1.BaseType = btChar) or (t1.BaseType = btPchar)or (t1.BaseType = btWideString) or (t1.BaseType = btWideChar) or (t1.BaseType = btUnicodeString)) and
             ((t2.BaseType = btString) or (t2.BaseType = btChar) or (t2.BaseType = btPchar) or (t2.BaseType = btWideString) or (t2.BaseType = btWideChar) or (t2.BaseType = btUnicodeString) {+}or IsIntType(t2.BaseType){+.}) then
               Result := at2ut(FindBaseType(btUnicodeString))
             {$ENDIF}
@@ -12495,10 +12524,14 @@ begin
   AddType('AnsiString', btString);
   AddTypeCopyN('RawByteString', 'AnsiString');
   AddTypeCopyN('UTF8String', 'AnsiString');
-  {$IFDEF UNICODE}
+  {$IFDEF UNICODE} // {+} TODO: check for modern FPC {+.}
     AddType('Char', btWideChar);
     AddType('string', btUnicodeString);
+    {$if declared(btPWideChar)}
     AddType('PChar', btPWideChar);
+    {$else}
+    AddType('PChar', btPChar);
+    {$ifend}
     AddTypeCopyN('NativeChar', 'Char');
     AddTypeCopyN('NativeString', 'String');
     AddTypeCopyN('NativePChar', 'PChar');
@@ -12507,8 +12540,10 @@ begin
     AddType('WideString', btWideString);
     AddTypeCopyN('UnicodeChar', 'Char');
     AddTypeCopyN('UnicodeString', 'string');
+    {$if declared(btPWideChar)}
     AddTypeCopyN('PWideChar', 'PChar');
     AddTypeCopyN('PUnicodeChar', 'PChar');
+    {$ifend}
     {$ENDIF}
   {$ELSE}
     AddTypeCopyN('Char', 'AnsiChar');
@@ -12519,14 +12554,22 @@ begin
     AddType('WideString', btWideString);
     AddTypeCopyN('UnicodeChar', 'WideChar');
     AddTypeCopyN('UnicodeString', 'WideString');
+    {$if declared(btPWideChar)}
     AddType('PWideChar', btPWideChar);
     AddTypeCopyN('PUnicodeChar', 'PWideChar');
+    {$ifend}
     AddTypeCopyN('NativeChar', 'WideChar');
+    {$if declared(btPWideChar)}
     AddTypeCopyN('NativePChar', 'PWideChar');
+    {$ifend}
     AddTypeCopyN('NativeString', 'WideString');
     {$ELSE}
     AddType('NativeChar', btWideChar);
+    {$if declared(btPWideChar)}
     AddType('NativePChar', btPWideChar);
+    {$else}
+    AddType('NativePChar', btPChar);
+    {$ifend}
     AddType('NativeString', btWideString);
     {$ENDIF}
   {$ENDIF}
@@ -13320,14 +13363,14 @@ begin
   AddConstantN('varBoolean', 'Word').Value.tu16 := varboolean;
   AddConstantN('varVariant', 'Word').Value.tu16 := varvariant;
   AddConstantN('varUnknown', 'Word').Value.tu16 := varunknown;
-{$IFDEF DELPHI6UP}
+{$IFDEF DELPHI6UP} // {+} TODO: check for modern FPC {+.}
   AddConstantN('varShortInt', 'Word').Value.tu16 := varshortint;
   AddConstantN('varByte', 'Word').Value.tu16 := varbyte;
   AddConstantN('varWord', 'Word').Value.tu16 := varword;
   AddConstantN('varLongWord', 'Word').Value.tu16 := varlongword;
   AddConstantN('varInt64', 'Word').Value.tu16 := varint64;
 {$ENDIF}
-{$IFDEF DELPHI5UP}
+{$IFDEF DELPHI5UP} // {+} TODO: check for modern FPC {+.}
   AddConstantN('varStrArg', 'Word').Value.tu16 := varstrarg;
   AddConstantN('varAny', 'Word').Value.tu16 := varany;
 {$ENDIF}
@@ -13335,12 +13378,12 @@ begin
   AddConstantN('varTypeMask', 'Word').Value.tu16 := vartypemask;
   AddConstantN('varArray', 'Word').Value.tu16 := vararray;
   AddConstantN('varByRef', 'Word').Value.tu16 := varByRef;
-{$IFDEF UNICODE}
+{$IFDEF UNICODE} // {+} TODO: check for modern FPC {+.}
   AddConstantN('varUString', 'Word').Value.tu16 := varUString;
 {$ENDIF}
   AddDelphiFunction('function Unassigned: Variant;');
   AddDelphiFunction('function VarIsEmpty(const V: Variant): Boolean;');
-{$IFDEF DELPHI7UP}
+{$IFDEF DELPHI7UP} // {+} TODO: check for modern FPC {+.}
   AddDelphiFunction('function VarIsClear(const V: Variant): Boolean;');
 {$ENDIF}
   AddDelphiFunction('function Null: Variant;');

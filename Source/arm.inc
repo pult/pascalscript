@@ -142,7 +142,6 @@ load_regs:
   fmrrd    r0, r1, d0
 {$endif}
 
-
 asmcall_end:
   ldmea r11,{r4,r5,r6,r7,r8,r9,r10,r11,r13,r15}
 end;
@@ -305,7 +304,7 @@ begin
         end;  { case }
       end else begin  { not a var param }
         case fvar.aType.BaseType of
-//          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {$ENDIF}
+//          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF}
 //          btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
 //          {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: writeln('normal param');
 
@@ -332,6 +331,12 @@ begin
              end;
                  {$endif}
           btPChar:                             addgen(dword(ppchar(fvar.dta)^));
+          {+}
+          {$IFNDEF PS_NOWIDESTRING}
+          btPWideChar:                         addgen(dword(ppwordchar(fvar.dta)^));
+
+          {$ENDIF}
+          {+.}
           btChar:                              addgen(dword(pchar(fvar.dta)^));
           {$IFNDEF PS_NOINT64}bts64:{$ENDIF}   begin
                                                  {$IFDEF FPC_abi_eabi}
@@ -363,25 +368,40 @@ begin
     else begin
       case res.atype.basetype of
         { add result types here }
-        btU8, btS8, btChar:      pbyte(res.dta)^ := lo(lo(lo(armasmcall(rint, rfloat, address, st, stindex, rtINT))));
-        btU16, btS16:            pword(res.dta)^ := lo(lo(armasmcall(rint, rfloat, address, st, stindex, rtINT)));
-        btU32, btS32,btPChar:    pdword(res.dta)^ := lo(armasmcall(rint, rfloat, address, st, stindex, rtINT));
-        btS64:                   pqword(res.dta)^ := armasmcall(rint, rfloat, address, st, stindex,rtINT);
+        btU8, btS8, btChar:
+      pbyte(res.dta)^ := lo(lo(lo(armasmcall(rint, rfloat, address, st, stindex, rtINT))));
+        {+}
+        {$IFNDEF PS_NOWIDESTRING}
+        btPWideChar:
+      ppwidechar(res.dta)^ := pwidechar(lo(lo(armasmcall(rint, rfloat, address, st, stindex, rtINT))));
+        {$ENDIF}
+        {+.}
+        btU16, btS16:
+      pword(res.dta)^ := lo(lo(armasmcall(rint, rfloat, address, st, stindex, rtINT)));
+        btU32, btS32,btPChar:
+      pdword(res.dta)^ := lo(armasmcall(rint, rfloat, address, st, stindex, rtINT));
+        btS64:
+      pqword(res.dta)^ := armasmcall(rint, rfloat, address, st, stindex,rtINT);
 {$IFDEF FPC_abi_eabi}
-        btSingle:                pdword(res.dta)^ := lo(armasmcall(rint, rfloat, address, st, stindex, rtFLOAT));
+        btSingle:
+      pdword(res.dta)^ := lo(armasmcall(rint, rfloat, address, st, stindex, rtFLOAT));
 {$ELSE}
-        btSingle:                begin
-                                   tempqw := armasmcall(rint, rfloat, address, st, stindex, rtFLOAT);
-                                   psingle(res.dta)^ := pdouble(@tempqw)^;
-                                 end;
+        btSingle:
+      begin
+            tempqw := armasmcall(rint, rfloat, address, st, stindex, rtFLOAT);
+            psingle(res.dta)^ := pdouble(@tempqw)^;
+          end;
 {$ENDIF}
-        btArray:                 begin
-                                    tempdw := armasmcall(rint, rfloat, address, st, stindex, rtINT);
-                                    //FIXME menory leak
-                                    pdword(res.dta)^:=tempdw;
-                                 end;
-        btDouble:pqword(res.dta)^ := armasmcall(rint, rfloat, address, st, stindex, rtFLOAT);
-        btStaticArray, btRecord,btString: armasmcall(rint, rfloat, address, st, stindex, rtINT);
+        btArray:
+      begin
+            tempdw := armasmcall(rint, rfloat, address, st, stindex, rtINT);
+            //FIXME memory leak
+            pdword(res.dta)^:=tempdw;
+          end;
+        btDouble:
+      pqword(res.dta)^ := armasmcall(rint, rfloat, address, st, stindex, rtFLOAT);
+        btStaticArray, btRecord,btString:
+      armasmcall(rint, rfloat, address, st, stindex, rtINT);
         else begin
           writeln(stderr, 'Result type not implemented!');
           exit;

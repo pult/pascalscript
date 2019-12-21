@@ -1,5 +1,5 @@
 unit FormSettings;
-
+{$i FxtVer.inc}
 interface
 
 uses

@@ -16,19 +16,19 @@ implementation
 
 procedure SIRegisterTMENUITEMSTACK(CL: TPSPascalCompiler);
 begin
-	With cl.AddClassN(Cl.FindClass('TStack'),'TMenuItemStack') do
+  With cl.AddClassN(Cl.FindClass('TStack'),'TMenuItemStack') do
   begin
-	  RegisterMethod('procedure ClearItem(AItem: TMenuItem)');
+    RegisterMethod('procedure ClearItem(AItem: TMenuItem)');
   end;
 end;
 
 procedure SIRegisterTPOPUPLIST(CL: TPSPascalCompiler);
 begin
-	With cl.AddClassN(Cl.FindClass('TList'),'TPopupList') do
+  With cl.AddClassN(Cl.FindClass('TList'),'TPopupList') do
   begin
-		RegisterProperty('Window', 'HWND', iptr);
-		RegisterMethod('procedure Add(Popup: TPopupMenu)');
-		RegisterMethod('procedure Remove(Popup: TPopupMenu)');
+    RegisterProperty('Window', 'HWND', iptr);
+    RegisterMethod('procedure Add(Popup: TPopupMenu)');
+    RegisterMethod('procedure Remove(Popup: TPopupMenu)');
   end;
 end;
 
@@ -36,21 +36,21 @@ procedure SIRegisterTPOPUPMENU(CL: TPSPascalCompiler);
 var
   cc: TPSCompileTimeClass;
 begin
-	With cl.AddClassN(Cl.FindClass('TMenu'),'TPopupMenu') do
+  With cl.AddClassN(Cl.FindClass('TMenu'),'TPopupMenu') do
   begin
     cc := Cl.FindClass('TLabel');
     if cc <> nil then
-			RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
+      RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
     with Cl.FindClass('TForm') do
     begin
-			RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
+      RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
     end;
-	RegisterMethod('constructor Create(AOwner: TComponent)');
-	RegisterMethod('procedure Popup(X, Y: Integer)');
-	RegisterProperty('PopupComponent', 'TComponent', iptrw);
-	RegisterProperty('Alignment', 'TPopupAlignment', iptrw);
-	RegisterProperty('AutoPopup', 'Boolean', iptrw);
-	RegisterProperty('HelpContext', 'THelpContext', iptrw);
+  RegisterMethod('constructor Create(AOwner: TComponent)');
+  RegisterMethod('procedure Popup(X, Y: Integer)');
+  RegisterProperty('PopupComponent', 'TComponent', iptrw);
+  RegisterProperty('Alignment', 'TPopupAlignment', iptrw);
+  RegisterProperty('AutoPopup', 'Boolean', iptrw);
+  RegisterProperty('HelpContext', 'THelpContext', iptrw);
     RegisterProperty('MenuAnimation', 'TMenuAnimation', iptrw);
     RegisterProperty('TrackButton', 'TTrackButton', iptrw);
     RegisterProperty('OnPopup', 'TNotifyEvent', iptrw);
@@ -153,8 +153,8 @@ end;
 procedure SIRegister_Menus(Cl: TPSPascalCompiler);
 begin
   {+}
-  Cl.AddTypeS('HMENU', 'NativeUInt');
-  Cl.AddTypeS('HACCEL', 'NativeUInt');
+  Cl.AddTypeS('HMENU', 'NativeUInt');  // THandle == NativeUInt
+  Cl.AddTypeS('HACCEL', 'NativeUInt'); // THandle == NativeUInt
   {+.}
 
   cl.addClassN(cl.FindClass('Exception'),'EMenuError');
@@ -200,11 +200,9 @@ begin
 
   Cl.AddDelphiFunction('function NewPopupMenu(Owner: TComponent; const AName: string; Alignment: TPopupAlignment; AutoPopup: Boolean; const Items: array of TCMenuItem): TPopupMenu');
 
-
   Cl.AddDelphiFunction('function NewSubMenu(const ACaption: string; HCTX: Word; const AName: string; Items: array of TMenuItem; AEnabled: Boolean): TMenuItem');
 
   Cl.AddDelphiFunction('function NewItem(const ACaption: string; AShortCut: TShortCut; Achecked, AEnabled: Boolean; AOnClick: TNotifyEvent; HCTX: Word; const AName: string): TMenuItem');
-
 
   Cl.AddDelphiFunction('function NewLine: TMenuItem');
 {$IFNDEF FPC}

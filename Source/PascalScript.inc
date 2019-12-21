@@ -8,7 +8,6 @@
 {                                                                            }
 {----------------------------------------------------------------------------}
 
-
 {$INCLUDE eDefines.inc}
 
 {$IFDEF FPC}{$MODE DELPHI}{$H+}{$ENDIF}
@@ -45,7 +44,6 @@
 {$ENDIF}
 {$R-}{$Q-}
 
-
 {
 Defines:
   PS_NOSMARTLIST    - Don't use the smart list option
@@ -61,6 +59,17 @@ Defines:
 {$DEFINE PS_NOIDISPATCH} // not implemented
 {$ENDIF}
 
+{+}
+{.$DEFINE PS_USESSUPPORT} // TODO: Need test it ...
+{+.}
+
 {$IFDEF FPC}
   {$I PascalScriptFPC.inc}
 {$ENDIF}
+
+{+}
+{$D+} { optional }
+{$IFNDEF FPC}
+  {$L+}
+{$ENDIF}
+{+.}

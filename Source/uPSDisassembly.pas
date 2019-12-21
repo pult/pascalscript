@@ -1,5 +1,3 @@
-
-
 unit uPSDisassembly;
 {$I PascalScript.inc}
 
@@ -49,7 +47,6 @@ begin
     Result := 'NaNa';
   end;
 end;
-
 
 function IFPS3DataToText(const Input: tbtstring; var Output: string): Boolean;
 var
@@ -101,7 +98,9 @@ var
       btPChar: Result := 'PChar';
       {+}
       {$IFNDEF PS_NOWIDESTRING}
+        {$if declared(btPWideChar)}
       btPWideChar: Result := 'PWideChar';
+        {$ifend}
       {$ENDIF}
       {+.}
       btCurrency: Result := 'Currency';
@@ -230,7 +229,8 @@ var
             btChar: begin if not ReadData(c, 1) then exit; Result := '#'+IntToStr(ord(c)); end;
             {$IFNDEF PS_NOWIDESTRING}
             btWideChar: begin if not ReadData(wc, 2) then exit; Result := '#'+IntToStr(ord(wc)); end;
-            {+}btPWideChar,{+.} btWideString: begin if not ReadData(l, 4) then exit; SetLength(ws, l); if not readData(ws[1], l*2) then exit; Result := {+}string(MakeWString(ws)){+.}; end;
+            {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}
+            btWideString: begin if not ReadData(l, 4) then exit; SetLength(ws, l); if not readData(ws[1], l*2) then exit; Result := {+}string(MakeWString(ws)){+.}; end;
             {$ENDIF}
           end;
         end;
@@ -500,7 +500,6 @@ function MyDummyProc(Caller: TPSExec; p: TIFExternalProcRec; Global, Stack: TPSS
 begin
   Result := False;
 end;
-
 
 function TMyPSExec.ImportProc(const Name: ShortString;
   proc: TIFExternalProcRec): Boolean;

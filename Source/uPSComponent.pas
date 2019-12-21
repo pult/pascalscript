@@ -4,7 +4,9 @@ interface
 
 uses
   SysUtils, Classes, uPSRuntime, uPSDebugger, uPSUtils,
-  uPSCompiler, uPSC_dll, uPSR_dll, uPSPreProcessor;
+  uPSCompiler,
+  {$IF DEFINED (MSWINDOWS) OR Defined (UNIX) OR Defined (fpc)} uPSC_dll, uPSR_dll,{$IFEND}
+  uPSPreProcessor;
 
 const
   {alias to @link(ifps3.cdRegister)}
@@ -419,12 +421,11 @@ type
   Exception = EPSScriptError;
 {+.}
 
-{$IFDEF DELPHI3UP }
-resourceString
+{$IFDEF DELPHI3UP} // {+} TODO: check "resourcestring" for modern FPC {+.}
+resourcestring
 {$ELSE }
 const
 {$ENDIF }
-
   RPS_UnableToReadVariant = 'Unable to read variant';
   RPS_UnableToWriteVariant = 'Unable to write variant';
   RPS_ScripEngineAlreadyRunning = 'Script engine already running';
@@ -1245,12 +1246,17 @@ end;
 
 procedure TPSDllPlugin.CompOnUses;
 begin
+  CompExec.Comp.OnExternalProc := nil;
+  {$IF DEFINED (MSWINDOWS) OR Defined (UNIX) OR Defined (fpc)}
   CompExec.Comp.OnExternalProc := DllExternalProc;
+  {$IFEND}
 end;
 
 procedure TPSDllPlugin.ExecOnUses;
 begin
+  {$IF DEFINED (MSWINDOWS) OR Defined (UNIX) OR Defined (fpc)}
   RegisterDLLRuntime(CompExec.Exec);
+  {$IFEND}
 end;
 
 { TPS3DebugCompExec }

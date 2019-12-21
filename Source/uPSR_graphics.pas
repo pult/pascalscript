@@ -1,11 +1,8 @@
-
 unit uPSR_graphics;
 {$I PascalScript.inc}
 interface
 uses
   uPSRuntime, uPSUtils;
-
-
 
 procedure RIRegisterTGRAPHICSOBJECT(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTFont(Cl: TPSRuntimeClassImporter);
@@ -25,16 +22,16 @@ uses
   {$IFDEF DELPHI16UP}
   UITypes,
   {$ENDIF}
-  {+.}
   Classes{$IFDEF CLX}, QGraphics{$ELSE}, Windows, Graphics{$ENDIF};
+  {+.}
 {$ELSE}
 uses
   Classes, Graphics,LCLType;
 {$ENDIF}
 
 {$IFNDEF CLX}
-procedure TFontHandleR(Self: TFont; var T: Longint); begin T := Self.Handle; end;
-procedure TFontHandleW(Self: TFont; T: Longint); begin Self.Handle := T; end;
+procedure TFontHandleR(Self: TFont; var T: {+}THandle{+.}); begin T := Self.Handle; end;
+procedure TFontHandleW(Self: TFont; T: {+}THandle{+.}); begin Self.Handle := T; end;
 {$ENDIF}
 procedure TFontPixelsPerInchR(Self: TFont; var T: Longint); begin T := Self.PixelsPerInch; end;
 procedure TFontPixelsPerInchW(Self: TFont; T: Longint); begin {$IFNDEF FPC} Self.PixelsPerInch := T;{$ENDIF} end;
@@ -54,8 +51,8 @@ begin
   end;
 end;
 {$IFNDEF CLX}
-procedure TCanvasHandleR(Self: TCanvas; var T: Longint); begin T := Self.Handle; end;
-procedure TCanvasHandleW(Self: TCanvas; T: Longint); begin Self.Handle:= T; end;
+procedure TCanvasHandleR(Self: TCanvas; var T: {+}THandle{+.}); begin T := Self.Handle; end;
+procedure TCanvasHandleW(Self: TCanvas; T: {+}THandle{+.}); begin Self.Handle:= T; end;
 {$ENDIF}
 
 procedure TCanvasPixelsR(Self: TCanvas; var T: Longint; X,Y: Longint); begin T := Self.Pixels[X,Y]; end;
@@ -109,10 +106,8 @@ begin
   end;
 end;
 
-
 procedure TGRAPHICSOBJECTONCHANGE_W(Self: TGraphicsObject; T: TNotifyEvent); begin Self.OnChange := t; end;
 procedure TGRAPHICSOBJECTONCHANGE_R(Self: TGraphicsObject; var T: TNotifyEvent); begin T :=Self.OnChange; end;
-
 
 procedure RIRegisterTGRAPHICSOBJECT(Cl: TPSRuntimeClassImporter);
 begin

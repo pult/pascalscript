@@ -8,7 +8,6 @@ uses
 
 procedure SIRegister_Forms_TypesAndConsts(Cl: TPSPascalCompiler);
 
-
 procedure SIRegisterTCONTROLSCROLLBAR(Cl: TPSPascalCompiler);
 procedure SIRegisterTSCROLLINGWINCONTROL(Cl: TPSPascalCompiler);
 procedure SIRegisterTSCROLLBOX(Cl: TPSPascalCompiler);
@@ -48,6 +47,10 @@ procedure SIRegisterTSCROLLBOX(Cl: TPSPascalCompiler);
 begin
   with Cl.AddClassN(cl.FindClass('TScrollingWinControl'), 'TScrollBox') do
   begin
+    {$IFDEF DELPHI4UP}
+    RegisterProperty('Anchors', 'TAnchors', iptrw);
+    RegisterProperty('Constraints', 'TSizeConstraints', iptrw);
+    {$ENDIF}
     RegisterProperty('BorderStyle', 'TBorderStyle', iptrw);
     RegisterProperty('Color', 'TColor', iptrw);
     RegisterProperty('Font', 'TFont', iptrw);
@@ -93,6 +96,10 @@ begin
     RegisterMethod('procedure Release');
     RegisterProperty('Active', 'Boolean', iptr);
     RegisterProperty('ActiveControl', 'TWinControl', iptrw);
+    {$IFDEF DELPHI4UP}
+    RegisterProperty('Anchors', 'TAnchors', iptrw);
+    RegisterProperty('Constraints', 'TSizeConstraints', iptrw);
+    {$ENDIF}
     RegisterProperty('BorderIcons', 'TBorderIcons', iptrw);
     RegisterProperty('BorderStyle', 'TFormBorderStyle', iptrw);
     RegisterProperty('Caption', 'NativeString', iptrw);
@@ -116,7 +123,6 @@ begin
     RegisterProperty('OnKeyUp', 'TKeyEvent', iptrw);
     RegisterProperty('OnResize', 'TNotifyEvent', iptrw);
     RegisterProperty('OnShow', 'TNotifyEvent', iptrw);
-
 
     {$IFNDEF PS_MINIVCL}
     {$IFNDEF CLX}
@@ -171,7 +177,11 @@ begin
 {$IFDEF PS_PANSICHAR}
     RegisterMethod('function MessageBox(Text,Caption: PAnsiChar; Flags: Word): Integer');
 {$ELSE}
+{$IFDEF UNICODE}
+    RegisterMethod('function MessageBox(Text,Caption: string; Flags: Word): Integer');
+  {$ELSE}
     RegisterMethod('function MessageBox(Text,Caption: PChar; Flags: Word): Integer');
+  {$ENDIF}
 {$ENDIF}
     RegisterMethod('procedure Minimize');
     RegisterMethod('procedure ProcessMessages');
@@ -180,7 +190,9 @@ begin
     RegisterProperty('Active', 'Boolean', iptr);
     RegisterProperty('ExeName', 'NativeString', iptr);
     {$IFNDEF CLX}
-    RegisterProperty('Handle', 'LongInt', iptrw);
+    {+}
+    RegisterProperty('Handle', 'NativeUInt', iptrw); // THandle == NativeUInt
+    {+.}
     RegisterProperty('UpdateFormatSettings', 'Boolean', iptrw);
     {$ENDIF}
     RegisterProperty('Hint', 'NativeString', iptrw);
@@ -265,6 +277,5 @@ begin
 end;
 
 // PS_MINIVCL changes by Martijn Laan (mlaan at wintax _dot_ nl)
-
 
 end.

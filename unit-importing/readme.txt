@@ -1,5 +1,6 @@
 This program requires SynEdit (http://synedit.sf.net) to compile.
 
+Executable can be found at: http://www.carlo-kok.com/downloads/ifps3/imp.zip
 
 UnitParser v0.4, written by M. Knight.
 UnitParser v0.5, updated by NP. v/d Spek, 21-oct-2003
@@ -8,7 +9,7 @@ Source Code from Carlo Kok has been used to implement various sections of
 UnitParser. Components of ifps3 are used in the construction of UnitParser,
 code implementing the class wrapper is taken from Carlo Kok's conv unility
 
-This version works with the newExec source from Carlo Kok's IFPS so now all 
+This version works with the newExec source from Carlo Kok's IFPS so now all
 identifirs are normal cased.
 
 Licence :
@@ -49,9 +50,9 @@ The following different types :
 - dynamic arrays only (static arrays are not implemented by the ifps3 to my
   knowlage)
 - On discovering a function marked with the overload directive, it prompts
-  for a new function name, and then generates wrapper code that maps the 
+  for a new function name, and then generates wrapper code that maps the
   new method name to the original version. Press enter to use the same name
-  * NVDS> fixed some bug's here. 
+  * NVDS> fixed some bug's here.
 - Some constant expressions cause the parser to get confused
   (<constname>=<constname>). It will then prompt for the correct
   Expression type (string, integer, char, boolean, etc)
@@ -67,7 +68,7 @@ Todo:
 - Add correct support to handle Abstract functions and Procedures.
 
 Added in version 0.5 (NVDS):
-- Posiblity to see the Orginal soure code, master source code and after converting 
+- Posiblity to see the Orginal soure code, master source code and after converting
   the result code files.
 - Added the choice of makking a single file or not.
 - Created a INI-project file with all the settings.
@@ -83,9 +84,9 @@ Added in version 0.4 :
   NOT containt any comments, formatting or exact casing.
 
 Added in version 0.31 :
-- Fixed error that would result in the files bwing written to in the root 
+- Fixed error that would result in the files bwing written to in the root
   of the drive, if a output dir wasnt supplied.
-- Fixed error in code generation when the '-U' flag was used (prevent the 
+- Fixed error in code generation when the '-U' flag was used (prevent the
   class parent's name from being written).
 - Now defaults to '-u' instead of '-UseUnitAtDT'
 - Updated readme.txt
@@ -107,5 +108,3 @@ Added in version 0.2 (not release to public):
 - Output files are now generated in the same directory as the file being
   wrapped by default.
   With the option of forcing all generated files into a spesific folder.
-
-

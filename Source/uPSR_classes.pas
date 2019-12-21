@@ -520,7 +520,7 @@ end;
 
 procedure RIRegisterTSTREAM(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(TSTREAM) do
+  with Cl.Add(TStream) do
   begin
     {+}
     //RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.Read, 'Read');
@@ -540,9 +540,9 @@ begin
     RegisterMethod(@TSTREAM_WRITEA, 'WriteA');
     RegisterMethod(@TSTREAM_WRITEB, 'WriteB');
     RegisterMethod(@TSTREAM_WRITEW, 'WriteW');
-    //RegisterMethod(@TSTREAM.ReadBuffer, 'ReadBuffer');
+    //RegisterMethod(@TStream.ReadBuffer, 'ReadBuffer');
     RegisterMethod(@TStream_ReadBufferA, 'ReadBuffer');
-    //RegisterMethod(@TSTREAM.WriteBuffer, 'WriteBuffer');
+    //RegisterMethod(@TStream.WriteBuffer, 'WriteBuffer');
     RegisterMethod(@TStream_WriteBufferA, 'WriteBuffer');
     //
     RegisterMethod(@TStream_ReadBufferA, 'ReadBufferA');
@@ -552,7 +552,7 @@ begin
     RegisterMethod(@TStream_WriteBufferB, 'WriteBufferB');
     RegisterMethod(@TStream_WriteBufferW, 'WriteBufferW');
     {+.}
-    RegisterMethod(@TSTREAM.CopyFrom, 'CopyFrom');
+    RegisterMethod(@TStream.CopyFrom, 'CopyFrom');
     RegisterPropertyHelper(@TSTREAMPOSITION_R, @TSTREAMPOSITION_W, 'Position');
     RegisterPropertyHelper(@TSTREAMSIZE_R, {$IFDEF DELPHI3UP}@TSTREAMSIZE_W, {$ELSE}nil, {$ENDIF}'Size');
     {+}
@@ -565,7 +565,7 @@ procedure THANDLESTREAMHANDLE_R(Self: THANDLESTREAM; var T: {+}THandle{+.}); beg
 
 procedure RIRegisterTHANDLESTREAM(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(THANDLESTREAM) do
+  with Cl.Add(THandleStream) do
   begin
     RegisterConstructor(@THandleStream.Create, 'Create');
     RegisterPropertyHelper(@THANDLESTREAMHANDLE_R, nil, 'Handle');
@@ -576,13 +576,13 @@ end;
 // mh: because FPC doesn't handle pointers to overloaded functions
 function TFileStreamCreate(filename: string; mode: word): TFileStream;
 begin
-  result := TFilestream.Create(filename, mode);
+  result := TFileStream.Create(filename, mode);
 end;
 {$ENDIF}
 
 procedure RIRegisterTFILESTREAM(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(TFILESTREAM) do
+  with Cl.Add(TFileStream) do
   begin
     {$IFDEF FPC}
     RegisterConstructor(@TFileStreamCreate, 'Create');
@@ -620,9 +620,9 @@ end;
 
 procedure RIRegisterTSTRINGSTREAM(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(TSTRINGSTREAM) do
+  with Cl.Add(TStringStream) do
   begin
-    RegisterConstructor({$IFDEF STRINGSTREAMFIX}@TStringStreamCreateString{$ELSE}@TSTRINGSTREAM.CREATE{$ENDIF}, 'Create');
+    RegisterConstructor({$IFDEF STRINGSTREAMFIX}@TStringStreamCreateString{$ELSE}@TStringStream.Create{$ENDIF}, 'Create');
     {+}
     RegisterPropertyHelper(@TSTRINGSTREAMDATASTRING_R, nil, 'DataString');
     {+.}
@@ -632,30 +632,30 @@ end;
 {$IFNDEF PS_MINIVCL}
 procedure RIRegisterTCUSTOMMEMORYSTREAM(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(TCUSTOMMEMORYSTREAM) do
+  with Cl.Add(TCustomMemoryStream) do
   begin
-    RegisterMethod(@TCUSTOMMEMORYSTREAM.SAVETOSTREAM, 'SaveToStream');
-    RegisterMethod(@TCUSTOMMEMORYSTREAM.SAVETOFILE, 'SaveToFile');
+    RegisterMethod(@TCustomMemoryStream.SaveToStream, 'SaveToStream');
+    RegisterMethod(@TCustomMemoryStream.SaveToFile, 'SaveToFile');
   end;
 end;
 
 procedure RIRegisterTMEMORYSTREAM(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(TMEMORYSTREAM) do
+  with Cl.Add(TMemoryStream) do
   begin
-    RegisterMethod(@TMEMORYSTREAM.CLEAR, 'Clear');
-    RegisterMethod(@TMEMORYSTREAM.LOADFROMSTREAM, 'LoadFromStream');
-    RegisterMethod(@TMEMORYSTREAM.LOADFROMFILE, 'LoadFromFile');
-    RegisterMethod(@TMEMORYSTREAM.SETSIZE, 'SetSize');
+    RegisterMethod(@TMemoryStream.Clear, 'Clear');
+    RegisterMethod(@TMemoryStream.LoadFromStream, 'LoadFromStream');
+    RegisterMethod(@TMemoryStream.LoadFromFile, 'LoadFromFile');
+    RegisterMethod(@TMemoryStream.SetSize, 'SetSize');
   end;
 end;
 
 procedure RIRegisterTRESOURCESTREAM(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(TRESOURCESTREAM) do
+  with Cl.Add(TResourceStream) do
   begin
-    RegisterConstructor(@TRESOURCESTREAM.CREATE, 'Create');
-    RegisterConstructor(@TRESOURCESTREAM.CREATEFROMID, 'CreateFromID');
+    RegisterConstructor(@TResourceStream.Create, 'Create');
+    RegisterConstructor(@TResourceStream.CreateFromID, 'CreateFromID');
   end;
 end;
 
@@ -664,21 +664,21 @@ procedure TPARSERTOKEN_R(Self: TPARSER; var T: CHAR); begin T := Self.TOKEN; end
 
 procedure RIRegisterTPARSER(Cl: TPSRuntimeClassImporter);
 begin
-  with Cl.Add(TPARSER) do
+  with Cl.Add(TParser) do
   begin
-    RegisterConstructor(@TPARSER.CREATE, 'Create');
-    RegisterMethod(@TPARSER.CHECKTOKEN, 'CheckToken');
-    RegisterMethod(@TPARSER.CHECKTOKENSYMBOL, 'CheckTokenSymbol');
-    RegisterMethod(@TPARSER.ERROR, 'Error');
-    RegisterMethod(@TPARSER.ERRORSTR, 'ErrorStr');
-    RegisterMethod(@TPARSER.HEXTOBINARY, 'HexToBinary');
-    RegisterMethod(@TPARSER.NEXTTOKEN, 'NextToken');
-    RegisterMethod(@TPARSER.SOURCEPOS, 'SourcePos');
-    RegisterMethod(@TPARSER.TOKENCOMPONENTIDENT, 'TokenComponentIdent');
-    RegisterMethod(@TPARSER.TOKENFLOAT, 'TokenFloat');
-    RegisterMethod(@TPARSER.TOKENINT, 'TokenInt');
-    RegisterMethod(@TPARSER.TOKENSTRING, 'TokenString');
-    RegisterMethod(@TPARSER.TOKENSYMBOLIS, 'TokenSymbolIs');
+    RegisterConstructor(@TParser.Create, 'Create');
+    RegisterMethod(@TParser.CheckToken, 'CheckToken');
+    RegisterMethod(@TParser.CheckTokenSymbol, 'CheckTokenSymbol');
+    RegisterMethod(@TParser.Error, 'Error');
+    RegisterMethod(@TParser.ErrorStr, 'ErrorStr');
+    RegisterMethod(@TParser.HexToBinary, 'HexToBinary');
+    RegisterMethod(@TParser.NextToken, 'NextToken');
+    RegisterMethod(@TParser.SourcePos, 'SourcePos');
+    RegisterMethod(@TParser.TokenComponentIdent, 'TokenComponentIdent');
+    RegisterMethod(@TParser.TokenFloat, 'TokenFloat');
+    RegisterMethod(@TParser.TokenInt, 'TokenInt');
+    RegisterMethod(@TParser.TokenString, 'TokenString');
+    RegisterMethod(@TParser.TokenSymbolIs, 'TokenSymbolIs');
     RegisterPropertyHelper(@TPARSERSOURCELINE_R, nil, 'SourceLine');
     RegisterPropertyHelper(@TPARSERTOKEN_R, nil, 'Token');
   end;
@@ -737,7 +737,7 @@ end;
 
 procedure RIRegisterTCOLLECTION(Cl: TPSRuntimeClassImporter);
 Begin
-with Cl.Add(TCOLLECTION) do
+with Cl.Add(TCollection) do
   begin
   RegisterConstructor(@TCollection.Create, 'Create');
 {$IFDEF DELPHI6UP}  {$IFNDEF FPC} RegisterMethod(@TCollection.Owner, 'Owner'); {$ENDIF} {$ENDIF} // no owner in FPC
@@ -756,7 +756,7 @@ end;
 
 procedure RIRegisterTCOLLECTIONITEM(Cl: TPSRuntimeClassImporter);
 Begin
-with Cl.Add(TCOLLECTIONITEM) do
+with Cl.Add(TCollectionItem) do
   begin
   RegisterVirtualConstructor(@TCollectionItem.Create, 'Create');
   RegisterPropertyHelper(@TCOLLECTIONITEMCOLLECTION_R,@TCOLLECTIONITEMCOLLECTION_W,'Collection');

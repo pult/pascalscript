@@ -1,4 +1,3 @@
-
 unit uPSDebugger;
 {$I PascalScript.inc}
 interface
@@ -15,13 +14,19 @@ type
 
   TPSCustomDebugExec = class(TPSExec)
   protected
+    {+}
+    FDebugDataLoaded: Boolean;
+    {+.}
     FDebugDataForProcs: TIfList;
     FLastProc: TPSProcRec;
     FCurrentDebugProc: Pointer;
     FProcNames: TIFStringList;
     FGlobalVarNames: TIfStringList;
-    FCurrentSourcePos, FCurrentRow, FCurrentCol: Cardinal;
-    FCurrentFile: tbtstring;
+    {+}
+    FCurrentSourcePos: Cardinal;
+    //-FCurrentRow, FCurrentCol: Cardinal; // moved to  base class
+    //-FCurrentFile: tbtstring; // moved to  base class
+    {+.}
 
     function GetCurrentProcParams: TIfStringList;
 
@@ -35,14 +40,20 @@ type
 
     function GetCurrentPosition: Cardinal;
 
-    function TranslatePosition(Proc, Position: Cardinal): Cardinal;
+    {+}
+    //-function TranslatePosition(Proc, Position: Cardinal): Cardinal; // moved to base class
+    function TranslatePositionEx(Proc, Position: Cardinal; var Pos, Row, Col: Cardinal; var Fn: tbtstring): Boolean; override;
+    {+.}
 
-    function TranslatePositionEx(Proc, Position: Cardinal; var Pos, Row, Col: Cardinal; var Fn: tbtstring): Boolean;
-
-    procedure LoadDebugData(const Data: tbtstring);
+    {+}
+    function LoadDebugData(const Data: tbtstring): Longint; //-override;
+    {+.}
 
     procedure Clear; override;
 
+    {+}
+    property DebugDataLoaded: Boolean read FDebugDataLoaded;
+    {+.}
     property GlobalVarNames: TIfStringList read FGlobalVarNames;
 
     property ProcNames: TIfStringList read FProcNames;
@@ -67,6 +78,10 @@ type
 
   TOnIdleCall = procedure (Sender: TPSDebugExec);
 
+  {+}
+  TLineDebugInfo = (ldiEmpty, ldiNone, ldiExist);
+  {+.}
+
   TPSDebugExec = class(TPSCustomDebugExec)
   private
     FDebugMode: TDebugMode;
@@ -75,11 +90,18 @@ type
     FOnIdleCall: TOnIdleCall;
     FOnSourceLine: TOnSourceLine;
     FDebugEnabled: Boolean;
+    {+}
+    fLastProcDILoaded: TPSProcRec;
+    fLineDebugInfo: TLineDebugInfo;
+    {+.}
   protected
 
     procedure SourceChanged;
     procedure ClearDebug; override;
     procedure RunLine; override;
+    {+}
+    function LoadLineDebugInfo: Boolean; // Allows downloading line debugging information dynamically as needed!
+    {+.}
   public
     constructor Create;
 
@@ -150,40 +172,79 @@ procedure TPSCustomDebugExec.ClearDebug;
 var
   i, j: Longint;
   p: PFunctionInfo;
+  {+}
+  ppd: PPositionData;
+  {+.}
 begin
   FCurrentDebugProc := nil;
   FLastProc := nil;
-  FProcNames.Clear;
-  FGlobalVarNames.Clear;
+  {+}
+  FDebugDataLoaded := False;
+  if Assigned(FProcNames) then
+  {+.}
+    FProcNames.Clear;
+  {+}
+  if Assigned(FGlobalVarNames) then
+  {+.}
+    FGlobalVarNames.Clear;
   FCurrentSourcePos := 0;
   FCurrentRow := 0;
   FCurrentCol := 0;
   FCurrentFile := '';
-  for i := 0 to FDebugDataForProcs.Count -1 do
+  {+}
+  if Assigned(FDebugDataForProcs) then
   begin
-    p := FDebugDataForProcs[I];
-    for j := 0 to p^.FPositionTable.Count -1 do
+  {+.}
+    for i := 0 to FDebugDataForProcs.Count -1 do
     begin
-      Dispose(PPositionData(P^.FPositionTable[J]));
+      p := FDebugDataForProcs[I];
+      {+}
+      if p = nil then
+        Continue;
+      {+.}
+      for j := 0 to p^.FPositionTable.Count -1 do
+      begin
+        {+}
+        ppd := PPositionData(P^.FPositionTable[J]);
+        if Assigned(ppd) then
+        begin
+          P^.FPositionTable[J] := nil;
+          Dispose(ppd);
+        end;
+        {+.}
+      end;
+      p^.FPositionTable.Free;
+      {+}
+      p^.FPositionTable := nil;
+      {+.}
+      p^.FParamNames.Free;
+      {+}
+      p^.FParamNames := nil;
+      {+.}
+      p^.FVariableNames.Free;
+      p^.FVariableNames := nil;
+
+      {+}
+      FDebugDataForProcs[I] := nil;
+      {+.}
+      Dispose(p);
     end;
-    p^.FPositionTable.Free;
-    p^.FParamNames.Free;
-    p^.FVariableNames.Free;
-    Dispose(p);
+    FDebugDataForProcs.Clear;
+  {+}
   end;
-  FDebugDataForProcs.Clear;
+  {+.}
 end;
 
 constructor TPSCustomDebugExec.Create;
 begin
   inherited Create;
-  FCurrentSourcePos := 0;
-  FCurrentRow := 0;
-  FCurrentCol := 0;
-  FCurrentFile := '';
+  //FCurrentSourcePos := 0;
+  //FCurrentRow := 0;
+  //FCurrentCol := 0;
+  //FCurrentFile := '';
   FDebugDataForProcs := TIfList.Create;
-  FLastProc := nil;
-  FCurrentDebugProc := nil;
+  //FLastProc := nil;
+  //FCurrentDebugProc := nil;
   FProcNames := TIFStringList.Create;
   FGlobalVarNames := TIfStringList.Create;
 end;
@@ -192,7 +253,13 @@ destructor TPSCustomDebugExec.Destroy;
 begin
   Clear;
   FDebugDataForProcs.Free;
+  {+}
+  FDebugDataForProcs := nil;
+  {+.}
   FProcNames.Free;
+  {+}
+  FProcNames := nil;
+  {+.}
   FGlobalVarNames.Free;
   FGlobalVarNames := nil;
   inherited Destroy;
@@ -209,7 +276,7 @@ var
 begin
   for i := 0 to FProcs.Count -1 do
   begin
-    if FProcs[i]=  FCurrProc then
+    if FProcs[i] = FCurrProc then
     begin
       Result := I;
       Exit;
@@ -277,7 +344,7 @@ begin
   REsult := c;
 end;
 
-procedure TPSCustomDebugExec.LoadDebugData(const Data: tbtstring);
+function TPSCustomDebugExec.LoadDebugData(const Data: tbtstring): Longint;
 var
   CP, I: Longint;
   c: tbtchar;
@@ -286,160 +353,189 @@ var
   NewLoc: PPositionData;
   s: tbtstring;
 begin
-  ClearDebug;
-  if FStatus = isNotLoaded then exit;
-  CP := 1;
-  LastProcNo := Cardinal(-1);
-  LastProc := nil;
-  while CP <= length(Data) do
-  begin
-    c := Data[CP];
-    inc(cp);
-    case c of
-      #0:
-        begin
-          i := cp;
-          if i > length(data) then exit;
-          while Data[i] <> #0 do
+  {+}
+  Result := 0;
+  {+.}
+  ClearDebug();
+  if FStatus = isNotLoaded then
+    exit;
+  {+}
+  FDebugDataLoaded := False;
+  try
+  {+.}
+    CP := 1;
+    LastProcNo := Cardinal(-1);
+    LastProc := nil;
+    while CP <= length(Data) do
+    begin
+      c := Data[CP];
+      inc(cp);
+      case c of
+        #0:
           begin
-            if Data[i] = #1 then
+            i := cp;
+            if i > length(data) then exit;
+            while Data[i] <> #0 do
             begin
-              FProcNames.Add(Copy(Data, cp, i-cp));
-              cp := I + 1;
+              if Data[i] = #1 then
+              begin
+                FProcNames.Add(Copy(Data, cp, i-cp));
+                cp := I + 1;
+                {+}
+                Inc(Result);
+                {+.}
+              end;
+              inc(I);
+              if I > length(data) then exit;
             end;
-            inc(I);
-            if I > length(data) then exit;
+            cp := i + 1;
           end;
-          cp := i + 1;
-        end;
-      #1:
-        begin
-          i := cp;
-          if i > length(data) then exit;
-          while Data[i] <> #0 do
+        #1:
           begin
-            if Data[i] = #1 then
+            i := cp;
+            if i > length(data) then exit;
+            while Data[i] <> #0 do
             begin
-              FGlobalVarNames.Add(Copy(Data, cp, i-cp));
-              cp := I + 1;
+              if Data[i] = #1 then
+              begin
+                FGlobalVarNames.Add(Copy(Data, cp, i-cp));
+                cp := I + 1;
+                {+}
+                Inc(Result);
+                {+.}
+              end;
+              inc(I);
+              if I > length(data) then exit;
             end;
-            inc(I);
-            if I > length(data) then exit;
+            cp := i + 1;
           end;
-          cp := i + 1;
-        end;
-      #2:
-        begin
-          if cp + 4 > Length(data) then exit;
-          CurrProcNo := Cardinal((@Data[cp])^);
-          if CurrProcNo = Cardinal(-1) then Exit;
-          if CurrProcNo <> LastProcNo then
+        #2:
           begin
-            LastProcNo := CurrProcNo;
-            LastProc := GetProcDebugInfo(FDebugDataForProcs, FProcs[CurrProcNo]);
-            if LastProc = nil then exit;
-          end;
-          inc(cp, 4);
+            if cp + 4 > Length(data) then exit;
+            CurrProcNo := Cardinal((@Data[cp])^);
+            if CurrProcNo = Cardinal(-1) then Exit;
+            if CurrProcNo <> LastProcNo then
+            begin
+              LastProcNo := CurrProcNo;
+              LastProc := GetProcDebugInfo(FDebugDataForProcs, FProcs[CurrProcNo]);
+              if LastProc = nil then exit;
+              {+}
+              Inc(Result);
+              {+.}
+            end;
+            inc(cp, 4);
 
-          i := cp;
-          if i > length(data) then exit;
-          while Data[i] <> #0 do
-          begin
-            if Data[i] = #1 then
+            i := cp;
+            if i > length(data) then exit;
+            while Data[i] <> #0 do
             begin
-              LastProc^.FParamNames.Add(Copy(Data, cp, i-cp));
-              cp := I + 1;
+              if Data[i] = #1 then
+              begin
+                LastProc^.FParamNames.Add(Copy(Data, cp, i-cp));
+                cp := I + 1;
+                {+}
+                Inc(Result);
+                {+.}
+              end;
+              inc(I);
+              if I > length(data) then exit;
             end;
-            inc(I);
-            if I > length(data) then exit;
+            cp := i + 1;
           end;
-          cp := i + 1;
-        end;
-      #3:
-        begin
-          if cp + 4 > Length(data) then exit;
-          CurrProcNo := Cardinal((@Data[cp])^);
-          if CurrProcNo = Cardinal(-1) then Exit;
-          if CurrProcNo <> LastProcNo then
+        #3:
           begin
-            LastProcNo := CurrProcNo;
-            LastProc := GetProcDebugInfo(FDebugDataForProcs, FProcs[CurrProcNo]);
-            if LastProc = nil then exit;
-          end;
-          inc(cp, 4);
+            if cp + 4 > Length(data) then exit;
+            CurrProcNo := Cardinal((@Data[cp])^);
+            if CurrProcNo = Cardinal(-1) then Exit;
+            if CurrProcNo <> LastProcNo then
+            begin
+              LastProcNo := CurrProcNo;
+              LastProc := GetProcDebugInfo(FDebugDataForProcs, FProcs[CurrProcNo]);
+              if LastProc = nil then exit;
+              {+}
+              Inc(Result);
+              {+.}
+            end;
+            inc(cp, 4);
 
-          i := cp;
-          if i > length(data) then exit;
-          while Data[i] <> #0 do
-          begin
-            if Data[i] = #1 then
+            i := cp;
+            if i > length(data) then exit;
+            while Data[i] <> #0 do
             begin
-              LastProc^.FVariableNames.Add(Copy(Data, cp, i-cp));
-              cp := I + 1;
+              if Data[i] = #1 then
+              begin
+                LastProc^.FVariableNames.Add(Copy(Data, cp, i-cp));
+                cp := I + 1;
+                {+}
+                Inc(Result);
+                {+.}
+              end;
+              inc(I);
+              if I > length(data) then exit;
             end;
-            inc(I);
-            if I > length(data) then exit;
+            cp := i + 1;
           end;
-          cp := i + 1;
-        end;
-      #4:
-        begin
-          i := cp;
-          if i > length(data) then exit;
-          while Data[i] <> #0 do
+        #4:
           begin
-            if Data[i] = #1 then
+            i := cp;
+            if i > length(data) then exit;
+            while Data[i] <> #0 do
             begin
-              s := Copy(Data, cp, i-cp);
-              cp := I + 1;
-              Break;
+              if Data[i] = #1 then
+              begin
+                s := Copy(Data, cp, i-cp);
+                cp := I + 1;
+                Break;
+              end;
+              inc(I);
+              if I > length(data) then exit;
             end;
-            inc(I);
-            if I > length(data) then exit;
+            if cp + 4 > Length(data) then exit;
+            CurrProcNo := Cardinal((@Data[cp])^);
+            if CurrProcNo = Cardinal(-1) then Exit;
+            if CurrProcNo <> LastProcNo then
+            begin
+              LastProcNo := CurrProcNo;
+              LastProc := GetProcDebugInfo(FDebugDataForProcs, FProcs[CurrProcNo]);
+              if LastProc = nil then exit;
+              {+}
+              Inc(Result);
+              {+.}
+            end;
+            inc(cp, 4);
+            if cp + 16 > Length(data) then exit;
+            new(NewLoc);
+            NewLoc^.Position := Cardinal((@Data[Cp])^);
+            NewLoc^.FileName := s;
+            NewLoc^.SourcePosition := Cardinal((@Data[Cp+4])^);
+            NewLoc^.Row := Cardinal((@Data[Cp+8])^);
+            NewLoc^.Col := Cardinal((@Data[Cp+12])^);
+            inc(cp, 16);
+            LastProc^.FPositionTable.Add(NewLoc);
+            {+}
+            Inc(Result);
+            {+.}
           end;
-          if cp + 4 > Length(data) then exit;
-          CurrProcNo := Cardinal((@Data[cp])^);
-          if CurrProcNo = Cardinal(-1) then Exit;
-          if CurrProcNo <> LastProcNo then
+        else
           begin
-            LastProcNo := CurrProcNo;
-            LastProc := GetProcDebugInfo(FDebugDataForProcs, FProcs[CurrProcNo]);
-            if LastProc = nil then exit;
+            ClearDebug;
+            Exit;
           end;
-          inc(cp, 4);
-          if cp + 16 > Length(data) then exit;
-          new(NewLoc);
-          NewLoc^.Position := Cardinal((@Data[Cp])^);
-          NewLoc^.FileName := s;
-          NewLoc^.SourcePosition := Cardinal((@Data[Cp+4])^);
-          NewLoc^.Row := Cardinal((@Data[Cp+8])^);
-          NewLoc^.Col := Cardinal((@Data[Cp+12])^);
-          inc(cp, 16);
-          LastProc^.FPositionTable.Add(NewLoc);
-        end;
-      else
-        begin
-          ClearDebug;
-          Exit;
-        end;
+      end;
     end;
-
+  {+}
+  finally
+    FDebugDataLoaded := Result > 0;
   end;
+  {+.}
 end;
 
-
-
-
-
-
-function TPSCustomDebugExec.TranslatePosition(Proc, Position: Cardinal): Cardinal;
-var
-  D1, D2: Cardinal;
-  s: tbtstring;
-begin
-  if not TranslatePositionEx(Proc, Position, Result, D1, D2, s) then
-    Result := 0;
-end;
+//function TPSCustomDebugExec.TranslatePosition(Proc, Position: Cardinal): Cardinal;
+//var D1, D2: Cardinal; s: tbtstring;
+//begin
+//  if not TranslatePositionEx(Proc, Position, Result, D1, D2, s) then
+//    Result := 0;
+//end;
 
 function TPSCustomDebugExec.TranslatePositionEx(Proc, Position: Cardinal;
   var Pos, Row, Col: Cardinal; var Fn: tbtstring): Boolean;
@@ -453,10 +549,15 @@ var
   LastPos, LastRow, LastCol: Cardinal;
   pp: TPSProcRec;
 begin
+  Result := False;
+  //-if (FDebugDataForProcs = nil) or (FDebugDataForProcs.Count = 0) then
+  //-  Exit;
   fi := nil;
   pp := FProcs[Proc];
-  for i := 0 to FDebugDataForProcs.Count -1 do
-  begin
+  {+}
+  if pp = nil then Exit;
+  {+.}
+  for i := 0 to FDebugDataForProcs.Count -1 do begin
     fi := FDebugDataForProcs[i];
     if fi^.Func = pp then
       Break;
@@ -465,25 +566,18 @@ begin
   LastPos := 0;
   LastRow := 0;
   LastCol := 0;
-  {+}
-  lastfn := '';
-  {+.}
-  if fi <> nil then begin
+  if (fi <> nil) then
+  begin
     pt := fi^.FPositionTable;
-    for i := 0 to pt.Count -1 do
-    begin
-      r := pt[I];
-      if r^.Position >= Position then
-      begin
-        if r^.Position = Position then
-        begin
+    for i := 0 to pt.Count-1 do begin // @dbg: PPositionData(pt[0]).Position    PPositionData(pt[0]).Row
+      r := pt[I]; // TODO: ??? Position >= uPSRuntime.InvalidVal-1
+      if (r^.Position >= Position) then begin
+        if (r^.Position = Position) {+}or (LastRow = 0){+.} then begin
           Pos := r^.SourcePosition;
           Row := r^.Row;
           Col := r^.Col;
           Fn := r^.Filename;
-        end
-        else
-        begin
+        end else begin
           Pos := LastPos;
           Row := LastRow;
           Col := LastCol;
@@ -491,27 +585,26 @@ begin
         end;
         Result := True;
         exit;
-      end else
-      begin
+      end else begin
         LastPos := r^.SourcePosition;
         LastRow := r^.Row;
         LastCol := r^.Col;
         LastFn := r^.FileName;
-      end;
-    end;
+      end; //if
+    end; // for i
     Pos := LastPos;
     Row := LastRow;
     Col := LastCol;
     Result := True;
-  end else
-  begin
-    Result := False;
-  end;
+  end; //if
 end;
 
 { TPSDebugExec }
 procedure TPSDebugExec.ClearDebug;
 begin
+  {+}
+  fLastProcDILoaded := nil;
+  {+.}
   inherited;
   FDebugMode := dmRun;
 end;
@@ -522,50 +615,94 @@ begin
   FDebugMode := dmRun;
 end;
 
+{+}
 procedure TPSDebugExec.RunLine;
+begin
+  //TODO: ?: if @FOnRunLine = nil then Exit;
+  inherited RunLine;
+
+  fLineDebugInfo := ldiEmpty;
+
+  if FCurrProc <> FLastProc then
+  begin
+    FLastProc := FCurrProc;
+    FCurrentDebugProc := nil;
+  end;
+
+  if DebugEnabled and FDebugDataLoaded then
+    LoadLineDebugInfo();
+end;
+//
+function TPSDebugExec.LoadLineDebugInfo: Boolean;
+// Allows downloading line debugging information dynamically as needed!
 var
   i: Longint;
   pt: TIfList;
   r: PPositionData;
 begin
-  inherited RunLine;
-  if not DebugEnabled then exit;
-  if FCurrProc <> FLastProc then
+  if (fLineDebugInfo <> ldiEmpty) then
   begin
-    FLastProc := FCurrProc;
-    FCurrentDebugProc := nil;
-    for i := 0 to FDebugDataForProcs.Count -1 do
-    begin
-      if PFunctionInfo(FDebugDataForProcs[I])^.Func = FLastProc then
-      begin
-        FCurrentDebugProc := FDebugDataForProcs[I];
-        break;
-      end;
-    end;
+    Result := (fLineDebugInfo = ldiExist);
+    Exit;
   end;
-  if FCurrentDebugProc <> nil then
-  begin
-    pt := PFunctionInfo(FCurrentDebugProc)^.FPositionTable;
-    for i := 0 to pt.Count -1 do
-    begin
-      r := pt[I];
-      if r^.Position = FCurrentPosition then
-      begin
-        FCurrentSourcePos := r^.SourcePosition;
-        FCurrentRow := r^.Row;
-        FCurrentCol := r^.Col;
-        FCurrentFile := r^.FileName;
-        SourceChanged;
-        break;
-      end;
-    end;
-  end else
+
+  if (not FDebugDataLoaded) then
   begin
     FCurrentSourcePos := 0;
     FCurrentRow := 0;
     FCurrentCol := 0;
     FCurrentFile := '';
+
+    Result := False;
+  end
+  else
+  begin
+    if (FCurrProc <> {FLastProc fLastProcDILoaded}fLastProcDILoaded) then
+    begin //@dbg: TPSInternalProcRec(FLastProc),r
+      FLastProc := FCurrProc;
+      fLastProcDILoaded := FLastProc;
+      FCurrentDebugProc := nil;
+      for i := 0 to FDebugDataForProcs.Count -1 do
+      begin
+        if PFunctionInfo(FDebugDataForProcs[i])^.Func = FLastProc then
+        begin
+          FCurrentDebugProc := FDebugDataForProcs[i];
+          break;
+        end;
+      end;
+    end;
+    if (FCurrentDebugProc <> nil) then
+    begin
+      pt := PFunctionInfo(FCurrentDebugProc)^.FPositionTable;
+      for i := 0 to pt.Count -1 do
+      begin
+        r := pt[i]; // @dbg: PPositionData(pt[0]).Position
+        if (r^.Position {+}{NEW: ??">=" ;OLD: "="} = {+.} FCurrentPosition) then
+        begin
+          FCurrentSourcePos := r^.SourcePosition;
+          FCurrentRow := r^.Row;
+          FCurrentCol := r^.Col;
+          FCurrentFile := r^.FileName;
+          SourceChanged;
+          break;
+        end;
+      end;
+    end else
+    begin
+      FCurrentSourcePos := 0;
+      FCurrentRow := 0;
+      FCurrentCol := 0;
+      FCurrentFile := '';
+    end;
+
+    Result := (FCurrentDebugProc <> nil) and (FCurrentRow <> 0);
   end;
+
+  if Result then
+    fLineDebugInfo := ldiExist
+  else
+    fLineDebugInfo := ldiNone;
+
   while FDebugMode = dmPaused do
   begin
     if @FOnIdleCall <> nil then
@@ -574,7 +711,7 @@ begin
     end else break; // endless loop
   end;
 end;
-
+{+.}
 
 procedure TPSDebugExec.SourceChanged;
 
@@ -624,7 +761,6 @@ begin
     FOnSourceLine(Self, FCurrentFile, FCurrentSourcePos, FCurrentRow, FCurrentCol);
 end;
 
-
 procedure TPSDebugExec.Pause;
 begin
   FDebugMode := dmPaused;
@@ -652,7 +788,6 @@ begin
   FStepOverStackBase := FCurrStackBase;
   FDebugMode := dmStepOver;
 end;
-
 
 constructor TPSDebugExec.Create;
 begin

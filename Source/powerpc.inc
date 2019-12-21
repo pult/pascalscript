@@ -301,7 +301,7 @@ begin
       then begin  { var param }
         case fvar.aType.BaseType of
           { add var params here }
-          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF}
+          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}{$ENDIF}
           btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
           {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: addgen(dword(fvar.dta));  { TODO: test all }
           else begin
@@ -311,7 +311,7 @@ begin
         end;  { case }
       end else begin  { not a var param }
         case fvar.aType.BaseType of
-//          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF}
+//          btArray, btVariant, btSet, btStaticArray, btRecord, btInterface, btClass, {$IFNDEF PS_NOWIDESTRING} btWideString, btWideChar, {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}{$ENDIF}
 //          btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
 //          {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: writeln('normal param');
 
@@ -325,14 +325,20 @@ begin
           btPChar:                             addgen(dword(ppchar(fvar.dta)^));
           {+}
           {$IFNDEF PS_NOWIDESTRING}
+            {$if declared(btPWideChar)}
           btPWideChar:                         addgen(dword(ppwordchar(fvar.dta)^));
+            {$ifend}
           {$ENDIF}
           {+.}
           btChar:                              addgen(dword(pchar(fvar.dta)^));
-          {$IFNDEF PS_NOINT64}bts64:{$ENDIF}   begin
+          {+}
+          {$IFNDEF PS_NOINT64}
+          bts64:                               begin
                                                  addgen(dword(pint64(fvar.dta)^ shr 32));
                                                  addgen(dword(pint64(fvar.dta)^ and $ffffffff));
                                                end;
+          {$ENDIF}
+          {+.}
           btStaticArray:                       addgen(dword(fvar.dta));
           btRecord:                            for j := 0 to (fvar.atype.realsize div 4)-1 do
                                                  addgen(pdword(fvar.dta + j*4)^);
@@ -391,7 +397,9 @@ begin
         btPChar:                 ppchar(res.dta)^ := pchar(pdword(ppcasmcall(rint, rfloat, address, st, stindex, rtINT))^);
         {+}
         {$IFNDEF PS_NOWIDESTRING}
+          {$if declared(btPWideChar)}
         btPWideChar:             ppwidechar(res.dta)^ := pwidechar(pdword(ppcasmcall(rint, rfloat, address, st, stindex, rtINT))^);
+          {$ifend}
         {$ENDIF}
         {+.}
         btChar:                  pchar(res.dta)^ := char(pdword(ppcasmcall(rint, rfloat, address, st, stindex, rtINT))^);

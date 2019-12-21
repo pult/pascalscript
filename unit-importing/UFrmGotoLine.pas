@@ -1,5 +1,5 @@
 unit uFrmGotoLine;
-
+{$i FxtVer.inc}
 interface
 
 uses

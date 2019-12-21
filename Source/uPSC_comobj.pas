@@ -27,30 +27,24 @@ begin
   cl.AddTypeS('TCLSID', 'TGUID');
   cl.AddTypeS('TIID', 'TGUID');
   cl.AddTypeS('TOleEnum', 'LongWord');
-{$IFDEF FPC}
-    {$IFDEF PS_FPC_HAS_COM}
-    cl.AddDelphiFunction('procedure OleCheck(Result: HResult);');
-    //
-    cl.AddDelphiFunction('function CreateGUID(var Guid: TGUID): HRESULT;');
-    cl.AddDelphiFunction('function StringToGUID(const S: string): TGUID;');
-    cl.AddDelphiFunction('function GUIDToString(const GUID: TGUID): string;');
-    cl.AddDelphiFunction('function IsEqualGUID(const guid1, guid2: TGUID): Boolean;');
-    //
-    cl.AddDelphiFunction('function CreateComObject(const ClassID: TGUID): IUnknown;');
-    cl.AddDelphiFunction('function CreateOleObject(const ClassName: string): IDispatch;');
-    cl.AddDelphiFunction('function GetActiveOleObject(const ClassName: string): IDispatch;');
-    {$ENDIF}
-{$ELSE !FPC}
-  cl.AddDelphiFunction('procedure OleCheck(Result: HResult);');
-  {$IFNDEF PS_NOINTERFACES}
-  {$IFDEF DELPHI3UP}
+{$if (defined(DELPHI3UP) or defined(FPC))}
   cl.AddDelphiFunction('function CreateGUID(var Guid: TGUID): HRESULT;');
   cl.AddDelphiFunction('function StringToGUID(const S: string): TGUID;');
   cl.AddDelphiFunction('function GUIDToString(const GUID: TGUID): string;');
   cl.AddDelphiFunction('function IsEqualGUID(const guid1, guid2: TGUID): Boolean;');
+{$ifend}
+{$IFDEF FPC}
+    {$IFNDEF PS_NOINTERFACES}{$IFDEF PS_FPC_HAS_COM}
+    cl.AddDelphiFunction('procedure OleCheck(Result: HResult);');
+    cl.AddDelphiFunction('function CreateComObject(const ClassID: TGUID): IUnknown;');
+    cl.AddDelphiFunction('function CreateOleObject(const ClassName: string): IDispatch;');
+    cl.AddDelphiFunction('function GetActiveOleObject(const ClassName: string): IDispatch;');
+    {$ENDIF}{$ENDIF}
+{$ELSE !FPC}
+  cl.AddDelphiFunction('procedure OleCheck(Result: HResult);');
+  {$IFNDEF PS_NOINTERFACES}{$IFDEF DELPHI3UP}
   cl.AddDelphiFunction('function CreateComObject(const ClassID: TGUID): IUnknown;');
-  {$ENDIF}
-  {$ENDIF}
+  {$ENDIF} {$ENDIF}
   cl.AddDelphiFunction('function CreateOleObject(const ClassName: string): IDispatch;');
   cl.AddDelphiFunction('function GetActiveOleObject(const ClassName: string): IDispatch;');
 {$ENDIF !FPC}

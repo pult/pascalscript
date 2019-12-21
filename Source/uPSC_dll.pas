@@ -11,7 +11,6 @@ interface
 uses
   uPSCompiler, uPSUtils;
 
-
 {$IFDEF DELPHI3UP }
 resourceString
 {$ELSE }
@@ -20,8 +19,6 @@ const
 
   RPS_Invalid_External = 'Invalid External';
   RPS_InvalidCallingConvention = 'Invalid Calling Convention';
-
-
 
 function DllExternalProc(Sender: TPSPascalCompiler; Decl: TPSParametersDecl; const OriginalName, FExternal: tbtstring): TPSRegProc;
 type
@@ -104,11 +101,11 @@ begin
           s2 := s;
           s := '';
         end;
-        if FastUppercase(s2) = 'DELAYLOAD' then
+        if FastUpperCase(s2) = 'DELAYLOAD' then
           DelayLoad := True
         {$IFNDEF LINUX}
         else
-        if FastUppercase(s2) = 'LOADWITHALTEREDSEARCHPATH' then
+        if FastUpperCase(s2) = 'LOADWITHALTEREDSEARCHPATH' then
           LoadWithAlteredSearchPath := True
         {$ENDIF}
         else

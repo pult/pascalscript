@@ -345,7 +345,7 @@ var
         btRecord,
         btInterface,
         btClass,
-        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}btPWideChar,{+.}{$ENDIF} btU8, btS8, btU16,
+        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}{$ENDIF} btU8, btS8, btU16,
         btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
         {$IFNDEF PS_NOINT64}, bts64{$ENDIF}:
           begin
@@ -472,6 +472,7 @@ var
           end;
         {+}
         {$IFNDEF PS_NOWIDESTRING}
+          {$if declared(btPWideChar)}
         btPWideChar:
           begin
             TempStr := StringOfChar(tbtChar(#0),4);
@@ -480,6 +481,7 @@ var
             else
               Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
           end;
+          {$ifend}
         {$ENDIF}
         {+.}
         btclass, btinterface, btString:
@@ -647,7 +649,9 @@ begin
               btPChar:       pansichar(res.dta^) := PAnsiChar(RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}
+                {$if declared(btPWideChar)}
               btPWideChar:       pwidechar(res.dta^) := PWideChar(RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+                {$ifend}
               {$ENDIF}
               {+.}
               {$IFNDEF PS_NOINT64}bts64:
@@ -710,7 +714,9 @@ begin
               btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}
+                {$if declared(btPWideChar)}
               btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+                {$ifend}
               {$ENDIF}
               {+.}
               {$IFNDEF PS_NOINT64}bts64:
@@ -774,7 +780,9 @@ begin
               btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}
+                {$if declared(btPWideChar)}
               btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+                {$ifend}
               {$ENDIF}
               {+.}
               {$IFNDEF PS_NOINT64}bts64:
@@ -814,7 +822,9 @@ begin
               btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}
+                {$if declared(btPWideChar)}
               btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+                {$ifend}
               {$ENDIF}
               {+.}
               {$IFNDEF PS_NOINT64}bts64:

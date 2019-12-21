@@ -87,11 +87,11 @@ Uses Sysutils;
 
 Function RegClassS(cl : TPSPascalCompiler;Const InheritsFrom,Classname : String) : TPSCompileTimeClass;
 begin
-Result := cl.FindClass({+}AnsiString(Classname){+.});
-if Result = nil then
-  Result := cl.AddClassN(cl.FindClass({+}AnsiString(InheritsFrom){+.}),{+}AnsiString(Classname){+.})
-else
-  Result.ClassInheritsFrom := cl.FindClass({+}AnsiString(InheritsFrom){+.});
+  Result := cl.FindClass({+}AnsiString(Classname){+.});
+  if Result = nil then
+    Result := cl.AddClassN(cl.FindClass({+}AnsiString(InheritsFrom){+.}),{+}AnsiString(Classname){+.})
+  else
+    Result.ClassInheritsFrom := cl.FindClass({+}AnsiString(InheritsFrom){+.});
 end;
 
 procedure SIRegisterTDATASET(CL: TPSPascalCompiler);
@@ -101,13 +101,13 @@ With RegClassS(cl,'TComponent','TDataSet') do
   RegisterMethod('function ActiveBuffer: PChar');
   RegisterMethod('procedure Append');
   RegisterMethod('procedure AppendRecord(const Values: array of const)');
-//  RegisterMethod('Function BOOKMARKVALID( BOOKMARK : TBOOKMARK) : BOOLEAN');
+//  RegisterMethod('function BookmarkValid(Bookmark: TBookmark): Boolean');
   RegisterMethod('procedure Cancel');
   RegisterMethod('procedure CheckBrowseMode');
   RegisterMethod('procedure ClearFields');
   RegisterMethod('procedure Close');
   RegisterMethod('function ControlsDisabled: Boolean');
-//  RegisterMethod('Function COMPAREBOOKMARKS( BOOKMARK1, BOOKMARK2 : TBOOKMARK) : INTEGER');
+//  RegisterMethod('function CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer');
   RegisterMethod('function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream');
   RegisterMethod('procedure CursorPosChanged');
   RegisterMethod('procedure Delete');
@@ -132,14 +132,14 @@ With RegClassS(cl,'TComponent','TDataSet') do
   RegisterMethod('function FindPrior: Boolean');
   RegisterMethod('procedure First');
 //  RegisterMethod('procedure FreeBookmark(Bookmark: TBookmark)');
-//  RegisterMethod('Function GETBOOKMARK : TBOOKMARK');
+//  RegisterMethod('function GetBookmark: TBookmark');
   RegisterMethod('function GetCurrentRecord(Buffer: PChar): Boolean');
-//  RegisterMethod('Procedure GETDETAILDATASETS( LIST : TLIST)');
-//  RegisterMethod('Procedure GETFIELDLIST( LIST : TLIST; const FIELDNAMES : STRING)');
-//  RegisterMethod('Procedure GETDETAILLINKFIELDS( MASTERFIELDS, DETAILFIELDS : TLIST)');
-//  RegisterMethod('Function GETBLOBFIELDDATA( FIELDNO : INTEGER; var BUFFER : TBLOBBYTEDATA) : INTEGER');
+//  RegisterMethod('procedure GetDetailDataSets(List: TList)');
+//  RegisterMethod('procedure GetFieldList(List: TList; const FieldNames: string)');
+//  RegisterMethod('procedure GetDetailLinkFields(MasterFields, DetailFields: TList)');
+//  RegisterMethod('function GetBlobFieldData(FieldNo: Integer; var Buffer: TBlobByteData): Integer');
   RegisterMethod('procedure GetFieldNames(List: TStrings)');
-//  RegisterMethod('Procedure GOTOBOOKMARK( BOOKMARK : TBOOKMARK)');
+//  RegisterMethod('procedure GotoBookmark(Bookmark: TBookmark)');
   RegisterMethod('procedure Insert');
   RegisterMethod('procedure InsertRecord(const Values: array of const)');
   RegisterMethod('function IsEmpty: Boolean');
@@ -154,7 +154,7 @@ With RegClassS(cl,'TComponent','TDataSet') do
   RegisterMethod('procedure Post');
   RegisterMethod('procedure Prior');
   RegisterMethod('procedure Refresh');
-//  RegisterMethod('Procedure RESYNC( MODE : TRESYNCMODE)');
+//  RegisterMethod('procedure Resync(Mode: TResyncMode)');
   RegisterMethod('procedure SetFields(const Values: array of const)');
   RegisterMethod('function Translate(Src, Dest: PChar; ToOem: Boolean): Integer');
   RegisterMethod('procedure UpdateCursorPos');
@@ -162,7 +162,7 @@ With RegClassS(cl,'TComponent','TDataSet') do
   RegisterMethod('function UpdateStatus: TUpdateStatus');
   RegisterProperty('AggFields', 'TFields', iptr);
   RegisterProperty('BOF', 'Boolean', iptr);
-//  RegisterProperty('BOOKMARK', 'TBOOKMARKSTR', iptrw);
+//  RegisterProperty('Bookmark', 'TBookmarkStr', iptrw);
   RegisterProperty('CanModify', 'Boolean', iptr);
   RegisterProperty('DataSetField', 'TDataSetField', iptrw);
   RegisterProperty('DataSource', 'TDataSource', iptr);
@@ -250,7 +250,7 @@ With RegClassS(cl,'TCollectionItem','TParam') do
   RegisterMethod('procedure LoadFromFile(const FileName: string; BlobType: TBlobType)');
   RegisterMethod('procedure LoadFromStream(Stream: TStream; BlobType: TBlobType)');
 //  RegisterMethod('procedure SetBlobData(Buffer: Pointer; Size: Integer)');
-//  RegisterMethod('Procedure SETDATA( BUFFER : POINTER)');
+//  RegisterMethod('procedure SetData(Buffer: Pointer)');
 {$IFDEF DELPHI6UP}
   RegisterProperty('AsBCD', 'Currency', iptrw);
 {$ENDIF}
@@ -528,7 +528,13 @@ procedure SIRegisterTWIDESTRINGFIELD(CL: TPSPascalCompiler);
 Begin
 With RegClassS(cl,'TStringField','TWideStringField') do
   begin
+  {+}
+  {$IFNDEF NEXTGEN}
   RegisterProperty('Value', 'WideString', iptrw);
+  {$ELSE}
+  RegisterProperty('Value', 'UnicodeString', iptrw);
+  {$ENDIF}
+  {+.}
   end;
 end;
 
@@ -536,7 +542,11 @@ procedure SIRegisterTSTRINGFIELD(CL: TPSPascalCompiler);
 Begin
 With RegClassS(cl,'TField','TStringField') do
   begin
-  RegisterProperty('Value', 'string', iptrw);
+  {+}
+  {$IFNDEF NEXTGEN}
+  RegisterProperty('Value', 'AnsiString', iptrw);
+  {$ENDIF}
+  {+.}
   RegisterProperty('FixedChar', 'Boolean', iptrw);
   RegisterProperty('Transliterate', 'Boolean', iptrw);
   end;
@@ -546,15 +556,15 @@ procedure SIRegisterTFIELD(CL: TPSPascalCompiler);
 Begin
 With RegClassS(cl,'TComponent','TField') do
   begin
-//RegisterMethod('Procedure ASSIGNVALUE( const VALUE : TVARREC)');
+//RegisterMethod('procedure AssignValue(const Value: TVarRec)');
   RegisterMethod('procedure Clear');
   RegisterMethod('procedure FocusControl');
-//  RegisterMethod('Function GETDATA( BUFFER : POINTER; NATIVEFORMAT : BOOLEAN) : BOOLEAN');
+//  RegisterMethod('function GetData(Buffer: Pointer; NativeFormat: Boolean): Boolean');
   RegisterMethod('function IsValidChar(InputChar: Char): Boolean');
   RegisterMethod('procedure RefreshLookupList');
-//  RegisterMethod('Procedure SETDATA( BUFFER : POINTER; NATIVEFORMAT : BOOLEAN)');
+//  RegisterMethod('procedure SetData(Buffer: Pointer; NativeFormat: Boolean)');
   RegisterMethod('procedure SetFieldType(Value: TFieldType)');
-//  RegisterMethod('Procedure VALIDATE( BUFFER : POINTER)');
+//  RegisterMethod('procedure Validate(Buffer: Pointer)');
 {$IFDEF DELPHI6UP}
   RegisterProperty('AsBCD', 'TBCD', iptrw);
 {$ENDIF}
@@ -737,7 +747,7 @@ procedure SIRegisterTFIELDDEF(CL: TPSPascalCompiler);
 Begin
 With RegClassS(cl,'TNamedItem','TFieldDef') do
   begin
-//  RegisterMethod('Constructor CREATE( OWNER : TFIELDDEFS; const NAME : STRING; DATATYPE : TFIELDTYPE; SIZE : INTEGER; REQUIRED : BOOLEAN; FIELDNO : INTEGER)');
+//  RegisterMethod('constructor Create(Owner: TFieldDefs; const Name: string; DataType: TFieldType; Size: Integer; Required: Boolean; FieldNo: Integer)');
   RegisterMethod('function AddChild: TFieldDef');
   RegisterMethod('function CreateField(Owner: TComponent; ParentField: TObjectField; const FieldName: string; CreateChildren: Boolean): TField');
   RegisterMethod('function HasChildDefs: Boolean');
@@ -758,7 +768,7 @@ procedure SIRegisterTDEFCOLLECTION(CL: TPSPascalCompiler);
 Begin
 With RegClassS(cl,'TOwnedCollection','TDefCollection') do
   begin
-//  RegisterMethod('Constructor CREATE( ADATASET : TDATASET; AOWNER : TPERSISTENT; ACLASS : TCOLLECTIONITEMCLASS)');
+//  RegisterMethod('constructor Create(ADataSet: TDataSet; AOwner: TPersistent; AClass: TCollectionItemClass)');
   RegisterMethod('function Find(const AName: string): TNamedItem');
   RegisterMethod('procedure GetItemNames(List: TStrings)');
   RegisterMethod('function IndexOf(const AName: string): Integer');
@@ -875,7 +885,13 @@ SIRegisterTDATASETFIELD(Cl);
 SIRegisterTREFERENCEFIELD(Cl);
 SIRegisterTVARIANTFIELD(Cl);
 SIRegisterTGUIDFIELD(Cl);
-cl.addTypeS('TBlobData', 'string');
+{+}
+{$IFNDEF NEXTGEN}
+cl.addTypeS('TBlobData', 'AnsiString');
+{$ELSE}
+cl.addTypeS('TBlobData', 'TBytes');
+{$ENDIF}
+{+.}
 cl.AddConstantN('ptUnknown','LongInt').Value.tu32 := 1;
 cl.AddConstantN('ptInput','LongInt').Value.tu32 := 2;
 cl.AddConstantN('ptOutput','LongInt').Value.tu32 := 4;

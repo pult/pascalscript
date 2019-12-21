@@ -1,11 +1,9 @@
-
 unit uPSR_classes;
 
 {$I PascalScript.inc}
 interface
 uses
   uPSRuntime, uPSUtils {+}{$IFNDEF FPC},RTLConsts{$ENDIF}{+.};
-
 
 procedure RIRegisterTStrings(cl: TPSRuntimeClassImporter; Streams: Boolean);
 procedure RIRegisterTStringList(cl: TPSRuntimeClassImporter);
@@ -502,6 +500,22 @@ begin
   Self.ReadBuffer(PWideChar(Buffer)^, Count*2);
 end;
 
+function TSTREAMDATABYTES_R(Self: TStream): TBytes;
+var
+  iPos, iSize: Int64;
+begin
+  iSize := Self.Size;
+  if iSize = 0 then
+    Exit;
+  iPos := Self.Position;
+  Self.Position := 0;
+  try
+    SetLength(Result, iSize);
+    Self.ReadBuffer(Pointer(Result)^, iSize);
+  finally
+    Self.Position := iPos;
+  end;
+end;
 {+.}
 
 procedure RIRegisterTSTREAM(Cl: TPSRuntimeClassImporter);
@@ -510,7 +524,7 @@ begin
   begin
     {+}
     //RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.Read, 'Read');
-    //-RegisterVirtualAbstractMethod(TMemoryStream, @TSTREAM_READ, 'READ');
+    //-RegisterVirtualAbstractMethod(TMemoryStream, @TSTREAM_READ, 'Read');
     //RegisterMethod(@TSTREAM_READ, 'Read');
     RegisterMethod(@TSTREAM_READA, 'Read');
     //RegisterVirtualAbstractMethod(TMemoryStream, @TMemoryStream.Write, 'Write');
@@ -538,19 +552,16 @@ begin
     RegisterMethod(@TStream_WriteBufferB, 'WriteBufferB');
     RegisterMethod(@TStream_WriteBufferW, 'WriteBufferW');
     {+.}
-    {$IFDEF DELPHI4UP}
-    {$IFNDEF PS_NOINT64}
     RegisterMethod(@TSTREAM.CopyFrom, 'CopyFrom');
-    {$ENDIF}
-    {$ELSE}
-    RegisterMethod(@TSTREAM.CopyFrom, 'CopyFrom');
-    {$ENDIF}
     RegisterPropertyHelper(@TSTREAMPOSITION_R, @TSTREAMPOSITION_W, 'Position');
     RegisterPropertyHelper(@TSTREAMSIZE_R, {$IFDEF DELPHI3UP}@TSTREAMSIZE_W, {$ELSE}nil, {$ENDIF}'Size');
+    {+}
+    RegisterPropertyHelper(@TSTREAMDATABYTES_R, nil, 'DataBytes');
+    {+.}
   end;
 end;
 
-procedure THANDLESTREAMHANDLE_R(Self: THANDLESTREAM; var T: INTEGER); begin T := Self.HANDLE; end;
+procedure THANDLESTREAMHANDLE_R(Self: THANDLESTREAM; var T: {+}THandle{+.}); begin T := Self.HANDLE; end;
 
 procedure RIRegisterTHANDLESTREAM(Cl: TPSRuntimeClassImporter);
 begin
@@ -576,16 +587,45 @@ begin
     {$IFDEF FPC}
     RegisterConstructor(@TFileStreamCreate, 'Create');
     {$ELSE}
-    RegisterConstructor(@TFileStream.CREATE, 'Create');
+    RegisterConstructor(@TFileStream.Create, 'Create');
     {$ENDIF}
   end;
 end;
+
+{$IFDEF UNICODE}
+  {$IFNDEF FPC}
+    {$DEFINE STRINGSTREAMFIX}
+  {$ENDIF}
+{$ENDIF}
+
+{$IFDEF STRINGSTREAMFIX}
+function TStringStreamCreateString(AHidden1: Pointer; AHidden2: Byte;
+  //const AString: {$IFDEF UNICODE}UnicodeString{$ELSE}AnsiString{$ENDIF}
+  const AString: string
+): TStringStream;
+begin
+  Result := TStringStream.Create(AString);
+end;
+{$ENDIF}
+
+{+}
+function TSTRINGSTREAMDATASTRING_R(Self: TStringStream)
+  //: {$IFDEF UNICODE}UnicodeString{$ELSE}AnsiString{$ENDIF}
+  : string
+;
+begin
+  Result := string(Self.DataString);
+end;
+{+.}
 
 procedure RIRegisterTSTRINGSTREAM(Cl: TPSRuntimeClassImporter);
 begin
   with Cl.Add(TSTRINGSTREAM) do
   begin
-    RegisterConstructor(@TSTRINGSTREAM.CREATE, 'Create');
+    RegisterConstructor({$IFDEF STRINGSTREAMFIX}@TStringStreamCreateString{$ELSE}@TSTRINGSTREAM.CREATE{$ENDIF}, 'Create');
+    {+}
+    RegisterPropertyHelper(@TSTRINGSTREAMDATASTRING_R, nil, 'DataString');
+    {+.}
   end;
 end;
 
@@ -699,7 +739,7 @@ procedure RIRegisterTCOLLECTION(Cl: TPSRuntimeClassImporter);
 Begin
 with Cl.Add(TCOLLECTION) do
   begin
-  RegisterConstructor(@TCollection.CREATE, 'Create');
+  RegisterConstructor(@TCollection.Create, 'Create');
 {$IFDEF DELPHI6UP}  {$IFNDEF FPC} RegisterMethod(@TCollection.Owner, 'Owner'); {$ENDIF} {$ENDIF} // no owner in FPC
   RegisterMethod(@TCollection.Add, 'Add');
   RegisterVirtualMethod(@TCollection.BeginUpdate, 'BeginUpdate');

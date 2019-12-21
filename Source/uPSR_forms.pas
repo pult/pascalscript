@@ -1,4 +1,3 @@
-
 unit uPSR_forms;
 
 {$I PascalScript.inc}
@@ -47,7 +46,7 @@ end;
 {$IFNDEF FPC}
 {$IFNDEF CLX}
 procedure TFORMACTIVEOLECONTROL_W(Self: TFORM; T: TWINCONTROL); begin Self.ACTIVEOLECONTROL := T; end;
-procedure TFORMACTIVEOLECONTROL_R(Self: TFORM; var T: TWINCONTROL); begin T := Self.ACTIVEOLECONTROL; 
+procedure TFORMACTIVEOLECONTROL_R(Self: TFORM; var T: TWINCONTROL); begin T := Self.ACTIVEOLECONTROL;
 end;
 procedure TFORMTILEMODE_W(Self: TFORM; T: TTILEMODE); begin Self.TILEMODE := T; end;
 procedure TFORMTILEMODE_R(Self: TFORM; var T: TTILEMODE); begin T := Self.TILEMODE; end;
@@ -56,7 +55,7 @@ procedure TFORMACTIVEMDICHILD_R(Self: TFORM; var T: TFORM); begin T := Self.ACTI
 procedure TFORMDROPTARGET_W(Self: TFORM; T: BOOLEAN); begin Self.DROPTARGET := T; end;
 procedure TFORMDROPTARGET_R(Self: TFORM; var T: BOOLEAN); begin T := Self.DROPTARGET; end;
 procedure TFORMMDICHILDCOUNT_R(Self: TFORM; var T: INTEGER); begin T := Self.MDICHILDCOUNT; end;
-procedure TFORMMDICHILDREN_R(Self: TFORM; var T: TFORM; t1: INTEGER); begin T := Self.MDICHILDREN[T1]; 
+procedure TFORMMDICHILDREN_R(Self: TFORM; var T: TFORM; t1: INTEGER); begin T := Self.MDICHILDREN[T1];
 end;
 {$ENDIF}{FPC}
 
@@ -88,7 +87,7 @@ begin
 
     {$IFNDEF PS_MINIVCL}
  {$IFNDEF FPC}
-{$IFNDEF CLX} 
+{$IFNDEF CLX}
     RegisterMethod(@TFORM.ARRANGEICONS, 'ArrangeIcons');
     RegisterMethod(@TFORM.GETFORMIMAGE, 'GetFormImage');
     RegisterMethod(@TFORM.PRINT, 'Print');
@@ -122,12 +121,11 @@ procedure TAPPLICATIONACTIVE_R(Self: TAPPLICATION; var T: BOOLEAN); begin T := S
 procedure TAPPLICATIONDIALOGHANDLE_R(Self: TAPPLICATION; var T: Longint); begin T := Self.DIALOGHANDLE; end;
 procedure TAPPLICATIONDIALOGHANDLE_W(Self: TAPPLICATION; T: Longint); begin Self.DIALOGHANDLE := T; end;
 procedure TAPPLICATIONHANDLE_R(Self: TAPPLICATION; var T: Longint); begin T := Self.HANDLE; end;
-procedure TAPPLICATIONHANDLE_W(Self: TAPPLICATION; T: Longint); begin Self.HANDLE := T; end;
+procedure TAPPLICATIONHANDLE_W(Self: TAPPLICATION; T: {+}THandle{+.}); begin Self.HANDLE := T; end;
 procedure TAPPLICATIONUPDATEFORMATSETTINGS_R(Self: TAPPLICATION; var T: BOOLEAN); begin T := Self.UPDATEFORMATSETTINGS; end;
 procedure TAPPLICATIONUPDATEFORMATSETTINGS_W(Self: TAPPLICATION; T: BOOLEAN); begin Self.UPDATEFORMATSETTINGS := T; end;
 {$ENDIF}
 {$ENDIF}{FPC}
-
 
 procedure TAPPLICATIONEXENAME_R(Self: TAPPLICATION; var T: STRING); begin T := Self.EXENAME; end;
 procedure TAPPLICATIONHELPFILE_R(Self: TAPPLICATION; var T: STRING); begin T := Self.HELPFILE; end;
@@ -252,13 +250,7 @@ begin
   {$ENDIF}
 end;
 
-
 // PS_MINIVCL changes by Martijn Laan (mlaan at wintax _dot_ nl)
 // FPC changes by Boguslaw brandys (brandys at o2 _dot_ pl)
 
 end.
-
-
-
-
-

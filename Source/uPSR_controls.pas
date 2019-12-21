@@ -1,4 +1,3 @@
-
 unit uPSR_controls;
 
 {$I PascalScript.inc}
@@ -6,14 +5,14 @@ interface
 uses
   uPSRuntime, uPSUtils;
 
-
-
-
 procedure RIRegisterTControl(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTWinControl(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTGraphicControl(cl: TPSRuntimeClassImporter);
 procedure RIRegisterTCustomControl(cl: TPSRuntimeClassImporter);
 procedure RIRegister_TDragObject(CL: TPSRuntimeClassImporter);
+{$IFDEF DELPHI4UP}
+procedure RIRegisterTSizeConstraints(cl: TPSRuntimeClassImporter);
+{$ENDIF}
 
 procedure RIRegister_Controls(Cl: TPSRuntimeClassImporter);
 
@@ -43,7 +42,6 @@ procedure TControlVisibleW(Self: TControl; T: Boolean); begin Self.Visible:= T; 
 
 procedure TControlParentR(Self: TControl; var T: TWinControl); begin T := Self.Parent; end;
 procedure TControlParentW(Self: TControl; T: TWinControl); begin Self.Parent:= T; end;
-
 
 procedure TCONTROLSHOWHINT_W(Self: TCONTROL; T: BOOLEAN); begin Self.SHOWHINT := T; end;
 procedure TCONTROLSHOWHINT_R(Self: TCONTROL; var T: BOOLEAN); begin T := Self.SHOWHINT; end;
@@ -79,7 +77,7 @@ begin
     RegisterMethod(@TControl.HasParent, 'HasParent');
     RegisterMethod(@TCONTROL.CLIENTTOSCREEN, 'ClientToScreen');
     RegisterMethod(@TCONTROL.DRAGGING, 'Dragging');
-   {$IFNDEF FPC} 
+   {$IFNDEF FPC}
     RegisterMethod(@TCONTROL.BEGINDRAG, 'BeginDrag');
     RegisterMethod(@TCONTROL.ENDDRAG, 'EndDrag');
    {$ENDIF}
@@ -94,10 +92,9 @@ begin
   end;
 end;
 {$IFNDEF CLX}
-procedure TWinControlHandleR(Self: TWinControl; var T: Longint); begin T := Self.Handle; end;
+procedure TWinControlHandleR(Self: TWinControl; var T: {+}THandle{+.}); begin T := Self.Handle; end;
 {$ENDIF}
 procedure TWinControlShowingR(Self: TWinControl; var T: Boolean); begin T := Self.Showing; end;
-
 
 procedure TWinControlTabOrderR(Self: TWinControl; var T: Longint); begin T := Self.TabOrder; end;
 procedure TWinControlTabOrderW(Self: TWinControl; T: Longint); begin Self.TabOrder:= T; end;
@@ -126,20 +123,20 @@ begin
     RegisterMethod(@TWinControl.HandleAllocated, 'HandleAllocated');
     RegisterMethod(@TWinControl.HandleNeeded, 'HandleNeeded');
     RegisterMethod(@TWinControl.EnableAlign, 'EnableAlign');
-		RegisterMethod(@TWinControl.RemoveControl, 'RemoveControl');
-		{$IFNDEF FPC}
-		RegisterMethod(@TWinControl.InsertControl, 'InsertControl');
-		RegisterMethod(@TWinControl.ScaleBy, 'ScaleBy');
-		RegisterMethod(@TWinControl.ScrollBy, 'ScrollBy');
-		{$IFNDEF CLX}
-		 RegisterMethod(@TWINCONTROL.PAINTTO, 'PaintTo');
-		{$ENDIF}
-		{$ENDIF}{FPC}
-		RegisterMethod(@TWinControl.Realign, 'Realign');
-		RegisterVirtualMethod(@TWinControl.SetFocus, 'SetFocus');
-		RegisterMethod(@TWINCONTROL.CONTAINSCONTROL, 'ContainsControl');
-		RegisterMethod(@TWINCONTROL.DISABLEALIGN, 'DisableAlign');
-		RegisterMethod(@TWINCONTROL.UPDATECONTROLSTATE, 'UpdateControlState');
+    RegisterMethod(@TWinControl.RemoveControl, 'RemoveControl');
+    {$IFNDEF FPC}
+    RegisterMethod(@TWinControl.InsertControl, 'InsertControl');
+    RegisterMethod(@TWinControl.ScaleBy, 'ScaleBy');
+    RegisterMethod(@TWinControl.ScrollBy, 'ScrollBy');
+    {$IFNDEF CLX}
+     RegisterMethod(@TWINCONTROL.PAINTTO, 'PaintTo');
+    {$ENDIF}
+    {$ENDIF}{FPC}
+    RegisterMethod(@TWinControl.Realign, 'Realign');
+    RegisterVirtualMethod(@TWinControl.SetFocus, 'SetFocus');
+    RegisterMethod(@TWINCONTROL.CONTAINSCONTROL, 'ContainsControl');
+    RegisterMethod(@TWINCONTROL.DISABLEALIGN, 'DisableAlign');
+    RegisterMethod(@TWINCONTROL.UPDATECONTROLSTATE, 'UpdateControlState');
     RegisterPropertyHelper(@TWINCONTROLBRUSH_R, nil, 'Brush');
     {$ENDIF}
   end;
@@ -216,7 +213,7 @@ begin
 {$IFNDEF FPC}
     RegisterVirtualMethod(@TDragObject.GetName, 'GetName');
     RegisterVirtualMethod(@TDragObject.Instance, 'Instance');
-{$ENDIF}    
+{$ENDIF}
     RegisterVirtualMethod(@TDragObject.HideDragImage, 'HideDragImage');
     RegisterVirtualMethod(@TDragObject.ShowDragImage, 'ShowDragImage');
 {$IFDEF DELPHI4UP}
@@ -232,6 +229,10 @@ begin
   end;
 end;
 
+procedure RIRegisterTSizeConstraints(cl: TPSRuntimeClassImporter);
+begin
+  Cl.Add(TSizeConstraints);
+end;
 
 procedure RIRegister_Controls(Cl: TPSRuntimeClassImporter);
 begin
@@ -240,10 +241,9 @@ begin
   RIRegisterTGraphicControl(cl);
   RIRegisterTCustomControl(cl);
   RIRegister_TDragObject(cl);
-
+  RIRegisterTSizeConstraints(cl);
 end;
 
 // PS_MINIVCL changes by Martijn Laan (mlaan at wintax _dot_ nl)
-
 
 end.

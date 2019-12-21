@@ -5,6 +5,24 @@ interface
 uses
   Classes, SysUtils {$IFDEF VER130}, Windows {$ENDIF};
 
+{+}
+const
+  uPSVersion = 201912210909; // format: yyyymmddhhnn
+            // yyyymmddhhnn
+  {$EXTERNALSYM uPSVersion}
+  (*
+  // Sample for checking library version:
+  // <sample>
+  uses ... uPSUtils ...
+  {$warn comparison_true off}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 201909202307)}
+    //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
+    {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
+  {$ifend}{$warnings on}
+  // <\sample>
+  //*)
+{+.}
+
 const
 
   PSMainProcName = '!MAIN';
@@ -95,6 +113,7 @@ const
 
   {+}
   btPWideChar = 29;
+  {$EXTERNALSYM btPWideChar}
   {+.}
 
   btType = 130;
@@ -305,7 +324,6 @@ type
   tbtCurrency = Currency;
 
 {$IFNDEF PS_NOINT64}
-
   tbts64 = int64;
 {$ENDIF}
 
@@ -317,29 +335,45 @@ type
 
   tbtwidechar = widechar;
   tbtNativeString = {$IFDEF DELPHI2009UP}tbtUnicodeString{$ELSE}tbtString{$ENDIF};
-{$ENDIF}
+{$ENDIF !PS_NOWIDESTRING}
+{+}
 {$IFDEF FPC}
   IPointer = PtrUInt;
-  {+}
   NativeInt = PtrInt;
   NativeUInt = PtrUInt;
-  {+.}
-{$ELSE}
+{$ELSE !FPC}
+
+  //(*
   {$IFDEF CPUX64}
   IPointer = IntPtr;
   {$ELSE}
   {$IFDEF CPU64} IPointer = LongWord;{$ELSE}  IPointer = Cardinal;{$ENDIF}{$ENDIF}
-  {+}
+  //*)
+  // OR: // TODO: compiler [Pascal Fatal Error] uPSRuntime.pas(...): F2084 Internal Error: C11238
+  (*
+  {$IFDEF VER140UP}
+  IPointer = NativeUInt;
+  {$ELSE !VER140UP}
+    {$IFDEF CPUX64}
+  IPointer = UIntPtr;
+    {$ELSE !CPUX64}
+      {$IFDEF CPU64}
+  IPointer = LongWord;
+      {$ELSE !CPU64}
+  IPointer = Cardinal;
+      {$ENDIF !CPU64}
+    {$ENDIF !CPUX64}
+  {$ENDIF !VER140UP}
+  //*)
+
   {$IFNDEF DELPHI16UP}
   NativeInt = Integer;
   NativeUInt = Cardinal;
   {$ENDIF}
-  {+.}
-{$ENDIF}
-  {+}
-  PNativeInt=^NativeInt;
-  PNativeUInt=^NativeUInt;
-  {+.}
+{$ENDIF !FPC}
+  PNativeInt = ^NativeInt;
+  PNativeUInt = ^NativeUInt;
+{+.}
   TPSCallingConvention = (cdRegister, cdPascal, cdCdecl, cdStdCall, cdSafeCall);
 
 const
@@ -820,7 +854,7 @@ end;
 {$ENDIF UNICODE}//*)
 
 type
-  EPSConvertError = class(Exception); //TODO: ?EPSConvertError = class(EPSError);
+  EPSConvertError = class(Exception); // TODO: ?EPSConvertError = class(EPSError);
   Exception = EPSConvertError;
 {+.}
 
@@ -1060,7 +1094,6 @@ begin
   if s = nil then
     Result := ''
   else
-
     Result := s^;
 end;
 //-------------------------------------------------------------------
@@ -1291,17 +1324,17 @@ var
   function CheckReserved(Const S: ShortString; var CurrTokenId: TPSPasToken): Boolean;
   var
     L, H, I: LongInt;
-    J: tbtChar;
+    J: SmallInt;
     SName: ShortString;
   begin
     L := 0;
-    J := S[0];
+    J := Length(S);
     H := KEYWORD_COUNT-1;
     while L <= H do
     begin
       I := (L + H) shr 1;
       SName := LookupTable[i].Name;
-      if J = SName[0] then
+      if J = Length(SName) then
       begin
         if S = SName then
         begin

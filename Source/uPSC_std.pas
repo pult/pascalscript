@@ -27,6 +27,9 @@ begin
   begin
     RegisterMethod('constructor Create');
     RegisterMethod('procedure Free');
+  {+}
+    RegisterMethod('function ClassName: string');
+  {+.}
   end;
 end;
 
@@ -61,9 +64,6 @@ begin
   end;
 end;
 
-
-
-
 procedure SIRegister_Std_TypesAndConsts(Cl: TPSPascalCompiler);
 begin
   Cl.AddTypeS('TComponentStateE', '(csLoading, csReading, csWriting, csDestroying, csDesigning, csAncestor, csUpdating, csFixups, csFreeNotification, csInline, csDesignInstance)');
@@ -81,5 +81,4 @@ end;
 
 // PS_MINIVCL changes by Martijn Laan (mlaan at wintax _dot_ nl)
 
-
-End.
+end.

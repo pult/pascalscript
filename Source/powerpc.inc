@@ -145,21 +145,17 @@ load_regs:      { now load the registers from the previous stack in r12 }
   cmpwi cr0, r2, 1    { single result? }
   beq cr0, int64_result { branch if equal }
 
-
 float_result:     { the result is a double}
   stfd  f1, 72(r1)  { write f1 to result on stack }
   b asmcall_end
-
 
 int64_result:     { the result is a single }
   stw r3, 72(r1)  { write high dword to result on stack }
   stw r4, 76(r1)  { write low dword to result on stack }
   b asmcall_end
 
-
 int_result:     { the result is dword }
   stw r3, 72(r1)  { write r3 to result on stack }
-
 
 asmcall_end:      { epilogue }
   addi  r3, r1, 72  { pointer to result on the stack }

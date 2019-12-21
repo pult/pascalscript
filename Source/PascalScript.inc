@@ -64,10 +64,3 @@ Defines:
 {$IFDEF FPC}
   {$I PascalScriptFPC.inc}
 {$ENDIF}
-
-{+}
-{$D+} { optional }
-{$IFNDEF FPC}
-  {$L+}
-{$ENDIF}
-{+.}

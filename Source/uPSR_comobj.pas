@@ -1,12 +1,9 @@
-
-
 unit uPSR_comobj;
 
 {$I PascalScript.inc}
 interface
 uses
   uPSRuntime, uPSUtils;
-
 
 procedure RIRegister_ComObj(cl: TPSExec);
 
@@ -29,13 +26,13 @@ uses
 {+.}
 {$IFNDEF DELPHI3UP}
 
-{$IFDEF DELPHI3UP }
+{$IFDEF DELPHI3UP } // {+} TODO: check "resourcestring" for modern FPC {+.}
 resourcestring
 {$ELSE }
 const
 {$ENDIF }
-
   RPS_OLEError = 'OLE error %.8x';
+
 function OleErrorMessage(ErrorCode: HResult): String;
 begin
   Result := SysErrorMessage(ErrorCode);
@@ -131,30 +128,24 @@ end;
 procedure RIRegister_ComObj(cl: TPSExec);
 begin
 {+}
-{$IFDEF FPC}
-  {$IFDEF PS_FPC_HAS_COM}
-  cl.RegisterDelphiFunction(@OleCheck, 'OleCheck', cdRegister);
-  //
+{$if (defined(DELPHI3UP) or defined(FPC))}
   cl.RegisterDelphiFunction(@CreateGUID, 'CreateGUID', cdRegister);
   cl.RegisterDelphiFunction(@StringToGUID, 'StringToGUID', cdRegister);
   cl.RegisterDelphiFunction(@GUIDToString, 'GUIDToString', cdRegister);
   cl.RegisterDelphiFunction(@IsEqualGUID, 'IsEqualGUID', cdRegister);
-  cl.RegisterDelphiFunction(@CreateComObject, 'CreateComObject', cdRegister);
-  //
-  cl.RegisterDelphiFunction(@CreateOleObject, 'CreateOleObject', cdRegister);
-  cl.RegisterDelphiFunction(@GetActiveOleObject, 'GetActiveOleObject', cdRegister);
-  {$ENDIF}
+{$ifend}
+{$IFDEF FPC}
+    {$IFNDEF PS_NOINTERFACES}{$IFDEF PS_FPC_HAS_COM}
+    cl.RegisterDelphiFunction(@OleCheck, 'OleCheck', cdRegister);
+    cl.RegisterDelphiFunction(@CreateComObject, 'CreateComObject', cdRegister);
+    cl.RegisterDelphiFunction(@CreateOleObject, 'CreateOleObject', cdRegister);
+    cl.RegisterDelphiFunction(@GetActiveOleObject, 'GetActiveOleObject', cdRegister);
+    {$ENDIF}{$ENDIF}
 {$ELSE !FPC}
   cl.RegisterDelphiFunction(@OleCheck, 'OleCheck', cdRegister);
-  {$IFNDEF PS_NOINTERFACES}
-  {$IFDEF DELPHI3UP}
-  cl.RegisterDelphiFunction(@CreateGUID, 'CreateGUID', cdRegister);
-  cl.RegisterDelphiFunction(@StringToGUID, 'StringToGUID', cdRegister);
-  cl.RegisterDelphiFunction(@GUIDToString, 'GUIDToString', cdRegister);
-  cl.RegisterDelphiFunction(@IsEqualGUID, 'IsEqualGUID', cdRegister);
+  {$IFNDEF PS_NOINTERFACES}{$IFDEF DELPHI3UP}
   cl.RegisterDelphiFunction(@CreateComObject, 'CreateComObject', cdRegister);
-  {$ENDIF}
-  {$ENDIF}
+  {$ENDIF} {$ENDIF}
   cl.RegisterDelphiFunction(@CreateOleObject, 'CreateOleObject', cdRegister);
   cl.RegisterDelphiFunction(@GetActiveOleObject, 'GetActiveOleObject', cdRegister);
 {$ENDIF !FPC}

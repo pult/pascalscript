@@ -6,7 +6,6 @@ interface
 uses
   uPSRuntime, uPSUtils;
 
-
 procedure RIRegisterTCUSTOMGROUPBOX(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTGROUPBOX(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTCUSTOMLABEL(Cl: TPSRuntimeClassImporter);
@@ -36,7 +35,6 @@ procedure RIRegisterTCUSTOMGROUPBOX(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TCUSTOMGROUPBOX);
 end;
-
 
 procedure RIRegisterTGROUPBOX(Cl: TPSRuntimeClassImporter);
 begin
@@ -73,7 +71,6 @@ procedure TCUSTOMEDITSELTEXT_W(Self: TCUSTOMEDIT; T: STRING); begin Self.SELTEXT
 procedure TCUSTOMEDITTEXT_R(Self: TCUSTOMEDIT; var T: string); begin T := Self.TEXT; end;
 procedure TCUSTOMEDITTEXT_W(Self: TCUSTOMEDIT; T: string); begin Self.TEXT := T; end;
 
-
 procedure RIRegisterTCUSTOMEDIT(Cl: TPSRuntimeClassImporter);
 begin
   with Cl.Add(TCUSTOMEDIT) do
@@ -104,10 +101,8 @@ begin
   Cl.Add(TEDIT);
 end;
 
-
 procedure TCUSTOMMEMOLINES_R(Self: {$IFDEF CLX}TMemo{$ELSE}TCUSTOMMEMO{$ENDIF}; var T: TSTRINGS); begin T := Self.LINES; end;
 procedure TCUSTOMMEMOLINES_W(Self: {$IFDEF CLX}TMemo{$ELSE}TCUSTOMMEMO{$ENDIF}; T: TSTRINGS); begin Self.LINES := T; end;
-
 
 procedure RIRegisterTCUSTOMMEMO(Cl: TPSRuntimeClassImporter);
 begin
@@ -119,7 +114,6 @@ begin
   end;
 end;
 
-
 procedure RIRegisterTMEMO(Cl: TPSRuntimeClassImporter);
 begin
   with Cl.Add(TMEMO) do
@@ -129,7 +123,6 @@ begin
     {$ENDIF}
   end;
 end;
-
 
 procedure TCUSTOMCOMBOBOXCANVAS_R(Self: TCUSTOMCOMBOBOX; var T: TCANVAS); begin T := Self.CANVAS; end;
 procedure TCUSTOMCOMBOBOXDROPPEDDOWN_R(Self: TCUSTOMCOMBOBOX; var T: BOOLEAN); begin T := Self.DROPPEDDOWN; end;
@@ -144,7 +137,6 @@ procedure TCUSTOMCOMBOBOXSELSTART_R(Self: TCUSTOMCOMBOBOX; var T: INTEGER); begi
 procedure TCUSTOMCOMBOBOXSELSTART_W(Self: TCUSTOMCOMBOBOX; T: INTEGER); begin Self.SELSTART := T; end;
 procedure TCUSTOMCOMBOBOXSELTEXT_R(Self: TCUSTOMCOMBOBOX; var T: STRING); begin T := Self.SELTEXT; end;
 procedure TCUSTOMCOMBOBOXSELTEXT_W(Self: TCUSTOMCOMBOBOX; T: STRING); begin Self.SELTEXT := T; end;
-
 
 procedure RIRegisterTCUSTOMCOMBOBOX(Cl: TPSRuntimeClassImporter);
 begin
@@ -165,42 +157,30 @@ begin
   end;
 end;
 
-
-
-
 procedure RIRegisterTCOMBOBOX(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TCOMBOBOX);
 end;
-
-
 
 procedure RIRegisterTBUTTONCONTROL(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TBUTTONCONTROL);
 end;
 
-
-
 procedure RIRegisterTBUTTON(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TBUTTON);
 end;
-
-
-
 
 procedure RIRegisterTCUSTOMCHECKBOX(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TCUSTOMCHECKBOX);
 end;
 
-
 procedure RIRegisterTCHECKBOX(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TCHECKBOX);
 end;
-
 
 procedure RIRegisterTRADIOBUTTON(Cl: TPSRuntimeClassImporter);
 begin
@@ -217,7 +197,6 @@ procedure TCUSTOMLISTBOXSELECTED_R(Self: TCUSTOMLISTBOX; var T: BOOLEAN; t1: INT
 procedure TCUSTOMLISTBOXSELECTED_W(Self: TCUSTOMLISTBOX; T: BOOLEAN; t1: INTEGER); begin Self.SELECTED[t1] := T; end;
 procedure TCUSTOMLISTBOXTOPINDEX_R(Self: TCUSTOMLISTBOX; var T: INTEGER); begin T := Self.TOPINDEX; end;
 procedure TCUSTOMLISTBOXTOPINDEX_W(Self: TCUSTOMLISTBOX; T: INTEGER); begin Self.TOPINDEX := T; end;
-
 
 procedure RIRegisterTCUSTOMLISTBOX(Cl: TPSRuntimeClassImporter);
 begin
@@ -238,12 +217,10 @@ begin
   end;
 end;
 
-
 procedure RIRegisterTLISTBOX(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TLISTBOX);
 end;
-
 
 procedure RIRegisterTSCROLLBAR(Cl: TPSRuntimeClassImporter);
 begin
@@ -252,7 +229,6 @@ begin
     RegisterMethod(@TSCROLLBAR.SETPARAMS, 'SetParams');
   end;
 end;
-
 
 procedure RIRegister_stdctrls(cl: TPSRuntimeClassImporter);
 begin

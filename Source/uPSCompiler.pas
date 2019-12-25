@@ -1719,6 +1719,14 @@ uses
   {$if defined(DELPHI5) or (defined(FPC) and defined(PS_FPC_HAS_COM))}
   ComObj,
   {$ifend}
+  {$IF NOT DEFINED (NEXTGEN) AND NOT DEFINED (MACOS) AND DEFINED(DELPHI17UP)} // DELPHI17UP == DELPHIXE4UP
+  {+}{$DEFINE _ANSISTRINGS_}{+.}
+  AnsiStrings,
+  {$IFEND}
+  {$IFDEF DELPHI6UP} // D6_UP OR FPC
+    {+}{$DEFINE _VARIANTS_}{+.} // sync with uPSRuntime
+    //,Variants
+  {$ENDIF}
   Classes, TypInfo;
 
 {$IFDEF DELPHI3UP} // {+} TODO: check "resourcestring" for modern FPC {+.}
@@ -1875,20 +1883,19 @@ begin
       BlockWriteLong(BlockInfo, Length(tbtString(p^.tstring)));
       BlockWriteData(BlockInfo, tbtString(p^.tstring)[1], Length(tbtString(p^.tstring)));
     end;
-     btenum:
-     begin
-       if TPSEnumType(p^.FType).HighValue <=256 then
+  btEnum:
+    begin
+      if TPSEnumType(p^.FType).HighValue <=256 then
       begin
         du8 := tbtu8(p^.tu32);
         BlockWriteData(BlockInfo, du8, 1)
       end
-       else if TPSEnumType(p^.FType).HighValue <=65536 then
+      else if TPSEnumType(p^.FType).HighValue <=65536 then
       begin
         du16 := tbtu16(p^.tu32);
         BlockWriteData(BlockInfo, du16, 2)
       end;
-   end;
-
+    end;
   bts8,btu8: BlockWriteData(BlockInfo, p^.tu8, 1);
   bts16,btu16: BlockWriteData(BlockInfo, p^.tu16, 2);
   bts32,btu32: BlockWriteData(BlockInfo, p^.tu32, 4);
@@ -1899,9 +1906,9 @@ begin
   {$IFDEF DEBUG}
   {$IFNDEF FPC}
   else
-      asm int 3; end;
-  {$ENDIF}
-  {$ENDIF}
+    asm int 3; end;
+  {$ENDIF !FPC}
+  {$ENDIF DEBUG}
   end;
 end;
 
@@ -2212,31 +2219,31 @@ begin
       Parser.Next;
       if (Parser.CurrTokenId = CSTI_Identifier) then
       begin
-        if SameText(Parser.OriginalToken, 'safecall') then
+        if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'safecall') then
         begin
           CC := cdSafecall;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if SameText(Parser.OriginalToken, 'stdcall') then
+        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'stdcall') then
         begin
           CC := cdStdCall;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if SameText(Parser.OriginalToken, 'pascal') then
+        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'pascal') then
         begin
           CC := cdPascal;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if SameText(Parser.OriginalToken, 'cdecl') then
+        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'cdecl') then
         begin
           CC := cdCdecl;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if SameText(Parser.OriginalToken, 'register') then
+        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'register') then
         begin
           CC := cdRegister;
           Parser.StateSave(AParserState, pslMini);
@@ -2615,39 +2622,35 @@ begin {+}{@dbg@:hook.makewarning}{+.} // dbg.cond:
 end;
 
 procedure TPSPascalCompiler.Clear;
-var
-  l: Longint;
 begin
   FDebugOutput := '';
   FOutput := '';
-  for l := 0 to FMessages.Count - 1 do
-    TPSPascalCompilerMessage(FMessages[l]).Free;
-  FMessages.Clear;
-  for L := FAutoFreeList.Count -1 downto 0 do
-  begin
-    TObject(FAutoFreeList[l]).Free;
-  end;
-  FAutoFreeList.Clear;
+  if Assigned(FMessages) then
+    FMessages.ClearAsObjects();
+  if Assigned(FAutoFreeList) then
+    FAutoFreeList.ClearAsObjects();
 end;
 
 procedure CopyVariantContents(Src, Dest: PIfRVariant);
 begin
   case src.FType.BaseType of
-    btu8, bts8: dest^.tu8 := src^.tu8;
-    btu16, bts16: dest^.tu16 := src^.tu16;
-    btenum, btu32, bts32: dest^.tu32 := src^.tu32;
-    btsingle: Dest^.tsingle := src^.tsingle;
-    btdouble: Dest^.tdouble := src^.tdouble;
-    btextended: Dest^.textended := src^.textended;
-    btCurrency: Dest^.tcurrency := Src^.tcurrency;
-    btchar: Dest^.tchar := src^.tchar;
-    {$IFNDEF PS_NOINT64}bts64: dest^.ts64 := src^.ts64;{$ENDIF}
-    btset, btstring: tbtstring(dest^.tstring) := tbtstring(src^.tstring);
+    btU8, btS8: dest^.tU8 := src^.tU8;
+    btU16, btS16: dest^.tU16 := src^.tU16;
+    btEnum, btU32, btS32: dest^.tU32 := src^.tU32;
+    btSingle: Dest^.tSingle := src^.tSingle;
+    btDouble: Dest^.tDouble := src^.tDouble;
+    btExtended: Dest^.tExtended := src^.tExtended;
+    btCurrency: Dest^.tCurrency := Src^.tCurrency;
+    btChar: Dest^.tChar := src^.tChar;
+    {$IFNDEF PS_NOINT64}
+    btS64: dest^.tS64 := src^.tS64;
+    {$ENDIF}
+    btSet, btString: tbtString(dest^.tString) := tbtString(src^.tString);
     {$IFNDEF PS_NOWIDESTRING}
-    btunicodestring: tbtunicodestring(dest^.tunistring) := tbtunicodestring(src^.tunistring);
-    btwidestring: tbtwidestring(dest^.twidestring) := tbtwidestring(src^.twidestring);
+    btUnicodeString: tbtUnicodeString(dest^.tUniString) := tbtUnicodeString(src^.tUniString);
+    btWideString: tbtWideString(dest^.tWideString) := tbtWideString(src^.tWideString);
     {+}
-    btwidechar: Dest^.twidechar := src^.twidechar;
+    btWideChar: Dest^.tWideChar := src^.tWideChar;
     {+.}
     {$ENDIF}
   end;
@@ -2707,11 +2710,10 @@ function TPSPascalCompiler.GetTypeCopyLink(p: TPSType): TPSType;
 begin
   if p = nil then
     Result := nil
+  else if p.BaseType = BtTypeCopy then
+    Result := TPSTypeLink(p).LinkTypeNo
   else
-  if p.BaseType = BtTypeCopy then
-  begin
-    Result := TPSTypeLink(p).LinkTypeNo;
-  end else Result := p;
+    Result := p;
 end;
 
 function IsIntType(b: TPSBaseType): Boolean;
@@ -2802,20 +2804,20 @@ end;
 function GetUInt(Src: PIfRVariant; var s: Boolean): Cardinal;
 begin
   case Src.FType.BaseType of
-    btU8: Result := Src^.tu8;
-    btS8: Result := Src^.ts8;
-    btU16: Result := Src^.tu16;
-    btS16: Result := Src^.ts16;
-    btU32: Result := Src^.tu32;
-    btS32: Result := Src^.ts32;
+    btU8: Result := Src^.tU8;
+    btS8: Result := Src^.tS8;
+    btU16: Result := Src^.tU16;
+    btS16: Result := Src^.tS16;
+    btU32: Result := Src^.tU32;
+    btS32: Result := Src^.tS32;
     {$IFNDEF PS_NOINT64}
-    bts64: Result := src^.ts64;
+    btS64: Result := src^.tS64;
     {$ENDIF}
-    btChar: Result := ord(Src^.tchar);
+    btChar: Result := ord(Src^.tChar);
     {$IFNDEF PS_NOWIDESTRING}
-    btWideChar: Result := ord(tbtwidechar(src^.twidechar));
+    btWideChar: Result := Ord(tbtWideChar(src^.tWideChar));
     {$ENDIF}
-    btEnum: Result := src^.tu32;
+    btEnum: Result := src^.tU32;
   else
     begin
       s := False;
@@ -2827,20 +2829,20 @@ end;
 function GetInt(Src: PIfRVariant; var s: Boolean): Longint;
 begin
   case Src.FType.BaseType of
-    btU8: Result := Src^.tu8;
-    btS8: Result := Src^.ts8;
-    btU16: Result := Src^.tu16;
-    btS16: Result := Src^.ts16;
-    btU32: Result := Src^.tu32;
-    btS32: Result := Src^.ts32;
+    btU8: Result := Src^.tU8;
+    btS8: Result := Src^.tS8;
+    btU16: Result := Src^.tU16;
+    btS16: Result := Src^.tS16;
+    btU32: Result := Src^.tU32;
+    btS32: Result := Src^.tS32;
     {$IFNDEF PS_NOINT64}
-    bts64: Result := src^.ts64;
+    btS64: Result := src^.tS64;
     {$ENDIF}
-    btChar: Result := ord(Src^.tchar);
+    btChar: Result := Ord(Src^.tChar);
     {$IFNDEF PS_NOWIDESTRING}
-    btWideChar: Result := ord(tbtwidechar(src^.twidechar));
+    btWideChar: Result := Ord(tbtWideChar(src^.tWideChar));
     {$ENDIF}
-    btEnum: Result := src^.tu32;
+    btEnum: Result := src^.tU32;
   else
     begin
       s := False;
@@ -2852,18 +2854,18 @@ end;
 function GetInt64(Src: PIfRVariant; var s: Boolean): Int64;
 begin
   case Src.FType.BaseType of
-    btU8: Result := Src^.tu8;
-    btS8: Result := Src^.ts8;
-    btU16: Result := Src^.tu16;
-    btS16: Result := Src^.ts16;
-    btU32: Result := Src^.tu32;
-    btS32: Result := Src^.ts32;
-    bts64: Result := src^.ts64;
-    btChar: Result := ord(Src^.tchar);
+    btU8: Result := Src^.tU8;
+    btS8: Result := Src^.tS8;
+    btU16: Result := Src^.tU16;
+    btS16: Result := Src^.tS16;
+    btU32: Result := Src^.tU32;
+    btS32: Result := Src^.tS32;
+    btS64: Result := src^.tS64;
+    btChar: Result := Ord(Src^.tChar);
     {$IFNDEF PS_NOWIDESTRING}
-    btWideChar: Result := ord(tbtwidechar(src^.twidechar));
+    btWideChar: Result := Ord(tbtWideChar(src^.tWideChar));
     {$ENDIF}
-    btEnum: Result := src^.tu32;
+    btEnum: Result := src^.tU32;
   else
     begin
       s := False;
@@ -2876,23 +2878,23 @@ end;
 function GetReal(Src: PIfRVariant; var s: Boolean): Extended;
 begin
   case Src.FType.BaseType of
-    btU8: Result := Src^.tu8;
-    btS8: Result := Src^.ts8;
-    btU16: Result := Src^.tu16;
-    btS16: Result := Src^.ts16;
-    btU32: Result := Src^.tu32;
-    btS32: Result := Src^.ts32;
+    btU8: Result := Src^.tU8;
+    btS8: Result := Src^.tS8;
+    btU16: Result := Src^.tU16;
+    btS16: Result := Src^.tS16;
+    btU32: Result := Src^.tU32;
+    btS32: Result := Src^.tS32;
     {$IFNDEF PS_NOINT64}
-    bts64: Result := src^.ts64;
+    btS64: Result := src^.tS64;
     {$ENDIF}
-    btChar: Result := ord(Src^.tchar);
+    btChar: Result := ord(Src^.tChar);
     {$IFNDEF PS_NOWIDESTRING}
-    btWideChar: Result := ord(tbtwidechar(src^.twidechar));
+    btWideChar: Result := Ord(tbtWideChar(src^.tWideChar));
     {$ENDIF}
-    btSingle: Result := Src^.tsingle;
-    btDouble: Result := Src^.tdouble;
-    btCurrency: Result := SRc^.tcurrency;
-    btExtended: Result := Src^.textended;
+    btSingle: Result := Src^.tSingle;
+    btDouble: Result := Src^.tDouble;
+    btCurrency: Result := SRc^.tCurrency;
+    btExtended: Result := Src^.tExtended;
   else
     begin
       s := False;
@@ -2904,12 +2906,12 @@ end;
 function GetString(Src: PIfRVariant; var s: Boolean): tbtString;
 begin
   case Src.FType.BaseType of
-    btChar{+}, btPChar{+.}: Result := Src^.tchar;
-    btString: Result := tbtstring(src^.tstring);
+    btChar{+}, btPChar{+.}: Result := Src^.tChar;
+    btString: Result := tbtString(src^.tString);
     {$IFNDEF PS_NOWIDESTRING}
-    btWideChar{+}{$if declared(btPWideChar)},btPWideChar{$ifend}{+.}: Result := tbtstring(src^.twidechar);
-    btWideString: Result := tbtstring(tbtWideString(src^.twidestring));
-    btUnicodeString: Result := tbtstring(tbtUnicodeString(src^.tunistring));
+    btWideChar{+}{$if declared(btPWideChar)},btPWideChar{$ifend}{+.}: Result := tbtString(src^.tWideChar);
+    btWideString: Result := tbtString(tbtWideString(src^.tWideString));
+    btUnicodeString: Result := tbtString(tbtUnicodeString(src^.tUniString));
     {$ENDIF}
   else
     begin
@@ -2923,15 +2925,15 @@ end;
 function TPSPascalCompiler.GetWideString(Src: PIfRVariant; var s: Boolean): tbtwidestring;
 begin
   case Src.FType.BaseType of
-    btChar: Result := tbtWidestring(Src^.tchar);
-    btString: Result := tbtWidestring(tbtstring(src^.tstring));
-    btWideChar: Result := src^.twidechar;
-    btWideString: Result := tbtWideString(src^.twidestring);
-    btUnicodeString: result := tbtUnicodeString(src^.tunistring);
+    btChar: Result := tbtWidestring(Src^.tChar);
+    btString: Result := tbtWideString(tbtString(src^.tString));
+    btWideChar: Result := src^.tWideChar;
+    btWideString: Result := tbtWideString(src^.tWideString);
+    btUnicodeString: result := tbtUnicodeString(src^.tUniString);
 //    {+}
-//    btPChar: Result := tbtWidestring(tbtString((tbtPChar((Src^.tpchar))));
+//    btPChar: Result := tbtWideString(tbtString((tbtPChar((Src^.tPChar))));
 //      {$if declared(btPWideChar)}
-//    btPWideChar: Result := tbtWidestring(tbtWideString((tbtPWideChar((Src^.tpwidechar))));
+//    btPWideChar: Result := tbtWideString(tbtWideString((tbtPWideChar((Src^.tPWideChar))));
 //      {$ifend}
 //    {+.}
   else
@@ -2944,15 +2946,15 @@ end;
 function TPSPascalCompiler.GetUnicodeString(Src: PIfRVariant; var s: Boolean): tbtunicodestring;
 begin
   case Src.FType.BaseType of
-    btChar: Result := tbtUnicodeString(Src^.tchar);
-    btString: Result := tbtUnicodeString(tbtstring(src^.tstring));
-    btWideChar: Result := src^.twidechar;
-    btWideString: Result := tbtWideString(src^.twidestring);
-    btUnicodeString: result := tbtUnicodeString(src^.tunistring);
+    btChar: Result := tbtUnicodeString(Src^.tChar);
+    btString: Result := tbtUnicodeString(tbtString(src^.tString));
+    btWideChar: Result := src^.tWideChar;
+    btWideString: Result := tbtWideString(src^.tWideString);
+    btUnicodeString: result := tbtUnicodeString(src^.tUniString);
 //    {+}
-//    btPChar: Result := tbtUnicodeString(tbtWidestring(btString((btPChar((Src^.tchar)))));
+//    btPChar: Result := tbtUnicodeString(tbtWideString(btString((btPChar((Src^.tChar)))));
 //      {$if declared(btPWideChar)}
-//    btPWideChar: Result := tbtUnicodeString(tbtWidestring(btWideString((btPWideChar((Src^.twidechar)))));
+//    btPWideChar: Result := tbtUnicodeString(tbtWideString(btWideString((btPWideChar((Src^.tWideChar)))));
 //      {$ifend}
 //    {+.}
   else
@@ -2962,7 +2964,7 @@ begin
     end;
   end;
 end;
-{$ENDIF}
+{$ENDIF !PS_NOWIDESTRING}
 
 function ab(b: Longint): Longint;
 begin
@@ -3173,7 +3175,7 @@ begin {+}{@dbg@:hook.checktype}{+.} // dbg.cond: (FParser.FRow = 77) and (p1.fna
     {+.}
     ((p1.BaseType = btRecord) and (p2.BaseType = btrecord) and (not IsVarInCompatible(p1, p2))) or
     ((p1.BaseType = btEnum) and (p2.BaseType = btEnum)) or
-    (Cast and IsIntType(P1.BaseType) and (p2.baseType = btEnum)) or
+    (Cast and IsIntType(p1.BaseType) and (p2.baseType = btEnum)) or
     (Cast and (p1.baseType = btEnum) and IsIntType(P2.BaseType))
     then
     Result := True
@@ -3183,10 +3185,10 @@ begin {+}{@dbg@:hook.checktype}{+.} // dbg.cond: (FParser.FRow = 77) and (p1.fna
   else if (p1.BaseType in [btU32, btS32]) then
     Result := (p2.BaseType = btClass)
   // nx change end
-{$IFNDEF PS_NOINTERFACES}
+  {$IFNDEF PS_NOINTERFACES}
   else if p1.BaseType = btInterface then
     Result := TPSInterfaceType(p1).Intf.IsCompatibleWith(p2)
-{$ENDIF}
+  {$ENDIF}
   else if ((p1.BaseType = btExtClass) and (p2.BaseType = btExtClass)) then
   begin
     Result := TPSUndefinedClassType(p1).ExtClass.IsCompatibleWith(TPSUndefinedClassType(p2).ExtClass);
@@ -3215,7 +3217,9 @@ begin
             btS16: var1^.ts16 := var1^.ts16 + Getint(Var2, Result);
             btEnum, btU32: var1^.tu32 := var1^.tu32 + GetUint(Var2, Result);
             btS32: var1^.ts32 := var1^.ts32 + Getint(Var2, Result);
-            {$IFNDEF PS_NOINT64}btS64: var1^.ts64 := var1^.ts64 + GetInt64(Var2, Result); {$ENDIF}
+            {$IFNDEF PS_NOINT64}
+            btS64: var1^.ts64 := var1^.ts64 + GetInt64(Var2, Result);
+            {$ENDIF}
             btSingle: var1^.tsingle := var1^.tsingle + GetReal( Var2, Result);
             btDouble: var1^.tdouble := var1^.tdouble + GetReal( Var2, Result);
             btExtended: var1^.textended := var1^.textended + GetReal( Var2, Result);
@@ -3252,7 +3256,9 @@ begin
             btS16: var1^.ts16 := var1^.ts16 - Getint(Var2, Result);
             btEnum, btU32: var1^.tu32 := var1^.tu32 - GetUint(Var2, Result);
             btS32: var1^.ts32 := var1^.ts32 - Getint(Var2, Result);
-            {$IFNDEF PS_NOINT64}btS64: var1^.ts64 := var1^.ts64 - GetInt64(Var2, Result); {$ENDIF}
+            {$IFNDEF PS_NOINT64}
+            btS64: var1^.ts64 := var1^.ts64 - GetInt64(Var2, Result);
+            {$ENDIF}
             btSingle: var1^.tsingle := var1^.tsingle - GetReal( Var2, Result);
             btDouble: var1^.tdouble := var1^.tdouble - GetReal(Var2, Result);
             btExtended: var1^.textended := var1^.textended - GetReal(Var2, Result);
@@ -3385,7 +3391,9 @@ begin
             btU32: var1^.tu32 := var1^.tu32 and GetUint(Var2, Result);
             btS32: var1^.ts32 := var1^.ts32 and Getint(Var2, Result);
             btEnum: var1^.ts32 := var1^.ts32 and Getint(Var2, Result);
-            {$IFNDEF PS_NOINT64}btS64: var1^.ts64 := var1^.ts64 and GetInt64(Var2, Result); {$ENDIF}
+            {$IFNDEF PS_NOINT64}
+            btS64: var1^.ts64 := var1^.ts64 and GetInt64(Var2, Result);
+            {$ENDIF}
             else Result := False;
           end;
         end;
@@ -3398,7 +3406,9 @@ begin
             btS16: var1^.ts16 := var1^.ts16 or Getint(Var2, Result);
             btU32: var1^.tu32 := var1^.tu32 or GetUint(Var2, Result);
             btS32: var1^.ts32 := var1^.ts32 or Getint(Var2, Result);
-            {$IFNDEF PS_NOINT64}btS64: var1^.ts64 := var1^.ts64 or GetInt64(Var2, Result); {$ENDIF}
+            {$IFNDEF PS_NOINT64}
+            btS64: var1^.ts64 := var1^.ts64 or GetInt64(Var2, Result);
+            {$ENDIF}
             btEnum: var1^.ts32 := var1^.ts32 or Getint(Var2, Result);
             else Result := False;
           end;
@@ -3412,7 +3422,9 @@ begin
             btS16: var1^.ts16 := var1^.ts16 xor Getint(Var2, Result);
             btU32: var1^.tu32 := var1^.tu32 xor GetUint(Var2, Result);
             btS32: var1^.ts32 := var1^.ts32 xor Getint(Var2, Result);
-            {$IFNDEF PS_NOINT64}btS64: var1^.ts64 := var1^.ts64 xor GetInt64(Var2, Result); {$ENDIF}
+            {$IFNDEF PS_NOINT64}
+            btS64: var1^.ts64 := var1^.ts64 xor GetInt64(Var2, Result);
+            {$ENDIF}
             btEnum: var1^.ts32 := var1^.ts32 xor Getint(Var2, Result);
             else Result := False;
           end;
@@ -3515,7 +3527,9 @@ begin
             btU16: b := var1^.tu16 <> GetUint(Var2, Result);
             btS16: b := var1^.ts16 <> Getint(Var2, Result);
             btU32: b := var1^.tu32 <> GetUint(Var2, Result);
-            {$IFNDEF PS_NOINT64}btS64: b := var1^.ts64 <> GetInt64(Var2, Result); {$ENDIF}
+            {$IFNDEF PS_NOINT64}
+            btS64: b := var1^.ts64 <> GetInt64(Var2, Result);
+            {$ENDIF}
             btS32: b := var1^.ts32 <> Getint(Var2, Result);
             btSingle: b := var1^.tsingle <> GetReal( Var2, Result);
             btDouble: b := var1^.tdouble <> GetReal( Var2, Result);
@@ -3551,7 +3565,9 @@ begin
             btS16: b := var1^.ts16 = Getint(Var2, Result);
             btU32: b := var1^.tu32 = GetUint(Var2, Result);
             btS32: b := var1^.ts32 = Getint(Var2, Result);
-            {$IFNDEF PS_NOINT64}btS64: b := var1^.ts64 = GetInt64(Var2, Result); {$ENDIF}
+            {$IFNDEF PS_NOINT64}
+            btS64: b := var1^.ts64 = GetInt64(Var2, Result);
+            {$ENDIF}
             btSingle: b := var1^.tsingle = GetReal( Var2, Result);
             btDouble: b := var1^.tdouble = GetReal( Var2, Result);
             btExtended: b := var1^.textended = GetReal( Var2, Result);
@@ -7202,17 +7218,15 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
       FType: TPSType;
       s: tbtString;
 
-      CheckArrayProperty,HasArrayProperty:boolean;
+      CheckArrayProperty,HasArrayProperty: Boolean;
     begin
       FType := GetTypeNo(BlockInfo, p);
       if FType = nil then exit;
-      if (FType.BaseType <> btInterface) and (Ftype.BaseType <> BtVariant) and (FType.BaseType = btNotificationVariant) then Exit;
+      if //?? (FType.BaseType <> btInterface) and (FType.BaseType <> BtVariant) and
+        (FType.BaseType = btNotificationVariant) then Exit;
 
-      CheckArrayProperty:=(FParser.CurrTokenID=CSTI_OpenBlock) and
-        (Ftype.BaseType = BtVariant);
-      while (FParser.CurrTokenID = CSTI_Period)
-      or (ImplicitPeriod) do begin
-
+      CheckArrayProperty := (FParser.CurrTokenID=CSTI_OpenBlock) and (FType.BaseType = BtVariant);
+      while (FParser.CurrTokenID = CSTI_Period) or (ImplicitPeriod) do begin
         HasArrayProperty:=CheckArrayProperty;
         if CheckArrayProperty then begin
          CheckArrayProperty:=false;
@@ -7223,15 +7237,15 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
 
         {+}
         // OLD:
-    {
+        {
         if FParser.CurrTokenID <> CSTI_Identifier then
-    }
+        }
         // NEW: allow variant/interface call like: vOutlook.Class or vOutlook.Type
         if not (
           (FParser.CurrTokenID = CSTI_Identifier)
           or ( (FType.BaseType in [btVariant, btInterface]) and (FParser.CurrTokenID >= CSTII_and) )
         ) then
-    {+.}
+        {+.}
         begin
           if ImplicitPeriod then exit;
           if not HasArrayProperty then begin
@@ -7276,7 +7290,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           end;
           ImplicitPeriod := False;
           FType := GetTypeNo(BlockInfo, p);
-          if (FType = nil) or ((FType.BaseType <> btInterface) and (Ftype.BaseType <> btVariant) and (Ftype.BaseType <> btNotificationVariant)) then Exit;
+          if (FType = nil) or ((FType.BaseType <> btInterface) and (FType.BaseType <> btVariant) and (FType.BaseType <> btNotificationVariant)) then Exit;
         end;
       end; {while}
     end;
@@ -7398,8 +7412,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
       Idx: IPointer;
       Temp, ResV: TPSValue;
       dta: PIfRVariant;
+      OK: Boolean;
     begin
-      if typeno.BaseType = btExtClass then
+      if TypeNo.BaseType = btExtClass then
       begin
         Result := ExtCheckClassType(TypeNo, PArserPos);
         exit;
@@ -7421,14 +7436,14 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           exit;
         end;
         FType2 := GetTypeNo(BlockInfo, Temp);
-        if ((typeno.BaseType = btClass){$IFNDEF PS_NOINTERFACES} or (TypeNo.basetype = btInterface){$ENDIF}) and
-          (ftype2<>nil) and
-          ((ftype2.BaseType = btClass){$IFNDEF PS_NOINTERFACES} or (ftype2.BaseType = btInterface){$ENDIF}) and (TypeNo <> ftype2) then
+        if ((TypeNo.BaseType = btClass){$IFNDEF PS_NOINTERFACES} or (TypeNo.basetype = btInterface){$ENDIF}) and
+          (FType2<>nil) and
+          ((FType2.BaseType = btClass){$IFNDEF PS_NOINTERFACES} or (FType2.BaseType = btInterface){$ENDIF}) and (TypeNo <> FType2) then
         begin
-{$IFNDEF PS_NOINTERFACES}
+          {$IFNDEF PS_NOINTERFACES}
           if FType2.basetype = btClass then
           begin
-{$ENDIF}
+          {$ENDIF}
           if not TPSClassType(FType2).Cl.CastToType(AT2UT(TypeNo), ProcNo) then
           begin
             temp.Free;
@@ -7436,7 +7451,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
             Result := nil;
             exit;
           end;
-{$IFNDEF PS_NOINTERFACES}
+          {$IFNDEF PS_NOINTERFACES}
           end else begin
             if not TPSInterfaceType(FType2).Intf.CastToType(AT2UT(TypeNo), ProcNo) then
             begin
@@ -7446,7 +7461,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               exit;
             end;
           end;
-{$ENDIF}
+          {$ENDIF}
           Result := TPSValueProcNo.Create;
           TPSValueProcNo(Result).Parameters := TPSParameters.Create;
           TPSValueProcNo(Result).ResultType := at2ut(TypeNo);
@@ -7455,16 +7470,16 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           begin
             Val := Temp;
             ExpectedType := GetTypeNo(BlockInfo, temp);
-{$IFDEF DEBUG}
+            {$IFDEF DEBUG}
             if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+            {$ENDIF}
           end;
           with TPSValueProcNo(Result).Parameters.Add do
           begin
             ExpectedType := at2ut(FindBaseType(btu32));
-{$IFDEF DEBUG}
+            {$IFDEF DEBUG}
             if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+            {$ENDIF}
             Val := TPSValueData.Create;
             with TPSValueData(val) do
             begin
@@ -7476,7 +7491,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           FParser.Next;
           Exit;
         end;
-        if (FType2=nil) or not IsCompatibleType(TypeNo, FType2, True) then
+
+        OK := (FType2 = nil) or (not IsCompatibleType(TypeNo, FType2, True));
+        if OK then
         begin
           temp.Free;
           MakeError('', ecTypeMismatch, '');
@@ -7724,7 +7741,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           if Result <> nil then CheckFurther(Result, False);
           if Result <> nil then CheckClass(Result, vt, vno, False);
           if Result <> nil then  CheckExtClass(Result, vt, vno, False);
-{$IFNDEF PS_NOIDISPATCH}if Result <> nil then CheckIntf(Result, vt, vno, False);{$ENDIF}
+          {$IFNDEF PS_NOIDISPATCH}
+          if Result <> nil then CheckIntf(Result, vt, vno, False);
+          {$ENDIF}
           if Result <> nil then CheckProcCall(Result);
           if Result <> nil then CheckClassArrayProperty(Result, vt, vno);
           vno := InvalidVal;
@@ -7751,7 +7770,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           if Result <> nil then CheckFurther(Result, False);
           if Result <> nil then CheckClass(Result, vt, vno, False);
           if Result <> nil then  CheckExtClass(Result, vt, vno, False);
-{$IFNDEF PS_NOIDISPATCH}if Result <> nil then CheckIntf(Result, vt, vno, False);{$ENDIF}
+          {$IFNDEF PS_NOIDISPATCH}
+          if Result <> nil then CheckIntf(Result, vt, vno, False);
+          {$ENDIF}
           if Result <> nil then CheckProcCall(Result);
           if Result <> nil then CheckClassArrayProperty(Result, vt, vno);
           vno := InvalidVal;
@@ -9204,9 +9225,11 @@ begin
       if Val <> nil then CheckFurther(Val, False);
       if Val <> nil then CheckClass(Val, vt, InvalidVal, False);
       if Val <> nil then  CheckExtClass(Val, vt, InvalidVal, False);
-{$IFNDEF PS_NOIDISPATCH}if Val <> nil then CheckIntf(Val, vt, InvalidVal, False);{$ENDIF}
+      {$IFNDEF PS_NOIDISPATCH}
+      if Val <> nil then CheckIntf(Val, vt, InvalidVal, False);
+      {$ENDIF}
       if Val <> nil then CheckProcCall(Val);
-      if Val<> nil then CheckClassArrayProperty(Val, vt, InvalidVal);
+      if Val <> nil then CheckClassArrayProperty(Val, vt, InvalidVal);
     until (Val = nil) or (Temp = Val);
 
     if not TryEvalConst(Val) then
@@ -9686,7 +9709,7 @@ begin
           Tmp.TempVar := AllocStackReg(at2ut(FindBaseType(btstring)))
         end else
         begin
-        Tmp.TempVar := AllocStackReg(Tmp.ExpectedType);
+          Tmp.TempVar := AllocStackReg(Tmp.ExpectedType);
         end;
         if not WriteCalculation(Tmp.Val, Tmp.TempVar) then
         begin
@@ -11590,10 +11613,13 @@ var
           end
           else
             WriteByte(bt);
-{$IFNDEF PS_NOINTERFACES} if x.BaseType = btInterface then
+          {$IFNDEF PS_NOINTERFACES}
+          if x.BaseType = btInterface then
           begin
             WriteData(TPSInterfaceType(x).Intf.Guid, Sizeof(TGuid));
-          end else {$ENDIF} if x.BaseType = btClass then
+          end else
+          {$ENDIF}
+          if x.BaseType = btClass then
           begin
             WriteLong(Length(TPSClassType(X).Cl.FClassName));
             WriteData(TPSClassType(X).Cl.FClassName[1], Length(TPSClassType(X).Cl.FClassName));
@@ -12475,9 +12501,12 @@ destructor TPSPascalCompiler.Destroy;
 begin
   Clear;
   FAutoFreeList.Free;
+  FAutoFreeList := nil;
 
   FMessages.Free;
+  FMessages := nil;
   FParser.Free;
+  FParser := nil;
   inherited Destroy;
 end;
 
@@ -13389,7 +13418,15 @@ begin
   AddDelphiFunction('function Null: Variant;');
   AddDelphiFunction('function VarIsNull(const V: Variant): Boolean;');
   AddDelphiFunction('function VarType(const V: Variant): TVarType;');
- addTypeS('TIFException', '(ErNoError, erCannotImport, erInvalidType, ErInternalError, '+
+  {+}
+  {$IFDEF _VARIANTS_}
+  AddDelphiFunction('function VarIsArray(const A: Variant): Boolean;');
+  AddDelphiFunction('function VarArrayDimCount(const A: Variant): Integer;');
+  AddDelphiFunction('function VarArrayLowBound(const A: Variant; Dim: Integer): Integer;');
+  AddDelphiFunction('function VarArrayHighBound(const A: Variant; Dim: Integer): Integer;');
+  {$ENDIF _VARIANTS_}
+  {+.}
+  AddTypeS('TIFException', '(ErNoError, erCannotImport, erInvalidType, ErInternalError, '+
    'erInvalidHeader, erInvalidOpcode, erInvalidOpcodeParameter, erNoMainProc, erOutOfGlobalVarsRange, '+
     'erOutOfProcRange, ErOutOfRange, erOutOfStackRange, ErTypeMismatch, erUnexpectedEof, '+
     'erVersionError, ErDivideByZero, ErMathError,erCouldNotCallProc, erOutofRecordRange, '+
@@ -13441,8 +13478,8 @@ begin
     ExportName := True;
   end;
   AddDelphiFunction('function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string; Par: array of Variant): Variant;');
- {$ENDIF}
-{$ENDIF}
+ {$ENDIF !PS_NOIDISPATCH}
+{$ENDIF !PS_NOINTERFACES}
 end;
 
 function TPSPascalCompiler.GetTypeCount: Longint;
@@ -13985,6 +14022,7 @@ end;
 destructor TPSType.Destroy;
 begin
   FAttributes.Free;
+  FAttributes := nil;
   inherited Destroy;
 end;
 
@@ -14014,12 +14052,13 @@ begin
 end;
 
 destructor TPSRecordType.Destroy;
-var
-  i: Longint;
 begin
-  for i := FRecordSubVals.Count -1 downto 0 do
-    TPSRecordFieldTypeDef(FRecordSubVals[I]).Free;
-  FRecordSubVals.Free;
+  if Assigned(FRecordSubVals) then
+  begin
+    FRecordSubVals.ClearAsObjects();
+    FRecordSubVals.Free;
+    FRecordSubVals := nil;
+  end;
   inherited Destroy;
 end;
 
@@ -14087,15 +14126,19 @@ begin
 end;
 
 destructor TPSInternalProcedure.Destroy;
-var
-  i: Longint;
 begin
   FDecl.Free;
-  for i := FProcVars.Count -1 downto 0 do
-    TPSProcVar(FProcVars[I]).Free;
-  FProcVars.Free;
+  FDecl := nil;
+  if Assigned(FProcVars) then
+  begin
+    FProcVars.ClearAsObjects();
+    FProcVars.Free;
+    FProcVars := nil;
+  end;
   FGotos.Free;
+  FGotos := nil;
   FLabels.Free;
+  FLabels := nil;
   inherited Destroy;
 end;
 
@@ -14191,16 +14234,16 @@ begin
   if (FValue <> nil) then
   begin
     case FValue.FType.BaseType of
-      btEnum: FValue.tu32 := Val;
-      btU32, btS32: FValue.ts32 := Val;
-      btU16, btS16: FValue.ts16 := Val;
-      btU8, btS8: FValue.ts8 := Val;
-      btSingle: FValue.tsingle := Val;
-      btDouble: FValue.tdouble := Val;
-      btExtended: FValue.textended := Val;
-      btCurrency: FValue.tcurrency := Val;
+      btEnum: FValue.tU32 := Val;
+      btU32, btS32: FValue.tS32 := Val;
+      btU16, btS16: FValue.tS16 := Val;
+      btU8, btS8: FValue.tS8 := Val;
+      btSingle: FValue.tSingle := Val;
+      btDouble: FValue.tDouble := Val;
+      btExtended: FValue.tExtended := Val;
+      btCurrency: FValue.tCurrency := Val;
       {$IFNDEF PS_NOINT64}
-      bts64: FValue.ts64 := Val;
+      btS64: FValue.tS64 := Val;
       {$ENDIF}
     else
       raise EPSCompilerException.Create(RPS_ConstantValueMismatch);
@@ -14208,28 +14251,30 @@ begin
   end else
     raise EPSCompilerException.Create(RPS_ConstantValueNotAssigned)
 end;
+
 {$IFNDEF PS_NOINT64}
 procedure TPSConstant.SetInt64(const Val: Int64);
 begin
   if (FValue <> nil) then
   begin
     case FValue.FType.BaseType of
-      btEnum: FValue.tu32 := Val;
-      btU32, btS32: FValue.ts32 := Val;
-      btU16, btS16: FValue.ts16 := Val;
-      btU8, btS8: FValue.ts8 := Val;
-      btSingle: FValue.tsingle := Val;
-      btDouble: FValue.tdouble := Val;
-      btExtended: FValue.textended := Val;
-      btCurrency: FValue.tcurrency := Val;
-      bts64: FValue.ts64 := Val;
+      btEnum: FValue.tU32 := Val;
+      btU32, btS32: FValue.tS32 := Val;
+      btU16, btS16: FValue.tS16 := Val;
+      btU8, btS8: FValue.tS8 := Val;
+      btSingle: FValue.tSingle := Val;
+      btDouble: FValue.tDouble := Val;
+      btExtended: FValue.tExtended := Val;
+      btCurrency: FValue.tCurrency := Val;
+      btS64: FValue.tS64 := Val;
     else
       raise EPSCompilerException.Create(RPS_ConstantValueMismatch);
     end;
   end else
     raise EPSCompilerException.Create(RPS_ConstantValueNotAssigned)
 end;
-{$ENDIF}
+{$ENDIF !PS_NOINT64}
+
 procedure TPSConstant.SetName(const Value: tbtString);
 begin
   FName := Value;
@@ -14287,16 +14332,16 @@ begin
   if (FValue <> nil) then
   begin
     case FValue.FType.BaseType of
-      btEnum: FValue.tu32 := Val;
-      btU32, btS32: FValue.tu32 := Val;
-      btU16, btS16: FValue.tu16 := Val;
-      btU8, btS8: FValue.tu8 := Val;
-      btSingle: FValue.tsingle := Val;
-      btDouble: FValue.tdouble := Val;
-      btExtended: FValue.textended := Val;
-      btCurrency: FValue.tcurrency := Val;
+      btEnum: FValue.tU32 := Val;
+      btU32, btS32: FValue.tU32 := Val;
+      btU16, btS16: FValue.tU16 := Val;
+      btU8, btS8: FValue.tU8 := Val;
+      btSingle: FValue.tSingle := Val;
+      btDouble: FValue.tDouble := Val;
+      btExtended: FValue.tExtended := Val;
+      btCurrency: FValue.tCurrency := Val;
       {$IFNDEF PS_NOINT64}
-      bts64: FValue.ts64 := Val;
+      btS64: FValue.tS64 := Val;
       {$ENDIF}
     else
       raise EPSCompilerException.Create(RPS_ConstantValueMismatch);
@@ -14311,10 +14356,10 @@ begin
   if (FValue <> nil) then
   begin
     case FValue.FType.BaseType of
-      btString: tbtString(FValue.tstring) := tbtstring(val);
+      btString: tbtString(FValue.tString) := tbtString(val);
       btWideChar: FValue.twidechar := val;
-      btWideString: tbtwidestring(FValue.twidestring) := val;
-      btUnicodeString: tbtUnicodestring(FValue.tUniString) := val;
+      btWideString: tbtWideString(FValue.tWideString) := val;
+      btUnicodeString: tbtUnicodeString(FValue.tUniString) := val;
     else
       raise EPSCompilerException.Create(RPS_ConstantValueMismatch);
     end;
@@ -14322,35 +14367,37 @@ begin
     raise EPSCompilerException.Create(RPS_ConstantValueNotAssigned)
 end;
 
-procedure TPSConstant.SetWideString(const val: tbtwidestring);
+procedure TPSConstant.SetWideString(const val: tbtWideString);
 begin
   if (FValue <> nil) then
   begin
     case FValue.FType.BaseType of
-      btString: tbtString(FValue.tstring) := tbtstring(val);
-      btWideString: tbtwidestring(FValue.twidestring) := val;
-      btUnicodeString: tbtunicodestring(FValue.tunistring) := val;
+      btString: tbtString(FValue.tString) := tbtString(val);
+      btWideString: tbtWideString(FValue.tWideString) := val;
+      btUnicodeString: tbtUnicodeString(FValue.tUniString) := val;
     else
       raise EPSCompilerException.Create(RPS_ConstantValueMismatch);
     end;
   end else
     raise EPSCompilerException.Create(RPS_ConstantValueNotAssigned)
 end;
-procedure TPSConstant.SetUnicodeString(const val: tbtunicodestring);
+
+procedure TPSConstant.SetUnicodeString(const val: tbtUnicodeString);
 begin
   if (FValue <> nil) then
   begin
     case FValue.FType.BaseType of
-      btString: tbtString(FValue.tstring) := tbtstring(val);
-      btWideString: tbtwidestring(FValue.twidestring) := val;
-      btUnicodeString: tbtunicodestring(FValue.tunistring) := val;
+      btString: tbtString(FValue.tString) := tbtString(val);
+      btWideString: tbtWideString(FValue.tWideString) := val;
+      btUnicodeString: tbtUnicodeString(FValue.tUniString) := val;
     else
       raise EPSCompilerException.Create(RPS_ConstantValueMismatch);
     end;
   end else
     raise EPSCompilerException.Create(RPS_ConstantValueNotAssigned)
 end;
-{$ENDIF}
+{$ENDIF !PS_NOWIDESTRING}
+
 { TPSPascalCompilerError }
 
 function TPSPascalCompilerError.ErrorType: tbtString;
@@ -14520,7 +14567,11 @@ end;
 
 destructor TPSValueData.Destroy;
 begin
-  DisposeVariant(FData);
+  if Assigned(FData) then
+  begin
+    DisposeVariant(FData);
+    FData := nil;
+  end;
   inherited Destroy;
 end;
 
@@ -14528,6 +14579,7 @@ end;
 
 constructor TPSValueReplace.Create;
 begin
+  inherited Create;
   FFreeNewValue := True;
   FReplaceTimes := 1;
 end;
@@ -14536,8 +14588,10 @@ destructor TPSValueReplace.Destroy;
 begin
   if FFreeOldValue then
     FOldValue.Free;
+  FOldValue := nil;
   if FFreeNewValue then
     FNewValue.Free;
+  FNewValue := nil;
   inherited Destroy;
 end;
 
@@ -14546,6 +14600,7 @@ end;
 destructor TPSUnValueOp.Destroy;
 begin
   FVal1.Free;
+  FVal1 := nil;
   inherited Destroy;
 end;
 
@@ -14554,7 +14609,9 @@ end;
 destructor TPSBinValueOp.Destroy;
 begin
   FVal1.Free;
+  FVal1 := nil;
   FVal2.Free;
+  FVal2 := nil;
   inherited Destroy;
 end;
 
@@ -14563,6 +14620,7 @@ end;
 destructor TPSSubValue.Destroy;
 begin
   FSubNo.Free;
+  FSubNo := nil;
   inherited Destroy;
 end;
 
@@ -14575,20 +14633,22 @@ begin
 end;
 
 destructor TPSValueVar.Destroy;
-var
-  i: Longint;
 begin
-  for i := 0 to FRecItems.Count -1 do
+  if Assigned(FRecItems) then
   begin
-    TPSSubItem(FRecItems[I]).Free;
+    FRecItems.ClearAsObjects();
+    FRecItems.Free;
+    FRecItems := nil;
   end;
-  FRecItems.Free;
   inherited Destroy;
 end;
 
 function TPSValueVar.GetRecCount: Cardinal;
 begin
-  Result := FRecItems.Count;
+  if Assigned(FRecItems) then
+    Result := FRecItems.Count
+  else
+    Result := 0;
 end;
 
 function TPSValueVar.GetRecItem(I: Cardinal): TPSSubItem;
@@ -14615,14 +14675,19 @@ end;
 destructor TPSValueProc.Destroy;
 begin
   FSelfPtr.Free;
+  FSelfPtr := nil;
   FParameters.Free;
+  FParameters := nil;
+  inherited Destroy;
 end;
 { TPSParameter }
 
 destructor TPSParameter.Destroy;
 begin
   FTempVar.Free;
+  FTempVar := nil;
   FValue.Free;
+  FValue := nil;
   inherited Destroy;
 end;
 
@@ -14650,20 +14715,22 @@ begin
 end;
 
 destructor TPSParameters.Destroy;
-var
-  i: Longint;
 begin
-  for i := FItems.Count -1 downto 0 do
+  if Assigned(FItems) then
   begin
-    TPSParameter(FItems[I]).Free;
+    FItems.ClearAsObjects();
+    FItems.Free;
+    FItems := nil;
   end;
-  FItems.Free;
   inherited Destroy;
 end;
 
 function TPSParameters.GetCount: Cardinal;
 begin
-  Result := FItems.Count;
+  if Assigned(FItems) then
+    Result := FItems.Count
+  else
+    Result := 0;
 end;
 
 function TPSParameters.GetItem(I: Longint): TPSParameter;
@@ -14690,19 +14757,22 @@ begin
 end;
 
 destructor TPSValueArray.Destroy;
-var
-  i: Longint;
 begin
-  for i := FItems.Count -1 downto 0 do
-    TPSValue(FItems[I]).Free;
-  FItems.Free;
-
+  if Assigned(FItems) then
+  begin
+    FItems.ClearAsObjects();
+    FItems.Free;
+    FItems := nil;
+  end;
   inherited Destroy;
 end;
 
 function TPSValueArray.GetCount: Cardinal;
 begin
-  Result := FItems.Count;
+  if Assigned(FItems) then
+    Result := FItems.Count
+  else
+    Result := 0;
 end;
 
 function TPSValueArray.GetItem(I: Cardinal): TPSValue;
@@ -14763,15 +14833,13 @@ function TPSCompileTimeClass.CastToType(IntoType: TPSType;
 var
   P: TPSExternalProcedure;
 begin
-  if (IntoType <> nil) and (IntoType.BaseType <> btClass) and (IntoType.BaseType <> btInterface) then
-  begin
-    Result := False;
+  Result := not ( (IntoType <> nil) and (IntoType.BaseType <> btClass) and (IntoType.BaseType <> btInterface) );
+  if not Result then
     exit;
-  end;
-  if FCastProc <> InvalidVal then
+  Result := FCastProc <> InvalidVal;
+  if Result then
   begin
     Procno := FCastProc;
-    Result := True;
     exit;
   end;
   ProcNo := FOwner. AddUsedFunction2(P);
@@ -15285,14 +15353,9 @@ end;
 { TPSBlockInfo }
 
 procedure TPSBlockInfo.Clear;
-var
-  i: Longint;
 begin
-  for i := WithList.Count -1 downto 0 do
-  begin
-    TPSValue(WithList[i]).Free;
-    WithList.Delete(i);
-  end;
+  if Assigned(WithList) and (WithList.Count > 0) then
+    WithList.ClearAsObjects();
 end;
 
 constructor TPSBlockInfo.Create(Owner: TPSBlockInfo);
@@ -15311,10 +15374,12 @@ destructor TPSBlockInfo.Destroy;
 begin
   Clear;
   FWithList.Free;
+  FWithList := nil;
   inherited Destroy;
 end;
 
 { TPSAttributeTypeField }
+
 procedure TPSAttributeTypeField.SetFieldOrgName(const Value: tbtString);
 begin
   FFieldOrgName := Value;
@@ -15666,15 +15731,13 @@ function TPSInterface.CastToType(IntoType: TPSType;
 var
   P: TPSExternalProcedure;
 begin
-  if (IntoType <> nil) and (IntoType.BaseType <> btInterface) then
-  begin
-    Result := False;
+  Result := not ( (IntoType <> nil) and (IntoType.BaseType <> btInterface) );
+  if not Result then
     exit;
-  end;
-  if FCastProc <> InvalidVal then
+  Result := FCastProc <> InvalidVal;
+  if Result then
   begin
     ProcNo := FCastProc;
-    Result := True;
     exit;
   end;
   ProcNo := FOwner.AddUsedFunction2(P);

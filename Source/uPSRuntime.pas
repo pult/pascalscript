@@ -13,7 +13,8 @@ uses
   System.Rtti,
   {$ENDIF}{$ENDIF !FPC}
   SysUtils, uPSUtils
-  {$IFDEF DELPHI6UP}
+  {$IFDEF DELPHI6UP} // D6_UP OR FPC
+    {+}{$DEFINE _VARIANTS_}{+.}
   ,Variants
   {$ENDIF}
   {$IFNDEF PS_NOIDISPATCH}
@@ -1185,6 +1186,7 @@ uses
   ,ComObj
   {$ENDIF}{$ENDIF FPC}
   {$IF NOT DEFINED (NEXTGEN) AND NOT DEFINED (MACOS) AND DEFINED(DELPHI18UP)} // DELPHI18UP == DELPHIXE4UP
+  {$DEFINE _ANSISTRINGS_}
   ,AnsiStrings
   {$IFEND}
   {+.}
@@ -4984,14 +4986,19 @@ procedure AnyToIntf(var Intf: IUnknown; const V: TVarData);
 var
   LTemp: TVarData;
 begin
+  Intf := nil;
   {VarUtils.}VariantInit(LTemp);
   try
     {VarUtils.}VariantCopy(LTemp, V);
-    {VarUtils.}ChangeAnyProc(LTemp);
-    if LTemp.VType <> varUnknown then
-      Intf := nil
-    else
-      Intf := IUnknown(LTemp.VUnknown);
+    {Variants.}ChangeAnyProc(LTemp);
+    case LTemp.VType of
+      varUnknown:
+        if Assigned(LTemp.VUnknown) then
+          Intf := IUnknown(LTemp.VUnknown);
+      varUnknown + varByRef:
+        if Assigned(LTemp.VPointer) then
+          Intf := IUnknown(LTemp.VPointer^);
+    end;
   finally
     {VarUtils.}VariantClear(LTemp);
   end;
@@ -5529,7 +5536,7 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
               btChar:
                 len := 1;
               btPChar:
-                len := {+}{$IFDEF DELPHI18UP}AnsiStrings.{$ENDIF}{+.}strlen((PAnsiChar(src^)));
+                len := {+}{$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}{+.}strlen((PAnsiChar(src^)));
               btString:
                 len := length(tbtString(src^));
               {$IFNDEF PS_NOWIDESTRING}
@@ -10785,6 +10792,15 @@ begin
 end;
 {$ENDIF DELPHI6UP}
 
+{+}
+{$IFDEF _VARIANTS_}
+function VarIsArray_(const A: Variant): Boolean;
+begin
+  Result := {Variants.}VarIsArray(A);
+end;
+{$ENDIF _VARIANTS_}
+{+.}
+
 procedure TPSExec.RegisterStandardProcs;
 begin
   { The following needs to be in synch in these 3 functions:
@@ -10842,7 +10858,15 @@ begin
   {$ENDIF}
   RegisterDelphiFunction(@Null, 'Null', cdRegister);
   RegisterDelphiFunction(@VarIsNull, 'VarIsNull', cdRegister);
-  RegisterDelphiFunction(@{$IFDEF FPC}variants.{$ENDIF}VarType, 'VarType', cdRegister);
+  RegisterDelphiFunction(@{$IFDEF FPC}Variants.{$ENDIF}VarType, 'VarType', cdRegister);
+  {+}
+  {$IFDEF _VARIANTS_}
+  RegisterDelphiFunction(@VarIsArray_, 'VarIsArray', cdRegister);
+  RegisterDelphiFunction(@VarArrayDimCount, 'VarArrayDimCount', cdRegister);
+  RegisterDelphiFunction(@VarArrayLowBound, 'VarArrayLowBound', cdRegister);
+  RegisterDelphiFunction(@VarArrayHighBound, 'VarArrayHighBound', cdRegister);
+  {$ENDIF _VARIANTS_}
+  {+.}
   {$IFNDEF PS_NOIDISPATCH}
   RegisterDelphiFunction(@IDispatchInvoke, 'IDispatchInvoke', cdregister);
   {$ENDIF}
@@ -10886,7 +10910,8 @@ function ToString(p: PAnsiChar): tbtString;
 begin
   SetString(Result, p,
    {+}
-   {$IF NOT DEFINED (NEXTGEN) AND NOT DEFINED (MACOS) AND DEFINED (DELPHI18UP)}
+   //{$IF NOT DEFINED (NEXTGEN) AND NOT DEFINED (MACOS) AND DEFINED (DELPHI18UP)}
+   {$IFDEF _ANSISTRINGS_}
    AnsiStrings.StrLen(p)
    {$ELSE}
      {$IFDEF NEXTGEN}
@@ -10894,7 +10919,8 @@ begin
      {$ELSE}
    StrLen(p)
      {$ENDIF}
-   {$IFEND}
+   //{$IFEND}
+   {$ENDIF}
    {+.}
   );
 end;
@@ -13915,14 +13941,22 @@ end;
 
 procedure TPSStack.Clear;
 var
-  v: Pointer;
   i: Longint;
+  v: Pointer;
+  r: TPSTypeRec;
 begin
-  for i := Count -1 downto 0 do
+  for i := Count-1 downto 0 do
   begin
-    v := Data[i];
-    if TPSTypeRec(v^).BaseType in NeedFinalization then
-      FinalizeVariant(Pointer(IPointer(v)+PointerSize), TPSTypeRec(v^));
+    v := FData[i];
+    if Assigned(v) then
+    begin
+      r := TPSTypeRec(v^);
+      if Assigned(r) and (r.BaseType in NeedFinalization) then
+      begin
+        FinalizeVariant(Pointer(IPointer(v)+PointerSize), r);
+        //?? PPointer(v^) := nil;
+      end;
+    end;
   end;
   inherited Clear;
   FLength := 0;
@@ -13939,14 +13973,22 @@ end;
 
 destructor TPSStack.Destroy;
 var
-  v: Pointer;
   i: Longint;
+  v: Pointer;
+  r: TPSTypeRec;
 begin
-  for i := Count -1 downto 0 do
+  for i := Count-1 downto 0 do
   begin
-    v := Data[i];
-    if TPSTypeRec(v^).BaseType in NeedFinalization then
-    FinalizeVariant(Pointer(IPointer(v)+PointerSize), Pointer(v^));
+    v := FData[i];
+    if Assigned(v) then
+    begin
+      r := TPSTypeRec(v^);
+      if Assigned(r) and (r.BaseType in NeedFinalization) then
+      begin
+        FinalizeVariant(Pointer(IPointer(v)+PointerSize), Pointer(r));
+        //?? PPointer(v^) := nil;
+      end;
+    end;
   end;
   FreeMem(FDataPtr, FCapacity);
   inherited Destroy;

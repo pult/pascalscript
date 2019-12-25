@@ -7,7 +7,7 @@ uses
 
 {+}
 const
-  uPSVersion = 201912210909; // format: yyyymmddhhnn
+  uPSVersion = 201912231124; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -405,7 +405,6 @@ type
     procedure SetItem(Nr: Cardinal; P: Pointer);
   public
     {$IFNDEF PS_NOSMARTLIST}
-
     procedure Recreate;
     {$ENDIF}
 
@@ -432,6 +431,9 @@ type
     procedure DeleteLast;
 
     procedure Clear; virtual;
+    {+}
+    procedure ClearAsObjects();
+    {+.}
   end;
   TIFList = TPSList;
 
@@ -940,9 +942,7 @@ var
   NewData: PPointerList;
   NewCapacity: Cardinal;
   I: Longint;
-
 begin
-
   FCheckCount := 0;
   NewCapacity := mm(FCount, FCapacityInc);
   if NewCapacity < 64 then NewCapacity := 64;
@@ -1002,10 +1002,11 @@ procedure TPSList.DeleteLast;
 begin
   if FCount = 0 then Exit;
   Dec(FCount);
-{$IFNDEF PS_NOSMARTLIST}
-    Inc(FCheckCount);
-    if FCheckCount > FMaxCheckCount then Recreate;
-{$ENDIF}
+  {$IFNDEF PS_NOSMARTLIST}
+  Inc(FCheckCount);
+  if FCheckCount > FMaxCheckCount then
+    Recreate;
+  {$ENDIF}
 end;
 
 procedure TPSList.Delete(Nr: Cardinal);
@@ -1047,10 +1048,34 @@ end;
 procedure TPSList.Clear;
 begin
   FCount := 0;
-{$IFNDEF PS_NOSMARTLIST}
+  {$IFNDEF PS_NOSMARTLIST}
   Recreate;
-{$ENDIF}
+  {$ENDIF}
 end;
+
+{+}
+procedure TPSList.ClearAsObjects();
+var
+  D: PPointerList;
+  O: TObject;
+begin
+  if FCount > 0 then
+  begin
+    D := FData;
+    while FCount > 0 do
+    begin
+      Dec(FCount);
+      O := TObject(D[FCount]);
+      D[FCount] := nil;
+      O.Free;
+    end;
+  end;
+  {$IFNDEF PS_NOSMARTLIST}
+  Recreate;
+  {$ENDIF}
+end;
+{+.}
+
 //-------------------------------------------------------------------
 
 destructor TPSList.Destroy;
@@ -1554,15 +1579,11 @@ var
               end;
               Inc(ci);
             end;
+            CurrTokenId := CSTIINT_Comment;
             if (FText[ci] = #0) then
-            begin
-              CurrTokenId := CSTIINT_Comment;
-              ParseToken := iCommentError;
-            end else
-            begin
-              CurrTokenId := CSTIINT_Comment;
+              ParseToken := iCommentError
+            else
               Inc(ci, 2);
-            end;
             CurrTokenLen := ci - ct;
           end
           else
@@ -1649,13 +1670,11 @@ var
               (FText[ci] <> #10) do begin
               Inc(ci);
             end;
-            if (FText[ci] = #0) then
-            begin
-              CurrTokenId := CSTIINT_Comment;
-            end else
-            begin
-              CurrTokenId := CSTIINT_Comment;
-            end;
+            CurrTokenId := CSTIINT_Comment;
+            //if (FText[ci] = #0) then
+            //  ?
+            //else
+            //  ?
             CurrTokenLen := ci - ct;
           end else
           begin
@@ -1701,12 +1720,9 @@ var
             end;
             Inc(ci);
           end;
+          CurrTokenId := CSTIINT_Comment;
           if (FText[ci] = #0) then
-          begin
-            CurrTokenId := CSTIINT_Comment;
             ParseToken := iCommentError;
-          end else
-            CurrTokenId := CSTIINT_Comment;
           CurrTokenLen := ci - ct + 1;
         end;
     else

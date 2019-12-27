@@ -78,6 +78,9 @@ end; // function Invoke
 
 {+.}
 function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingConvention; Params: TPSList; res: PPSVariantIFC): Boolean;
+{+}
+// TODO: currentry not all parameter types supported
+{+.}
 var SysCalConv : TCallConv;
     Args: TArray<TValue>;
     Arg : TValue;
@@ -173,8 +176,14 @@ begin
         btChar:                            Arg := TValue.From(pansichar(fvar.dta)^);
         {+.}
         btClass:                           Arg := TValue.From(TObject(fvar.dta^));
-        btRecord:                          Arg := TValue.From<Pointer>(fvar.dta);
+        {+}
+        btPointer,
+        //?btResourcePointer,
+        btProcPtr,
+        //?btInterface,
+        btRecord,
         btStaticArray:                     Arg := TValue.From<Pointer>(fvar.dta);
+        {+.}
         btArray:
           begin
              if Copy(fvar.aType.ExportName, 1, 10) = '!OPENARRAY' then

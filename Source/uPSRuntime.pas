@@ -11375,21 +11375,20 @@ end;
 
 {+}
 {$UNDEF _INVOKECALL_INC_}
-{+.}
 {$ifndef FPC}
-  {+}
   {?$IFDEF DELPHI2010UP} // TODO: not compiled for all delphi compilers
   {$IFDEF DELPHI23UP}    // DELPHI2010UP == DELPHI14UP
-  {+.}
     {$IFDEF AUTOREFCOUNT}
       {$fatal Pascal Script does not supports compilation with AUTOREFCOUNT at the moment!}
     {$ELSE}
-      {$include InvokeCall.inc}
-      {+}
-      {$DEFINE _INVOKECALL_INC_}
-      {+.}
+      {--$DEFINE _INVOKECALL_INC_} { optional } // TODO: currentry not all parameter types supported
+      {$IFDEF _INVOKECALL_INC_}
+        {$include InvokeCall.inc}
+      {$ENDIF}
     {$ENDIF}
-  {$ELSE}
+  {$ENDIF}
+  {$IFNDEF _INVOKECALL_INC_}
+{+.}
     {$IFDEF Delphi6UP}
       {$IFDEF CPUX64}
         {$include x64.inc}
@@ -12156,6 +12155,7 @@ begin
   if s[1] = #0 then inc(CurrStack);
   MyList := TPSList.Create;
   {+}
+  n2 := nil;
   try
   {+.}
     for i := 2 to length(s) do
@@ -12168,9 +12168,7 @@ begin
       inc(CurrStack);
     end;
     if s[1] <> #0 then
-    begin
       n2 := NewPPSVariantIFC(Stack[CurrStack + 1], True);
-    end else n2 := nil;
   {+}
   //try
   {+.}

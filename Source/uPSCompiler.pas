@@ -13420,6 +13420,7 @@ begin
   AddDelphiFunction('function VarType(const V: Variant): TVarType;');
   {+}
   {$IFDEF _VARIANTS_}
+  AddDelphiFunction('function VarToStr(const V : Variant): string');
   AddDelphiFunction('function VarIsArray(const A: Variant): Boolean;');
   AddDelphiFunction('function VarArrayDimCount(const A: Variant): Integer;');
   AddDelphiFunction('function VarArrayLowBound(const A: Variant; Dim: Integer): Integer;');

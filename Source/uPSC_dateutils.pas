@@ -5,7 +5,6 @@ interface
 uses
   SysUtils, uPSCompiler, uPSUtils;
 
-
 procedure RegisterDateTimeLibrary_C(S: TPSPascalCompiler);
 
 implementation
@@ -27,6 +26,7 @@ begin
   s.AddDelphiFunction('function UnixToDateTime(U: Int64): TDateTime;');
 
   s.AddDelphiFunction('function DateToStr(D: TDateTime): string;');
+  s.AddDelphiFunction('function DateTimeToStr(D: TDateTime): string;');
   s.AddDelphiFunction('function StrToDate(const S: string): TDateTime;');
   s.AddDelphiFunction('function FormatDateTime(const fmt: string; D: TDateTime): string;');
 end;

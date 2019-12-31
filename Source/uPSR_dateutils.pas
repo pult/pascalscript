@@ -1,11 +1,8 @@
-
 unit uPSR_dateutils;
 {$I PascalScript.inc}
 interface
 uses
   SysUtils, uPSRuntime;
-
-
 
 procedure RegisterDateTimeLibrary_R(S: TPSExec);
 
@@ -41,6 +38,26 @@ begin
   Result := U / 86400 + 25569;
 end;
 
+function DateToStr_(D: TDateTime): string;
+begin
+  Result := DateToStr(D);
+end;
+
+function StrToDate_(const S: string): TDateTime;
+begin
+  Result := StrToDate(S);
+end;
+
+function DateTimeToStr_(D: TDateTime): string;
+begin
+  Result := DateTimeToStr(D);
+end;
+
+function FormatDateTime_(const Format: string; DateTime: TDateTime): string;
+begin
+  Result := FormatDateTime(Format, DateTime);
+end;
+
 procedure RegisterDateTimeLibrary_R(S: TPSExec);
 begin
   S.RegisterDelphiFunction(@EncodeDate, 'EncodeDate', cdRegister);
@@ -55,9 +72,10 @@ begin
   S.RegisterDelphiFunction(@Now, 'Now', cdRegister);
   S.RegisterDelphiFunction(@DateTimeToUnix, 'DateTimeToUnix', cdRegister);
   S.RegisterDelphiFunction(@UnixToDateTime, 'UnixToDateTime', cdRegister);
-  S.RegisterDelphiFunction(@DateToStr, 'DateToStr', cdRegister);
-  S.RegisterDelphiFunction(@FormatDateTime, 'FormatDateTime', cdRegister);
-  S.RegisterDelphiFunction(@StrToDate, 'StrToDate', cdRegister);
+  S.RegisterDelphiFunction(@DateToStr_, 'DateToStr', cdRegister);
+  S.RegisterDelphiFunction(@DateTimeToStr_, 'DateTimeToStr', cdRegister);
+  S.RegisterDelphiFunction(@FormatDateTime_, 'FormatDateTime', cdRegister);
+  S.RegisterDelphiFunction(@StrToDate_, 'StrToDate', cdRegister);
 end;
 
 end.

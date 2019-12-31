@@ -10798,6 +10798,15 @@ function VarIsArray_(const A: Variant): Boolean;
 begin
   Result := {Variants.}VarIsArray(A);
 end;
+
+function VarToStr_(const V: Variant): string;
+begin
+  if not VarIsEmptyOrNull(V) then
+    Result := Variants.VarToStr(V)
+  else
+    Result := '';
+end;
+
 {$ENDIF _VARIANTS_}
 {+.}
 
@@ -10861,6 +10870,7 @@ begin
   RegisterDelphiFunction(@{$IFDEF FPC}Variants.{$ENDIF}VarType, 'VarType', cdRegister);
   {+}
   {$IFDEF _VARIANTS_}
+  RegisterDelphiFunction(@VarToStr_, 'VarToStr', cdRegister);
   RegisterDelphiFunction(@VarIsArray_, 'VarIsArray', cdRegister);
   RegisterDelphiFunction(@VarArrayDimCount, 'VarArrayDimCount', cdRegister);
   RegisterDelphiFunction(@VarArrayLowBound, 'VarArrayLowBound', cdRegister);
@@ -13702,27 +13712,26 @@ var
   CurrStack: Cardinal;
   s: tbtString;
 begin
+  i := length(P.Decl);
+  if i = 0 then begin Result := False; exit; end;
   s := P.Decl;
-  if length(s) = 0 then begin Result := False; exit; end;
-  CurrStack := Cardinal(Stack.Count) - Cardinal(length(s));
+  CurrStack := Cardinal(Stack.Count) - Cardinal(i);
   if s[1] = #0 then inc(CurrStack);
+  n := nil;
   MyList := TPSList.Create;
-
-  for i := 2 to length(s) do
-  begin
-    MyList.Add(nil);
-  end;
-  for i := length(s) downto 2 do
-  begin
-    MyList[i - 2] := NewPPSVariantIFC(Stack[CurrStack], s[i] <> #0);
-    inc(CurrStack);
-  end;
-  if s[1] <> #0 then
-  begin
-    n := NewPPSVariantIFC(Stack[CurrStack], True);
-  end else n := nil;
   try
-    result := Caller.InnerfuseCall(p.Ext2, p.Ext1, cc, MyList, n);
+    for i := 2 to length(s) do
+    begin
+      MyList.Add(nil);
+    end;
+    for i := length(s) downto 2 do
+    begin
+      MyList[i - 2] := NewPPSVariantIFC(Stack[CurrStack], s[i] <> #0);
+      inc(CurrStack);
+    end;
+    if s[1] <> #0 then
+      n := NewPPSVariantIFC(Stack[CurrStack], True);
+    result := Caller.InnerfuseCall(p.Ext2, p.Ext1, cc, MyList, n); //@dbg: p.FName
   finally
     DisposePPSVariantIFC(n);
     DisposePPSVariantIFCList(mylist);

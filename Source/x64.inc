@@ -30,7 +30,7 @@ type
     {$ENDIF}
 
     {$IFDEF FPC}
-      {.$DEFINE X64CALL_ASM} { optional } // ! Not recomended : GPF on exception !
+      {$DEFINE X64CALL_ASM} { optional } // ! Not recomended : GPF on exception ! // TODO: need test ...
     {$ENDIF}
 
   {$ELSE}
@@ -201,8 +201,56 @@ type
   t_pcall_66 = procedure(_rcx,_rdx,_r8,_r9,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,
     p21,p22,p23,p24,p25,p26,p27,p28,p29,p30,p31,p32,p33,p34,p35,p36,p37,p38,p39,p40,
     p41,p42,p43,p44,p45,p46,p47,p48,p49,p50,p51,p52,p53,p54,p55,p56,p57,p58,p59,p60,p61,p62,p63,p64,p65,p66: IPointer);
+
 procedure x64call({RCX}Address: Pointer;out {RDX}_RAX: IPointer;var {R8}_XMM0: Double; var {R9}R: TRegisters);
+
+  function get_rax: IPointer; assembler;
+  asm
+    //-mov Result, rax // !Not necessarily!
+  end;
+  function get_xmm0: Double; assembler;
+  asm
+    movsd Result, xmm0
+  end;
+
+  procedure set_rax(var _RAX: Double); assembler;
+  asm
+    mov rax, _RAX
+  end;
+  procedure set_xmm1; assembler;
+  asm
+    movsd xmm1, [rax]
+  end;
+  procedure set_xmm2; assembler;
+  asm
+    movsd xmm2, [rax]
+  end;
+  procedure set_xmm3; assembler;
+  asm
+    movsd xmm3, [rax]
+  end;
+  procedure set_xmm0; assembler;
+  asm
+    movsd xmm0, [rax]
+  end;
+
 begin
+  // xmm1:
+  set_rax(R._XMM1);
+  set_xmm1();
+
+  // xmm2:
+  set_rax(R._XMM2);
+  set_xmm2();
+
+  // xmm3:
+  set_rax(R._XMM3);
+  set_xmm3();
+
+  // xmm0:
+  set_rax(_XMM0);
+  set_xmm0();
+
   case R.Items of // stack items count
     00: t_pcall_04(Address)(R._RCX,R._RDX,R._R8,R._R9);
     01: t_pcall_05(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00]);
@@ -456,7 +504,10 @@ begin
     //}
     else
       raise EInvocationError.Create('Internal: Parameter count exceeded 64');
-  end;
+  end; // case
+  //
+  _RAX := get_rax();
+  _XMM0 := get_xmm0();
 end;
 {$ENDIF}
 
@@ -538,13 +589,13 @@ asm
   sub     rsp, $210
   mov     rbp, rsp
 {$endif}
-
-  mov     [rbp+c_loc_offs_adress], Address   // save: rcx (@Address)
-  mov     [rbp+c_loc_offs__rax], _RAX        // save: rdx (@_RDX)
-  mov     [rbp+c_loc_offs__xmm0], _XMM0      // save: r8  (@_XMM0)
-  mov     [rbp+c_loc_offs_reginfo], RegInfo  // save: r9  (@RegInfo)    dbg: TRegisters(pointer(R9)^),r
-
-  //
+                                             //                         dbg: in:  TRegisters(pointer(R9)^),r
+  mov     [rbp+c_loc_offs_adress], Address   // save: rcx (@Address)    dbg: loc: qword(pointer(rbp+c_loc_offs_adress)^)   ; in: qword(pointer(RCX))
+  mov     [rbp+c_loc_offs__rax], _RAX        // save: rdx (@_RDX)       dbg: loc: qword(pointer(rbp+c_loc_offs__rax)^)     ; in: qword(pointer(RDX))
+  mov     [rbp+c_loc_offs__xmm0], _XMM0      // save: r8  (@_XMM0)      dbg: loc: qword(pointer(rbp+c_loc_offs__xmm0)^)    ; in: qword(pointer(R8))
+  mov     [rbp+c_loc_offs_reginfo], RegInfo  // save: r9  (@RegInfo)    dbg: loc: qword(pointer(rbp+c_loc_offs_reginfo)^)  ; in: qword(pointer(R9))
+                                             //                         dbg:      TRegisters(pointer(pointer(rbp+c_loc_offs_reginfo)^)^),r
+  //                                                                    dbg:      tdatetime(pointer(pointer(rbp+c_loc_offs__xmm0)^)^)
   // check Registers.Items (param count limitation)
   //
   mov     rcx, [RegInfo].TRegisters.Items
@@ -582,15 +633,64 @@ asm
 
 @@skip_items:
 
+  // copy registers
+
+  //{ #1
+  movsd   xmm1,[RegInfo].TRegisters._XMM1
+  movsd   xmm2,[RegInfo].TRegisters._XMM2
+  movsd   xmm3,[RegInfo].TRegisters._XMM3
+
+  // _XMM0 => xmm0
+  mov     rax, [rbp+c_loc_offs__xmm0]      // dbg: tdatetime(pointer(pointer(rbp+c_loc_offs__xmm0)^)^)
+  movsd   xmm0,[rax]                       // dbg: tdatetime(pointer(pointer(xmm0))^)
+  //}
+
+  { #2: handle SingleBits
+  mov rcx, [RegInfo + offset(TRegisters.SingleBits)]
+
+  // fill: _XMM1
+  bt rcx, 1
+  jnc @g1
+  cvtsd2ss xmm1, [RegInfo + offset(TRegisters._XMM1)]
+  jmp @g1e
+  @g1:
+  movsd xmm1, [RegInfo + offset(TRegisters._XMM1)]
+  @g1e:
+
+  // fill: _XMM2
+  bt rcx, 2
+  jnc @g2
+  cvtsd2ss xmm2, [RegInfo + offset(TRegisters._XMM2)]
+  jmp @g2e
+  @g2:
+  movsd xmm2, [RegInfo + offset(TRegisters._XMM2)]
+  @g2e:
+
+  // fill: _XMM3
+  bt rcx, 3
+  jnc @g3
+  cvtsd2ss xmm3, [RegInfo + offset(TRegisters._XMM3)]
+  jmp @g3e
+  @g3:
+  movsd xmm3, [RegInfo + offset(TRegisters._XMM3)]
+  @g3e:
+
+  // fill: _XMM0
+  bt rcx, 0
+  jnc @g0
+  mov rdx, [rbp+c_loc_offs__xmm0]
+  cvtsd2ss xmm0, [rdx]
+  jmp @g0e
+  @g0:
+  mov rdx, [rbp+c_loc_offs__xmm0]
+  movsd xmm0, [rdx]
+  @g0e:
+  //}
+
   // mov *, [r9].*    ;    [r9] == [RegInfo]
   mov     rcx, [RegInfo].TRegisters._RCX
   mov     rdx, [RegInfo].TRegisters._RDX
   mov     r8,  [RegInfo].TRegisters._R8
-
-  movsd   xmm0,[RegInfo].TRegisters._RCX
-  movsd   xmm1,[RegInfo].TRegisters._RDX
-  movsd   xmm2,[RegInfo].TRegisters._R8
-  movsd   xmm3,[RegInfo].TRegisters._R9
 
   mov     r9,  [RegInfo].TRegisters._R9  // !!! Overwritten RegInfo (r9)
 
@@ -598,11 +698,11 @@ asm
 
   // make result
   mov     rdx, [rbp+c_loc_offs__rax] // restore: rdx (@_RDX)
-  mov     [rdx], RAX            // fill: _RAX
+  mov     [rdx], RAX              // fill: _RAX
 
   //movsd   [rdx+c_sz_ptr], XMM0  // fill: _XMM0
   mov     rdx, [rbp+c_loc_offs__xmm0] // restore: r8 (@_RMM0)
-  mov     [rdx], RAX            // fill: _RAX
+  movsd   [rdx], XMM0             // fill: _XMM0  // @dbg: TRegisters(pointer(pointer(rbp+c_loc_offs_reginfo)^)^),r
 
 {$ifdef DELPHI}
 {$else}
@@ -959,8 +1059,8 @@ var
       exit;
     end;
     if p.aType.BaseType = btPointer then begin
-      p^.aType := Pointer(Pointer(IPointer(p^.dta) + PointerSize)^);
-      p^.Dta := Pointer(p^.dta^);
+      p^.aType := Pointer(Pointer(IPointer(p^.Dta) + PointerSize)^);
+      p^.Dta := Pointer(p^.Dta^);
     end;
     Result := p;
   end;
@@ -1120,7 +1220,7 @@ var
               Result := True;
               Exit;
             end else begin
-              varptr := fVar.Dta;
+              VarPtr := fVar.Dta;
               //Exit;
             end;
           end;
@@ -1133,7 +1233,7 @@ var
         {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}{$ENDIF} btU8, btS8, btU16,
         btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
         {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: begin
-            Varptr := fVar.Dta;
+            VarPtr := fVar.Dta;
           end;
         else begin
           Exit; // invalid type
@@ -1144,9 +1244,9 @@ var
       case fVar.aType.BaseType of
         btSet: begin
             case TPSTypeRec_Set(fVar.aType).aByteSize of
-              1: StoreReg(IPointer(byte(fVar.dta^)));
-              2: StoreReg(IPointer(word(fVar.dta^)));
-              3, 4: StoreReg(IPointer(cardinal(fVar.dta^)));
+              1: StoreReg(IPointer(byte(fVar.Dta^)));
+              2: StoreReg(IPointer(word(fVar.Dta^)));
+              3, 4: StoreReg(IPointer(cardinal(fVar.Dta^)));
               5,6,7,8: StoreReg(IPointer(fVar.Dta^));
               else
                 StoreReg(IPointer(fVar.Dta));
@@ -1171,7 +1271,7 @@ var
           end;
         btRecord: begin
             if fVar.aType.RealSize <= sizeof(IPointer) then
-              StoreReg(IPointer(fVar.dta^))
+              StoreReg(IPointer(fVar.Dta^))
             else
               StoreReg(IPointer(fVar.Dta));
           end;
@@ -1179,52 +1279,51 @@ var
             StoreReg(IPointer(fVar.Dta));
           end;
         btExtended, btDouble: {8 bytes} begin
-            StoreReg(double(fVar.dta^));
+            StoreReg(double(fVar.Dta^)); // @dbg: TDateTime(fVar.Dta^)
           end;
         btCurrency: {8 bytes} begin
-            StoreReg(IPointer(fVar.dta^));
+            StoreReg(IPointer(fVar.Dta^));
           end;
         btSingle: {4 bytes} begin
-            StoreReg(single(fVar.dta^));
+            StoreReg(single(fVar.Dta^));
           end;
-
         btChar, btU8, btS8: begin
-            StoreReg(IPointer(byte(fVar.dta^)));
+            StoreReg(IPointer(byte(fVar.Dta^)));
           end;
         btWideChar,
         btU16, btS16: begin
-            StoreReg(IPointer(word(fVar.dta^)));
+            StoreReg(IPointer(word(fVar.Dta^)));
           end;
         btU32, btS32: begin
-            StoreReg(IPointer(cardinal(fVar.dta^)));
+            StoreReg(IPointer(cardinal(fVar.Dta^)));
           end;
         btPChar: begin
-            if Pointer(fVar.dta^) = nil then
+            if Pointer(fVar.Dta^) = nil then
               StoreReg(IPointer(@EmptyPChar))
             else
-              StoreReg(IPointer(fVar.dta^));
+              StoreReg(IPointer(fVar.Dta^));
           end;
         {+}
         {$IFNDEF PS_NOWIDESTRING}
         {$if declared(btPWideChar)}
         btPWideChar:
           begin
-            if pointer(fvar^.dta^) = nil then
+            if pointer(fVar^.Dta^) = nil then
               StoreReg(IPointer(@EmptyPchar))
             else
-              StoreReg(IPointer(fvar^.dta^));
+              StoreReg(IPointer(fVar^.Dta^));
           end;
         {$ifend}
         {$ENDIF}
         {+.}
         btClass, btInterface, btString: begin
-            StoreReg(IPointer(fVar.dta^));
+            StoreReg(IPointer(fVar.Dta^));
           end;
         btWideString: begin
-            StoreReg(IPointer(fVar.dta^));
+            StoreReg(IPointer(fVar.Dta^));
           end;
         btUnicodeString: begin
-            StoreReg(IPointer(fVar.dta^));
+            StoreReg(IPointer(fVar.Dta^)); // @dbg: UnicodeString(fVar.Dta^)
           end;
         btProcPtr: begin
             {+} // [#velter#]
@@ -1248,7 +1347,7 @@ var
             // [#velter#]. {+.}
           end;
         btS64: begin
-            StoreReg(IPointer(int64(fVar.dta^)));
+            StoreReg(IPointer(int64(fVar.Dta^)));
           end;
       end; {case}
     end;  { #if else : (not fVar.VarParam) }
@@ -1365,7 +1464,7 @@ begin // function TPSExec.InnerfuseCall
       {$IFDEF WINDOWS}
       Registers.Stack := pp;
       Registers.Items := Length(Stack) div 8;
-      x64call(Address, _RAX, _XMM0, Registers);
+      x64call({RCX}Address, {RDX: out IPointer:}_RAX, {R8: var Double:}_XMM0, {R9: var TRegisters:}Registers);
       {$ELSE}
       x64call(Address, _RAX, Registers, pp, Length(Stack) div 8, _XMM0);
       {$ENDIF !WINDOWS}
@@ -1384,7 +1483,7 @@ begin // function TPSExec.InnerfuseCall
         btSingle:
           tbtsingle(res.Dta^) := _XMM0;
         btDouble:
-          tbtdouble(res.Dta^) := _XMM0;
+          tbtdouble(res.Dta^) := _XMM0; // @dbg: TDateTime(res.Dta^)  TDateTime(_XMM0)
         btExtended:
           tbtextended(res.Dta^) := _XMM0;
         btChar, btU8, btS8:

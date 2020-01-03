@@ -41,7 +41,7 @@
 {$ENDIF}
 
 {$IFDEF LINUX}{KYLIX}{$DEFINE CLX}{$DEFINE DELPHI3UP}{$DEFINE DELPHI6UP}{$ENDIF}
-{$ENDIF}
+{$ENDIF !FPC}
 {$R-}{$Q-}
 
 {
@@ -71,5 +71,8 @@ Defines:
 {$D+} { optional }
 {$IFNDEF FPC}
   {$L+}
+  {$IFDEF DELPHI18UP} // DELPHIXE4 UP
+    {$ZEROBASEDSTRINGS OFF}
+  {$ENDIF}
 {$ENDIF}
 {+.}

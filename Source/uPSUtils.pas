@@ -7,7 +7,7 @@ uses
 
 {+}
 const
-  uPSVersion = 201912311621; // format: yyyymmddhhnn
+  uPSVersion = 202001031637; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -15,7 +15,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 201909202307)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202001031637)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -697,21 +697,85 @@ const
   FMaxCheckCount = (FCapacityInc div 4) * 64;
 {$ENDIF}
 
-{$IFDEF VER130}
+{$IFNDEF DELPHI5UP}{$IFNDEF FPC}
 function WideUpperCase(const S: WideString): WideString;
 function WideLowerCase(const S: WideString): WideString;
-{$ENDIF}
+{$ENDIF}{$ENDIF !DELPHI5UP}
+
+// function Pos(const SubStr, Str: AnyString): Integer;
+type
+  TPosS = function (const SubStr, Str: string): Integer;
+  TPosA = function (const SubStr, Str: AnsiString): Integer;
+  TPosW = function (const SubStr, Str: WideString): Integer;
+  {$IFDEF UNICODE}
+  TPosU = function (const SubStr, Str: UnicodeString): Integer;
+  {$ELSE}
+  TPosU = TPosW;
+  {$ENDIF}
+var
+  PosS: TPosS;
+  PosA: TPosA;
+  PosW: TPosW;
+  PosU: TPosU;
+
+// function PosEx(const SubStr, Str: AnyString; Offset: Integer = 1): Integer;
+type
+  TPosExS = function(const SubStr, S: string; Offset: Integer = 1): Integer;
+  TPosExA = function(const SubStr, S: AnsiString; Offset: Integer = 1): Integer;
+  TPosExW = function(const SubStr, S: WideString; Offset: Integer = 1): Integer;
+  {$IFDEF UNICODE}
+  TPosExU = function(const SubStr, S: UnicodeString; Offset: Integer = 1): Integer;
+  {$ELSE}
+  TPosExU = TPosExW;
+  {$ENDIF}
+var
+  PosExS: TPosExS;
+  PosExA: TPosExA;
+  PosExW: TPosExW;
+  PosExU: TPosExU;
+
+function StrLenA(p: PAnsiChar): Longint;
+//function StrLenW(P: PWideChar): Longint;
+
+function TrimLenS(const S: string): Integer;
+function TrimLeftLenS(const S: string): Integer;
+function TrimRightLenS(const S: string): Integer;
+
+function TrimLenA(const S: AnsiString): Integer;
+function TrimLeftLenA(const S: AnsiString): Integer;
+function TrimRightLenA(const S: AnsiString): Integer;
+
+function TrimLenW(const S: WideString): Integer;
+function TrimLeftLenW(const S: WideString): Integer;
+function TrimRightLenW(const S: WideString): Integer;
+
+{$IFDEF UNICODE}
+function TrimLenU(const S: UnicodeString): Integer;
+function TrimLeftLenU(const S: UnicodeString): Integer;
+function TrimRightLenU(const S: UnicodeString): Integer;
+{$ENDIF UNICODE}
+
 implementation
 
-{$IFDEF DELPHI3UP }
-resourceString
-{$ELSE }
+uses
+  TypInfo
+  {$IF DEFINED(DELPHI11UP) or DEFINED(FPC)} // TODO: FPC need check
+  {$DEFINE _STRUTILS_}
+  ,StrUtils
+  {$IFEND}
+  {$IF (NOT DEFINED (NEXTGEN)) AND (NOT DEFINED (MACOS)) AND DEFINED(DELPHI17UP)} // DELPHI18UP == DELPHIXE3UP
+  ,AnsiStrings {$DEFINE _ANSISTRINGS_}
+  {$IFEND}
+  ;
+
+{$if (defined(DELPHI3UP) or defined(FPC))} // {+} TODO: check "resourcestring" for modern FPC {+.}
+resourcestring
+{$else}
 const
-{$ENDIF }
+{$ifend}
   RPS_InvalidFloat = 'Invalid float';
 
-{$IFDEF VER130}
-
+{$IFNDEF DELPHI5UP}{$IFNDEF FPC}
 function WideUpperCase(const S: WideString): WideString;
 var
   Len: Integer;
@@ -741,8 +805,430 @@ begin
   else
     Result := AnsiLowerCase(S);
 end;
+{$ENDIF}{$ENDIF !DELPHI5UP}
 
+{$define _SysPosEx_}
+{$if not declared(PosEx)}
+{$undef _SysPosEx_}
+function PosEx(const SubStr, S: string; Offset: Integer = 1): Integer; // {$ifdef _inline_}inline;{$endif}
+var
+  i, X: Integer;
+  Len, LenSubStr: Integer;
+begin
+  if Offset = 1 then
+    Result := Pos(SubStr, S)
+  else
+  begin
+    i := Offset;
+    LenSubStr := Length(SubStr);
+    Len := Length(S) - LenSubStr + 1;
+    while i <= Len do
+    begin
+      if S[i] = SubStr[1] then
+      begin
+        X := 1;
+        while (X < LenSubStr) and (S[i + X] = SubStr[X + 1]) do
+          Inc(X);
+        if (X = LenSubStr) then
+        begin
+          Result := i;
+          Exit;
+        end;
+      end;
+      Inc(i);
+    end;
+    Result := 0;
+  end;
+end;
+{$ifend}
+
+function PosExS_(const SubStr, S: string; Offset: Cardinal = 1): Integer;
+begin
+  Result := PosEx(SubStr, S, Offset);
+end;
+
+{$if defined(_ANSISTRINGS_) or ((not defined(UNICODE)) and defined(_SysPosEx_))}
+function PosExA_(const SubStr, S: AnsiString; Offset: Integer = 1): Integer;
+begin
+  Result :=
+    {$IFDEF _ANSISTRINGS_}
+    AnsiStrings.PosEx
+    {$ELSE}
+    PosEx
+    {$ENDIF}
+      (SubStr, S, Offset);
+end;
+{$else}
+function PosExA_(const SubStr, S: AnsiString; Offset: Integer = 1): Integer;
+var
+  i, X: Integer;
+  Len, LenSubStr: Integer;
+begin
+  if Offset = 1 then
+    Result := Pos(SubStr, S)
+  else
+  begin
+    i := Offset;
+    LenSubStr := Length(SubStr);
+    Len := Length(S) - LenSubStr + 1;
+    while i <= Len do
+    begin
+      if S[i] = SubStr[1] then
+      begin
+        X := 1;
+        while (X < LenSubStr) and (S[i + X] = SubStr[X + 1]) do
+          Inc(X);
+        if (X = LenSubStr) then
+        begin
+          Result := i;
+          Exit;
+        end;
+      end;
+      Inc(i);
+    end;
+    Result := 0;
+  end;
+end;
+{$ifend} // if defined(_ANSISTRINGS_) or ((not defined(UNICODE)) and defined(_SysPosEx_))}
+
+{$if (defined(UNICODE) and defined(_SysPosEx_))}
+function PosExW_(const SubStr, S: WideString; Offset: Integer = 1): Integer;
+begin
+  Result := PosEx(SubStr, S, Offset);
+end;
+{$else}
+function PosExW_(const SubStr, S: WideString; Offset: Integer = 1): Integer;
+var
+  i, X: Integer;
+  Len, LenSubStr: Integer;
+begin
+  if Offset = 1 then
+    Result := Pos(SubStr, S)
+  else
+  begin
+    i := Offset;
+    LenSubStr := Length(SubStr);
+    Len := Length(S) - LenSubStr + 1;
+    while i <= Len do
+    begin
+      if S[i] = SubStr[1] then
+      begin
+        X := 1;
+        while (X < LenSubStr) and (S[i + X] = SubStr[X + 1]) do
+          Inc(X);
+        if (X = LenSubStr) then
+        begin
+          Result := i;
+          Exit;
+        end;
+      end;
+      Inc(i);
+    end;
+    Result := 0;
+  end;
+end;
+{$ifend} // (defined(UNICODE) and defined(_SysPosEx_))
+
+{$if (defined(UNICODE) and defined(_SysPosEx_))}
+function PosExU_(const SubStr, S: UnicodeString; Offset: Integer = 1): Integer;
+begin
+  Result := PosEx(SubStr, S, Offset);
+end;
+{$else}
+function PosExU_(const SubStr, S: WideString; Offset: Integer = 1): Integer;
+var
+  i, X: Integer;
+  Len, LenSubStr: Integer;
+begin
+  if Offset = 1 then
+    Result := Pos(SubStr, S)
+  else
+  begin
+    i := Offset;
+    LenSubStr := Length(SubStr);
+    Len := Length(S) - LenSubStr + 1;
+    while i <= Len do
+    begin
+      if S[i] = SubStr[1] then
+      begin
+        X := 1;
+        while (X < LenSubStr) and (S[i + X] = SubStr[X + 1]) do
+          Inc(X);
+        if (X = LenSubStr) then
+        begin
+          Result := i;
+          Exit;
+        end;
+      end;
+      Inc(i);
+    end;
+    Result := 0;
+  end;
+end;
+{$ifend} // $if (defined(UNICODE) and defined(_SysPosEx_))
+
+function PosS_(const SubStr, Str: string): Integer;
+begin
+  Result := Pos(SubStr, Str);
+end;
+
+function PosA_(const SubStr, Str: AnsiString): Integer;
+begin
+  {$IFDEF _ANSISTRINGS_}
+  Result := AnsiStrings.AnsiPos(SubStr, Str);
+  {$ELSE}
+  Result := Pos(SubStr, Str);
+  {$ENDIF}
+end;
+
+function PosW_(const SubStr, Str: WideString): Integer;
+begin
+  Result := Pos(SubStr, Str);
+end;
+
+{$IFDEF UNICODE}
+function PosU_(const SubStr, Str: UnicodeString): Integer;
+begin
+  Result := Pos(SubStr, Str);
+end;
 {$ENDIF}
+
+function StrLenA(p: PAnsiChar): Longint;
+begin
+  Result :=
+   //{$IF (NOT DEFINED (NEXTGEN)) AND (NOT DEFINED (MACOS)) AND DEFINED (DELPHI18UP)}
+   {$IF DEFINED(_ANSISTRINGS_) AND DEFINED (DELPHI18UP)} // DELPHI18UP == DELPHIXE4UP
+   AnsiStrings.StrLen(p)
+   {$ELSE}
+     {$IFDEF NEXTGEN}
+   Length(p)
+     {$ELSE}
+   StrLen(p)
+     {$ENDIF}
+   //{$IFEND}
+   {$IFEND}
+end;
+
+{function StrLenW(P: PWideChar): Longint;
+begin
+  Result := 0;
+  if P <> nil then
+    while P[Result] <> #0 do
+      Inc(Result);
+end;}
+
+function TrimLenS(const S: string): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= #32) do
+    Inc(I);
+  if I > L then
+    Result := 0
+  else
+  begin
+    while S[L] <= #32 do
+      Dec(L);
+    Result := L - I + 1;
+  end;
+end;
+
+function TrimLeftLenS(const S: string): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= #32) do
+    Inc(I);
+  Result := L - I + 1;
+end;
+
+function TrimRightLenS(const S: string): Integer;
+var
+  I: Integer;
+begin
+  I := Length(S);
+  while (I > 0) and (S[I] <= #32) do
+    Dec(I);
+  Result := I;
+end;
+
+function TrimLenA(const S: AnsiString): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= #32) do
+    Inc(I);
+  if I > L then
+    Result := 0
+  else
+  begin
+    while S[L] <= #32 do
+      Dec(L);
+    Result := L - I + 1;
+  end;
+end;
+
+function TrimLeftLenA(const S: AnsiString): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= #32) do
+    Inc(I);
+  Result := L - I + 1;
+end;
+
+function TrimRightLenA(const S: AnsiString): Integer;
+var
+  I: Integer;
+begin
+  I := Length(S);
+  while (I > 0) and (S[I] <= #32) do
+    Dec(I);
+  Result := I;
+end;
+
+function TrimLenW(const S: WideString): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= WideChar(#32)) do
+    Inc(I);
+  if I > L then
+    Result := 0
+  else
+  begin
+    while S[L] <= WideChar(#32) do
+      Dec(L);
+    Result := L - I + 1;
+  end;
+end;
+
+function TrimLeftLenW(const S: WideString): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= WideChar(#32)) do
+    Inc(I);
+  Result := L - I + 1;
+end;
+
+function TrimRightLenW(const S: WideString): Integer;
+var
+  I: Integer;
+begin
+  I := Length(S);
+  while (I > 0) and (S[I] <= WideChar(#32)) do
+    Dec(I);
+  Result := I;
+end;
+
+{$IFDEF UNICODE}
+function TrimLenU(const S: UnicodeString): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= WideChar(#32)) do
+    Inc(I);
+  if I > L then
+    Result := 0
+  else
+  begin
+    while S[L] <= WideChar(#32) do
+      Dec(L);
+    Result := L - I + 1;
+  end;
+end;
+
+function TrimLeftLenU(const S: UnicodeString): Integer;
+var
+  I, L: Integer;
+begin
+  L := Length(S);
+  I := 1;
+  while (I <= L) and (S[I] <= WideChar(#32)) do
+    Inc(I);
+  Result := L - I + 1;
+end;
+
+function TrimRightLenU(const S: UnicodeString): Integer;
+var
+  I: Integer;
+begin
+  I := Length(S);
+  while (I > 0) and (S[I] <= WideChar(#32)) do
+    Dec(I);
+  Result := I;
+end;
+{$ENDIF UNICODE}
+
+procedure PosInit();
+begin
+  //
+  // POS:
+  //
+
+  PosS := PosS_;
+
+  //-PosA := PosA_;
+       // or:
+  {$IFDEF _ANSISTRINGS_}
+  PosA := AnsiStrings.AnsiPos;
+  {$ELSE}
+  //{$IFNDEF UNICODE}
+  //PosA := Pos;
+  //{$ELSE}
+  PosA := PosA_;
+  //{$ENDIF}
+  {$ENDIF}
+
+  PosW := PosW_;
+
+  {$IFDEF UNICODE}
+  PosU := PosU_;
+  {$ELSE}
+  PosU := PosW_;
+  {$ENDIF}
+
+  //
+  // POSEX:
+  //
+
+  //-PosExS := PosExS_;
+         // or:
+  PosExS := PosEx;
+
+  {$IFDEF _ANSISTRINGS_}
+  PosExA := AnsiStrings.PosEx;
+  {$ELSE}
+  PosExA := PosExA_;
+  {$ENDIF}
+
+  {$IFDEF UNICODE}
+  PosExW := PosExW_;
+  {$ELSE}
+  PosExW := PosExW_;
+  {$ENDIF}
+
+  {$IFDEF UNICODE}
+  PosExU := PosExU_;
+  {$ELSE}
+  PosExU := PosExW_;
+  {$ENDIF}
+end;
 
 function MakeHash(const s: TbtString): Longint;
 {small hash maker}
@@ -1921,4 +2407,6 @@ begin
   fUnitName := FastUpperCase(Value);
 end;
 
+initialization
+  PosInit();
 end.

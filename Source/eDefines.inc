@@ -1211,23 +1211,38 @@
 {+}
 {$IFDEF FPC}
 // -----------------------------------------------------------------------------
-  {$ifdef CPU64}
+  //
+  // FPC:
+  //
+  {$if defined(CPUX86_64)}
     {$DEFINE CPUX64}
-  {$else}
+  {$elseif defined(CPU86) and (not (defined(cpuarm) or defined(cpupowerpc)))}
     {$DEFINE CPUX86}
-  {$endif}
+  {$ifend}
   {$DEFINE CONDITIONALEXPRESSIONS}
-{$ELSE}
-  {$IFDEF CPU64BITS} // XE2-XE7 (CPUX64), XE8+ (CPU64BITS)
-    {$DEFINE CPUX64}
-  {$ENDIF}
-  {$IFNDEF CPUX64}
+{$ELSE !FPC}
+  //
+  // DELPHI:
+  //
+  {$IFNDEF DELPHI11UP}
     {$DEFINE CPUX86}
-  {$ENDIF}
+  {$ELSE DELPHI11UP}
+    {$IFDEF CPU386} // DELPHI11UP == DELPHI2007UP
+      {$DEFINE CPUX86}
+    {$ELSE !CPU386}
+      {$if (not defined(CPUARM)) and (not defined(CPUX64)) and (not defined(CPUX86))}
+        {$IFDEF CPU64BITS} // XE2-XE7 (CPUX64), XE8+ (CPU64BITS)
+          {$DEFINE CPUX64}
+        {$ELSE !CPU64BITS}
+          {$DEFINE CPUX86}
+        {$ENDIF !CPU64BITS}
+      {$ifend} //!CPUARM
+    {$ENDIF !CPU386}
+  {$ENDIF DELPHI11UP}
 
   {$DEFINE _INLINE_} { optional }
 // -----------------------------------------------------------------------------
-{$ENDIF}
+{$ENDIF !FPC}
 {+.}
 
 { CPU }
@@ -1335,8 +1350,10 @@
 {$endif}
 {.$ifend}
 
-{$R-}
-{$D+}
+{.$IFNDEF DEBUG}
+{$R-} { optional }
+{$D+} { optional }
+{.$ENDIF !DEBUG}
 {$IFNDEF FPC}
   {$L+}
   {$IFDEF DELPHI17UP} // DXE3_UP

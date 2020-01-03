@@ -1,5 +1,13 @@
 unit uPSCompiler;
 {$I PascalScript.inc}
+
+{$UNDEF _DBG_INT3_} { not change } // allow or not: "asm int 3; end;"
+{$IFDEF DEBUG}{$IFNDEF FPC}
+  {$if defined(cpuX86) or DEFINED(cpuX64)}
+    {.$DEFINE _DBG_INT3_} { optional }
+  {$ifend}
+{$ENDIF !FPC}{$ENDIF DEBUG}
+
 interface
 uses
   {$IFNDEF DELPHI3UP}{$IFNDEF PS_NOINTERFACES}{$IFNDEF LINUX}Windows, Ole2,{$ENDIF}
@@ -124,27 +132,27 @@ type
 
     FType: TPSType;
     case Byte of
-      1: (tu8: TbtU8);
+      1: (tU8: TbtU8);
       2: (tS8: TbtS8);
-      3: (tu16: TbtU16);
-      4: (ts16: TbtS16);
-      5: (tu32: TbtU32);
-      6: (ts32: TbtS32);
-      7: (tsingle: TbtSingle);
-      8: (tdouble: TbtDouble);
-      9: (textended: TbtExtended);
-      11: (tcurrency: tbtCurrency);
-      10: (tstring: Pointer);
+      3: (tU16: TbtU16);
+      4: (tS16: TbtS16);
+      5: (tU32: TbtU32);
+      6: (tS32: TbtS32);
+      7: (tSingle: TbtSingle);
+      8: (tDouble: TbtDouble);
+      9: (tExtended: TbtExtended);
+      11: (tCurrency: tbtCurrency);
+      10: (tString: Pointer);
       {$IFNDEF PS_NOINT64}
-      17: (ts64: Tbts64);
+      17: (tS64: Tbts64);
       {$ENDIF}
-      19: (tchar: tbtChar);
+      19: (tChar: tbtChar);
       {$IFNDEF PS_NOWIDESTRING}
-      18: (twidestring: Pointer);
-      20: (twidechar: tbtwidechar);
+      18: (tWideString: Pointer);
+      20: (tWideChar: tbtwidechar);
       {$ENDIF}
-      21: (ttype: TPSType);
-      22: (tunistring: Pointer);
+      21: (tType: TPSType);
+      22: (tUniString: Pointer);
   end;
 
   TPSRecordFieldTypeDef = class(TObject)
@@ -1719,7 +1727,7 @@ uses
   {$if defined(DELPHI5) or (defined(FPC) and defined(PS_FPC_HAS_COM))}
   ComObj,
   {$ifend}
-  {$IF NOT DEFINED (NEXTGEN) AND NOT DEFINED (MACOS) AND DEFINED(DELPHI17UP)} // DELPHI17UP == DELPHIXE4UP
+  {$IF (NOT DEFINED (NEXTGEN)) AND (NOT DEFINED (MACOS)) AND DEFINED(DELPHI17UP)} // DELPHI17UP == DELPHIXE4UP
   {+}{$DEFINE _ANSISTRINGS_}{+.}
   AnsiStrings,
   {$IFEND}
@@ -1903,12 +1911,10 @@ begin
   bts64: BlockWriteData(BlockInfo, p^.ts64, 8);
   {$ENDIF}
   btProcPtr: BlockWriteData(BlockInfo, p^.tu32, 4);
-  {$IFDEF DEBUG}
-  {$IFNDEF FPC}
+  {$IFDEF _DBG_INT3_}
   else
     asm int 3; end;
-  {$ENDIF !FPC}
-  {$ENDIF DEBUG}
+  {$ENDIF _DBG_INT3_}
   end;
 end;
 
@@ -5287,10 +5293,10 @@ begin
           end;
           if Params[c].ExpectedType.BaseType = btChar then
             Params[c].ExpectedType := FindBaseType(btString) else
-{$IFNDEF PS_NOWIDESTRING}
+          {$IFNDEF PS_NOWIDESTRING}
           if Params[c].ExpectedType.BaseType = btWideChar then
             Params[c].ExpectedType := FindBaseType(btUnicodeString);
-{$ENDIF}
+          {$ENDIF !PS_NOWIDESTRING}
         end else if (PType.BaseType = btArray) and (GetTypeNo(BlockInfo, Params[c].Val).BaseType = btArray) then
         begin
           if TPSArrayType(GetTypeNo(BlockInfo, Params[c].Val)).ArrayTypeNo <> TPSArrayType(PType).ArrayTypeNo then
@@ -5484,11 +5490,14 @@ function TPSPascalCompiler.ReadString: PIfRVariant;
       begin
         if UTF8Decode then
         begin
-        temp3 := temp3 + {$IFNDEF PS_NOWIDESTRING}{$IFDEF DELPHI6UP}System.{$IFDEF DELPHI2009UP}UTF8ToWidestring{$ELSE}UTF8Decode{$ENDIF}{$ENDIF}{$ENDIF}(PString(FParser.GetToken));
-        {$IFNDEF PS_NOWIDESTRING}wchar:=true;{$ENDIF}
+        temp3 := temp3
+          + {$IFNDEF PS_NOWIDESTRING}{$IFDEF DELPHI6UP}{.$IFNDEF FPC}System.{.$ENDIF}{$IFDEF DELPHI2009UP}UTF8ToWidestring{$ELSE}UTF8Decode{$ENDIF}{$ENDIF}{$ENDIF}(PString(FParser.GetToken));
+        {$IFNDEF PS_NOWIDESTRING}
+        wChar := true;
+        {$ENDIF}
         end else
-          temp3 := temp3 + {$IFNDEF PS_NOWIDESTRING}tbtUnicodestring{$ENDIF}(PString(FParser.GetToken));
-
+          temp3 := temp3
+            + {$IFNDEF PS_NOWIDESTRING}tbtUnicodestring{$ENDIF}(PString(FParser.GetToken));
         FParser.Next;
         if FParser.CurrTokenId = CSTI_String then
           temp3 := temp3 + #39;
@@ -5582,9 +5591,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
   var
     x: TPSProcVar;
   begin
-{$IFDEF DEBUG}
+    {$IFDEF _DBG_INT3_}
     if (mtype = nil) or (not mtype.Used) then asm int 3; end;
-{$ENDIF}
+    {$ENDIF _DBG_INT3_}
     x := TPSProcVar.Create;
     {$IFDEF PS_USESSUPPORT}
     x.DeclareUnit:=fModule;
@@ -5783,9 +5792,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
       begin
         Val := IVar;
         ExpectedType := GetTypeNo(BlockInfo, ivar);
-{$IFDEF DEBUG}
+        {$IFDEF _DBG_INT3_}
         if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+        {$ENDIF _DBG_INT3_}
         ParamMode := pmInOut;
       end;
       Result := ProcessFunction2(ProcNo, Par, nil);
@@ -6654,7 +6663,8 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
                 x := nil;
                 exit;
               end;
-              {$IFDEF PS_HAVEVARIANT}if (u.BaseType = btVariant) then
+              {$IFDEF _VARIANTS_} // OLD: PS_HAVEVARIANT
+              if (u.BaseType = btVariant) then
                 l := FindProc('VarArraySet') else
               {$ENDIF}
               {$IFNDEF PS_NOWIDESTRING}
@@ -6682,17 +6692,17 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               begin
                 Val := tmp;
                 ExpectedType := GetTypeNo(BlockInfo, tmp);
-{$IFDEF DEBUG}
+                {$IFDEF _DBG_INT3_}
                 if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+                {$ENDIF _DBG_INT3_}
               end;
               with tmp3.Parameters.Add do
               begin
                 Val := x;
                 ExpectedType := GetTypeNo(BlockInfo, x);
-{$IFDEF DEBUG}
+                {$IFDEF _DBG_INT3_}
                 if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+                {$ENDIF _DBG_INT3_}
                 ParamMode := pmInOut;
               end;
               x := tmp3;
@@ -6722,11 +6732,12 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               if u.BaseType = btVariant then
                 Param.ExpectedType := u else{$ENDIF}
               Param.ExpectedType := GetTypeNo(BlockInfo, tmp);
-{$IFDEF DEBUG}
+              {$IFDEF _DBG_INT3_}
               if not Param.ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+              {$ENDIF _DBG_INT3_}
             end else begin
-              {$IFDEF PS_HAVEVARIANT}if (u.BaseType = btVariant) then
+              {$IFDEF _VARIANTS_} // OLD: PS_HAVEVARIANT
+              if (u.BaseType = btVariant) then
                 l := FindProc('VarArrayGet') else
               {$ENDIF}
               {$IFNDEF PS_NOWIDESTRING}
@@ -6760,9 +6771,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               begin
                 Val := x;
                 ExpectedType := GetTypeNo(BlockInfo, x);
-{$IFDEF DEBUG}
+                {$IFDEF _DBG_INT3_}
                 if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+                {$ENDIF _DBG_INT3_}
 
                 if x is TPSValueVar then
                   ParamMode := pmInOut
@@ -6773,9 +6784,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               begin
                 Val := tmp;
                 ExpectedType := GetTypeNo(BlockInfo, tmp);
-{$IFDEF DEBUG}
+                {$IFDEF _DBG_INT3_}
                 if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+                {$ENDIF _DBG_INT3_}
               end;
               x := tmp3;
             end;
@@ -7167,9 +7178,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
             begin
               Val := Tempp;
               ExpectedType := at2ut(Decl.Result);
-{$IFDEF DEBUG}
+              {$IFDEF _DBG_INT3_}
               if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+              {$ENDIF _DBG_INT3_}
             end;
 
             if not TPSClassType(FType).cl.Property_Set(Idx, Procno) then
@@ -7436,12 +7447,12 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           exit;
         end;
         FType2 := GetTypeNo(BlockInfo, Temp);
-        if ((TypeNo.BaseType = btClass){$IFNDEF PS_NOINTERFACES} or (TypeNo.basetype = btInterface){$ENDIF}) and
+        if ((TypeNo.BaseType = btClass){$IFNDEF PS_NOINTERFACES} or (TypeNo.BaseType = btInterface){$ENDIF}) and
           (FType2<>nil) and
           ((FType2.BaseType = btClass){$IFNDEF PS_NOINTERFACES} or (FType2.BaseType = btInterface){$ENDIF}) and (TypeNo <> FType2) then
         begin
           {$IFNDEF PS_NOINTERFACES}
-          if FType2.basetype = btClass then
+          if FType2.BaseType = btClass then
           begin
           {$ENDIF}
           if not TPSClassType(FType2).Cl.CastToType(AT2UT(TypeNo), ProcNo) then
@@ -7470,16 +7481,16 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
           begin
             Val := Temp;
             ExpectedType := GetTypeNo(BlockInfo, temp);
-            {$IFDEF DEBUG}
+            {$IFDEF _DBG_INT3_}
             if not ExpectedType.Used then asm int 3; end;
-            {$ENDIF}
+            {$ENDIF _DBG_INT3_}
           end;
           with TPSValueProcNo(Result).Parameters.Add do
           begin
             ExpectedType := at2ut(FindBaseType(btu32));
-            {$IFDEF DEBUG}
+            {$IFDEF _DBG_INT3_}
             if not ExpectedType.Used then asm int 3; end;
-            {$ENDIF}
+            {$ENDIF _DBG_INT3_}
             Val := TPSValueData.Create;
             with TPSValueData(val) do
             begin
@@ -7914,9 +7925,9 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
         begin
           Val := p;
           ExpectedType := GetTypeNo(BlockInfo, p);
-{$IFDEF DEBUG}
+          {$IFDEF _DBG_INT3_}
           if not ExpectedType.Used then asm int 3; end;
-{$ENDIF}
+          {$ENDIF _DBG_INT3_}
           FParamMode := pmIn;
         end;
         Result := Temp;
@@ -8269,6 +8280,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
                   {$ifend}
                 (GetTypeNoValue.BaseType <> btWideString) and
                 (GetTypeNoValue.BaseType <> btUnicodeString) and
+                (GetTypeNoValue.BaseType <> btVariant) and
                 {$ENDIF}
                 {+.}
                 (GetTypeNoValue.BaseType <> btString) ) then
@@ -8283,7 +8295,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
               begin
                 NewVar.Free;
                 Result := nil;
-                MakeError('', eccloseRoundExpected, '');
+                MakeError('', ecCloseRoundExpected, '');
                 exit;
               end;
               NewVar := CallAssigned(NewVar);
@@ -8883,7 +8895,6 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
         end;
         if TPSUnValueOp(p).FVal1.ClassType = TPSValueData then
         begin
-//
           case TPSUnValueOp(p).Operator of
             otNot:
               begin
@@ -11535,10 +11546,10 @@ var
       bts64: WriteData(p^.ts64, 8);
       {$ENDIF}
       btProcPtr: WriteData(p^.tu32, 4);
-      {$IFDEF DEBUG}
+      {$IFDEF _DBG_INT3_}
       else
-          asm int 3; end;
-      {$ENDIF}
+        asm int 3; end;
+      {$ENDIF _DBG_INT3_}
       end;
     end;
 
@@ -12655,6 +12666,12 @@ begin
   begin
     Name := '!NOTIFICATIONVARIANTGET';
   end;
+
+  {+} // NB: !!!: "TReplaceFlags" may be busy, so "TStrReplaceFlags" !!!
+  //--AddTypeS('TReplaceFlags', 'set of ( rfReplaceAll, rfIgnoreCase )'); // ERROR: rps unsupported it declaration
+  AddTypeS('TStrReplaceFlag', '(srfReplaceAll, srfIgnoreCase)');
+  AddTypeS('TStrReplaceFlags', 'set of TStrReplaceFlag');
+  {+.}
 end;
 
 function TPSPascalCompiler.FindType(const Name: tbtString): TPSType;
@@ -13265,7 +13282,10 @@ begin
   AddFunction('function StrToInt(S: string): LongInt;');
   AddFunction('function StrToIntDef(S: string; def: LongInt): LongInt;');
   AddFunction('function Copy(S: AnyString; iFrom, iCount: LongInt): AnyString;');
-  AddFunction('function Pos(SubStr, S: AnyString): LongInt;');
+  AddFunction('function Pos(SubStr, S: AnyString): Integer;');
+  {+}
+  AddFunction('function PosEx(SubStr, S: AnyString; Offset: Integer): Integer;');
+  {+}
   AddFunction('procedure Delete(var S: AnyString; iFrom, iCount: LongInt);');
   AddFunction('procedure Insert(S: AnyString; var s2: AnyString; iPos: LongInt);');
   AddFunction('function GetArrayLength: Integer;').Decl.AddParam.OrgName := 'Arr';
@@ -13287,13 +13307,18 @@ begin
   AddFunction('function WStrGet(var S: AnyString; I: Integer): WideChar;');
   AddFunction('procedure WStrSet(C: AnyString; I: Integer; var S: AnyString);');
   {$ENDIF}
-  AddDelphiFunction('function VarArrayGet(var S: Variant; I: Integer): Variant;');
-  AddDelphiFunction('procedure VarArraySet(C: Variant; I: Integer; var S: Variant);');
   AddFunction('function AnsiUpperCase(S: string): string;');
   AddFunction('function AnsiLowerCase(S: string): string;');
   AddFunction('function UpperCase(S: AnyString): AnyString;');
   AddFunction('function LowerCase(S: AnyString): AnyString;');
   AddFunction('function Trim(S: AnyString): AnyString;');
+  {+}
+  AddFunction('function TrimLeft(S: AnyString): AnyString;');
+  AddFunction('function TrimRight(S: AnyString): AnyString;');
+  AddFunction('function TrimLen(S: AnyString): Integer;');
+  AddFunction('function TrimLeftLen(S: AnyString): Integer;');
+  AddFunction('function TrimRightLen(S: AnyString): Integer;');
+  {+.}
   AddFunction('function Length: Integer;').Decl.AddParam.OrgName := 'S';
   with AddFunction('procedure SetLength;').Decl do
   begin
@@ -13378,54 +13403,60 @@ begin
   AddFunction('function Replicate(C: Char; I: LongInt): string;');
   AddFunction('function StringOfChar(C: Char; I: LongInt): string;');
   AddTypeS('TVarType', 'Word');
-  AddConstantN('varEmpty', 'Word').Value.tu16 := varempty;
-  AddConstantN('varNull', 'Word').Value.tu16 := varnull;
-  AddConstantN('varSmallInt', 'Word').Value.tu16 := varsmallint;
-  AddConstantN('varInteger', 'Word').Value.tu16 := varinteger;
-  AddConstantN('varSingle', 'Word').Value.tu16 := varsingle;
-  AddConstantN('varDouble', 'Word').Value.tu16 := vardouble;
-  AddConstantN('varCurrency', 'Word').Value.tu16 := varcurrency;
-  AddConstantN('varDate', 'Word').Value.tu16 := vardate;
-  AddConstantN('varOleStr', 'Word').Value.tu16 := varolestr;
-  AddConstantN('varDispatch', 'Word').Value.tu16 := vardispatch;
-  AddConstantN('varError', 'Word').Value.tu16 := varerror;
-  AddConstantN('varBoolean', 'Word').Value.tu16 := varboolean;
-  AddConstantN('varVariant', 'Word').Value.tu16 := varvariant;
-  AddConstantN('varUnknown', 'Word').Value.tu16 := varunknown;
-{$IFDEF DELPHI6UP} // {+} TODO: check for modern FPC {+.}
-  AddConstantN('varShortInt', 'Word').Value.tu16 := varshortint;
-  AddConstantN('varByte', 'Word').Value.tu16 := varbyte;
-  AddConstantN('varWord', 'Word').Value.tu16 := varword;
-  AddConstantN('varLongWord', 'Word').Value.tu16 := varlongword;
-  AddConstantN('varInt64', 'Word').Value.tu16 := varint64;
-{$ENDIF}
-{$IFDEF DELPHI5UP} // {+} TODO: check for modern FPC {+.}
-  AddConstantN('varStrArg', 'Word').Value.tu16 := varstrarg;
-  AddConstantN('varAny', 'Word').Value.tu16 := varany;
-{$ENDIF}
-  AddConstantN('varString', 'Word').Value.tu16 := varstring;
-  AddConstantN('varTypeMask', 'Word').Value.tu16 := vartypemask;
-  AddConstantN('varArray', 'Word').Value.tu16 := vararray;
-  AddConstantN('varByRef', 'Word').Value.tu16 := varByRef;
-{$IFDEF UNICODE} // {+} TODO: check for modern FPC {+.}
-  AddConstantN('varUString', 'Word').Value.tu16 := varUString;
-{$ENDIF}
+  AddConstantN('varEmpty', 'Word').Value.tU16 := varEmpty;
+  AddConstantN('varNull', 'Word').Value.tU16 := varNull;
+  AddConstantN('varSmallInt', 'Word').Value.tU16 := varSmallInt;
+  AddConstantN('varInteger', 'Word').Value.tU16 := varInteger;
+  AddConstantN('varSingle', 'Word').Value.tU16 := varSingle;
+  AddConstantN('varDouble', 'Word').Value.tU16 := varDouble;
+  AddConstantN('varCurrency', 'Word').Value.tU16 := varCurrency;
+  AddConstantN('varDate', 'Word').Value.tU16 := varDate;
+  AddConstantN('varOleStr', 'Word').Value.tU16 := varOleStr;
+  AddConstantN('varDispatch', 'Word').Value.tU16 := varDispatch;
+  AddConstantN('varError', 'Word').Value.tU16 := varError;
+  AddConstantN('varBoolean', 'Word').Value.tU16 := varBoolean;
+  {.$IFDEF PS_HAVEVARIANT}
+  AddConstantN('varVariant', 'Word').Value.tU16 := varVariant;
+  {.$ENDIF PS_HAVEVARIANT}
+  AddConstantN('varUnknown', 'Word').Value.tU16 := varUnknown;
+  {$IFDEF DELPHI6UP} // {+} TODO: check for modern FPC {+.}
+  AddConstantN('varShortInt', 'Word').Value.tU16 := varShortInt;
+  AddConstantN('varByte', 'Word').Value.tU16 := varByte;
+  AddConstantN('varWord', 'Word').Value.tU16 := varWord;
+  AddConstantN('varLongWord', 'Word').Value.tU16 := varLongWord;
+  AddConstantN('varInt64', 'Word').Value.tU16 := varInt64;
+  {$ENDIF}
+  {$IFDEF DELPHI5UP} // {+} TODO: check for modern FPC {+.}
+  AddConstantN('varStrArg', 'Word').Value.tU16 := varStrArg;
+  AddConstantN('varAny', 'Word').Value.tU16 := varAny;
+  {$ENDIF}
+  AddConstantN('varString', 'Word').Value.tU16 := varString;
+  AddConstantN('varTypeMask', 'Word').Value.tU16 := varTypeMask;
+  AddConstantN('varArray', 'Word').Value.tU16 := varArray;
+  AddConstantN('varByRef', 'Word').Value.tU16 := varByRef;
+  {$IFDEF UNICODE} // {+} TODO: check for modern FPC {+.}
+  AddConstantN('varUString', 'Word').Value.tU16 := varUString;
+  {$ENDIF}
+  {.$IFDEF PS_HAVEVARIANT}
   AddDelphiFunction('function Unassigned: Variant;');
   AddDelphiFunction('function VarIsEmpty(const V: Variant): Boolean;');
-{$IFDEF DELPHI7UP} // {+} TODO: check for modern FPC {+.}
+  {$IFDEF DELPHI7UP} // {+} TODO: check for modern FPC {+.}
   AddDelphiFunction('function VarIsClear(const V: Variant): Boolean;');
-{$ENDIF}
+  {$ENDIF}
   AddDelphiFunction('function Null: Variant;');
   AddDelphiFunction('function VarIsNull(const V: Variant): Boolean;');
   AddDelphiFunction('function VarType(const V: Variant): TVarType;');
   {+}
-  {$IFDEF _VARIANTS_}
   AddDelphiFunction('function VarToStr(const V : Variant): string');
+  {$IFDEF _VARIANTS_}
   AddDelphiFunction('function VarIsArray(const A: Variant): Boolean;');
   AddDelphiFunction('function VarArrayDimCount(const A: Variant): Integer;');
   AddDelphiFunction('function VarArrayLowBound(const A: Variant; Dim: Integer): Integer;');
   AddDelphiFunction('function VarArrayHighBound(const A: Variant; Dim: Integer): Integer;');
+  AddDelphiFunction('function VarArrayGet(var S: Variant; I: Integer): Variant;');
+  AddDelphiFunction('procedure VarArraySet(C: Variant; I: Integer; var S: Variant);');
   {$ENDIF _VARIANTS_}
+  {.$ENDIF PS_HAVEVARIANT}
   {+.}
   AddTypeS('TIFException', '(ErNoError, erCannotImport, erInvalidType, ErInternalError, '+
    'erInvalidHeader, erInvalidOpcode, erInvalidOpcodeParameter, erNoMainProc, erOutOfGlobalVarsRange, '+
@@ -13452,7 +13483,7 @@ begin
   begin
     OrgName := 'Data';
   end;
-{$IFNDEF PS_NOINTERFACES}
+  {$IFNDEF PS_NOINTERFACES}
   with AddInterface(nil, IUnknown_Guid, 'IUnknown') do
   begin
     RegisterDummyMethod; // Query Interface
@@ -13466,7 +13497,7 @@ begin
     RegisterDummyMethod; // _Release
   end;
 
- {$IFNDEF PS_NOIDISPATCH}
+  {$IFNDEF PS_NOIDISPATCH}
   with AddInterface(FindInterface('IUnknown'), IDispatch_Guid, 'IDispatch') do
   begin
     RegisterDummyMethod; // GetTypeCount
@@ -13479,8 +13510,44 @@ begin
     ExportName := True;
   end;
   AddDelphiFunction('function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string; Par: array of Variant): Variant;');
- {$ENDIF !PS_NOIDISPATCH}
-{$ENDIF !PS_NOINTERFACES}
+  {$ENDIF !PS_NOIDISPATCH}
+  {$ENDIF !PS_NOINTERFACES}
+
+  {+}
+  AddDelphiFunction('function Format(Format: string; const Args: array of const) : string');
+  {$if declared(FormatFloat)}
+  AddDelphiFunction('function FormatFloat(Format: string; Value: Extended): string;');
+  {$ifend}
+
+  AddDelphiFunction('function ChangeFileExt(FileName, Extension : string) : string');
+  AddDelphiFunction('function ExtractFilePath(FileName: string) : string');
+  AddDelphiFunction('function ExtractFileName(FileName: string) : string');
+  AddDelphiFunction('function ExtractFileExt(FileName: string) : string');
+  AddDelphiFunction('function IncludeTrailingPathDelimiter(Path: string): string;');
+  AddDelphiFunction('function ExcludeTrailingPathDelimiter(Path: string): string;');
+
+  AddDelphiFunction('function FileExists(FileName: string): Boolean;');
+  AddDelphiFunction('function DirectoryExists(Dir: string): Boolean;');
+
+  AddDelphiFunction('function GetFileSize(FileName: string): Int64;');
+
+  AddDelphiFunction('function ForceDirectories(Dir: string) : Boolean;');
+  AddDelphiFunction('function RenameFile(OldName, NewName: string): Boolean;');
+  AddDelphiFunction('function DeleteFile(FileName: string): Boolean;');
+
+  {.$if declared(SameText)}
+  AddDelphiFunction('function SameText(S1, S2 : AnyString) : Boolean;');
+  AddDelphiFunction('function AnsiSameText(S1, S2 : AnyString) : Boolean;');
+  {.$ifend} // declared(SameText)
+
+  // NB: !!!: "TReplaceFlags" may be busy, so "TStrReplaceFlags" !!!
+  // NB: !!!: "StringReplace" may be busy, so "sysStringReplace" !!!
+  // sample: writeln( sysStringReplace('a___a', 'a', 'x,', [srfReplaceAll,srfIgnoreCase]) );
+  AddFunction('function sysStringReplace(Source, OldPattern, NewPattern: AnyString; Flags : TStrReplaceFlags): AnyString;');
+
+  //--AddDelphiFunction('AAA');
+  //--AddFunction('AAA');
+  {+.}
 end;
 
 function TPSPascalCompiler.GetTypeCount: Longint;
@@ -13600,8 +13667,7 @@ begin
   FAutoFreeList.Add(Obj);
 end;
 
-function TPSPascalCompiler.AddConstantN(const Name,
-  FType: tbtString): TPSConstant;
+function TPSPascalCompiler.AddConstantN(const Name, FType: tbtString): TPSConstant;
 begin
   Result := AddConstant(Name, FindType(FType));
 end;
@@ -15721,26 +15787,32 @@ end;
 destructor TPSDelphiClassItem.Destroy;
 begin
   FDecl.Free;
+  FDecl := nil;
   inherited Destroy;
 end;
 
 {$IFNDEF PS_NOINTERFACES}
 { TPSInterface }
 
-function TPSInterface.CastToType(IntoType: TPSType;
-  var ProcNo: Cardinal): Boolean;
+function TPSInterface.CastToType(IntoType: TPSType; var ProcNo: Cardinal): Boolean;
 var
   P: TPSExternalProcedure;
 begin
-  Result := not ( (IntoType <> nil) and (IntoType.BaseType <> btInterface) );
+  Result := False;
+  if (IntoType = nil) then
+    Exit;
+
+  Result := (IntoType.BaseType = btInterface);
   if not Result then
     exit;
-  Result := FCastProc <> InvalidVal;
+
+  Result := (FCastProc <> InvalidVal);
   if Result then
   begin
     ProcNo := FCastProc;
     exit;
   end;
+
   ProcNo := FOwner.AddUsedFunction2(P);
   P.RegProc := FOwner.AddFunction(ProcHDR);
   P.RegProc.Name := '';
@@ -15758,6 +15830,7 @@ begin
 
   P.RegProc.ImportDecl := 'class:+';
   FCastProc := ProcNo;
+
   Result := True;
 end;
 

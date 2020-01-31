@@ -1,4 +1,4 @@
-# RemObjects Pascal Script for Delphi ( pascal script )
+# RemObjects Pascal Script for Delphi ( RPS )
 ![](https://tokei.rs/b1/github/pult/pascalscript?category=code) ![](https://tokei.rs/b1/github/pult/pascalscript?category=files)
 - **Homepage:** https://www.remobjects.com/ps.aspx
 - **Base Repository:** https://github.com/remobjects/pascalscript

@@ -143,12 +143,10 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure RIRegister_Mask(CL: TPSRuntimeClassImporter);
 begin
-  with CL.Add(EDBEditError) do
+  with CL.Add(EDBEditError) do {+};{+.}
   RIRegister_TCustomMaskEdit(CL);
   RIRegister_TMaskEdit(CL);
 end;
-
-
 
 { TPSImport_Mask }
 (*----------------------------------------------------------------------------*)

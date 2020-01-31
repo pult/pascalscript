@@ -554,6 +554,15 @@ procedure TCommonDialogHandle_R(Self: TCommonDialog; var T: HWnd);
 begin T := Self.Handle; end;
 
 (*----------------------------------------------------------------------------*)
+
+{ This InputQuery wrapper is necessary because Delphi XE2 and higher have two
+additional versions of InputQuery, the pointer points to the wrong version and the
+execution fails with "Length of value array must be >= length of prompt array" }
+function _InputQuery(const ACaption, APrompt: string; var AValue: string): Boolean;
+begin
+  Result := InputQuery(ACaption, APrompt, AValue);
+end;
+
 procedure RIRegister_Dialogs_Routines(S: TPSExec);
 begin
  S.RegisterDelphiFunction(@CreateMessageDialog, 'CreateMessageDialog', cdRegister);
@@ -563,7 +572,7 @@ begin
  S.RegisterDelphiFunction(@ShowMessage, 'ShowMessage', cdRegister);
  S.RegisterDelphiFunction(@ShowMessagePos, 'ShowMessagePos', cdRegister);
  S.RegisterDelphiFunction(@InputBox, 'InputBox', cdRegister);
- S.RegisterDelphiFunction(@InputQuery, 'InputQuery', cdRegister);
+ S.RegisterDelphiFunction(@_InputQuery, 'InputQuery', cdRegister);
 end;
 
 (*----------------------------------------------------------------------------*)
@@ -696,8 +705,6 @@ begin
   RIRegister_TFindDialog(CL);
   RIRegister_TReplaceDialog(CL);
 end;
-
-
 
 { TPSImport_Dialogs }
 (*----------------------------------------------------------------------------*)

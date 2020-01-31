@@ -1,7 +1,11 @@
 # RemObjects Pascal Script for Delphi ( RPS )
-![](https://tokei.rs/b1/github/pult/pascalscript?category=code) ![](https://tokei.rs/b1/github/pult/pascalscript?category=files)
+
+![Sample](Articles/ps-128.png?raw=true)
+
 - **Homepage:** https://www.remobjects.com/ps.aspx
 - **Base Repository:** https://github.com/remobjects/pascalscript
+
+![](https://tokei.rs/b1/github/pult/pascalscript?category=code) ![](https://tokei.rs/b1/github/pult/pascalscript?category=files)
 
  Pascal Script is a free scripting engine that allows you to use most of the Object Pascal language within your Delphi or Free Pascal projects at runtime. Written completely in Delphi, it is composed of a set of units that can be compiled into your executable, eliminating the need to distribute any external files. Pascal Script started out as a need for a good working script, when there were none available at the time.
 

@@ -2,7 +2,7 @@
 
 ![Sample](Articles/ps-128.png?raw=true)
 
-- **Homepage:** https://www.remobjects.com/ps.aspx
+- **Homepage:** https://www.remobjects.com/ps
 - **Base Repository:** https://github.com/remobjects/pascalscript
 
 ![](https://tokei.rs/b1/github/pult/pascalscript?category=code) ![](https://tokei.rs/b1/github/pult/pascalscript?category=files)

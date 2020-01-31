@@ -9,7 +9,7 @@ code implementing the class wrapper is taken from Carlo Kok''s conv unility
 }
 {$I ifps3_def.inc}
 interface
- 
+
 uses
    SysUtils
   ,Classes
@@ -17,8 +17,8 @@ uses
   ,ifpscomp
   ,ifps3
   ;
- 
-type 
+
+type
 (*----------------------------------------------------------------------------*)
   TIFPS3CE_Dialogs = class(TIFPS3Plugin)
   protected
@@ -29,8 +29,8 @@ type
     procedure ExecImport1(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
     procedure ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
   end;
- 
- 
+
+
 (*
 { compile-time registration functions }
 procedure SIRegister_TReplaceDialog(CL: TIFPSPascalCompiler);
@@ -43,7 +43,7 @@ procedure SIRegister_TSaveDialog(CL: TIFPSPascalCompiler);
 procedure SIRegister_TOpenDialog(CL: TIFPSPascalCompiler);
 procedure SIRegister_TCommonDialog(CL: TIFPSPascalCompiler);
 procedure SIRegister_Dialogs(CL: TIFPSPascalCompiler);
- 
+
 { run-time registration functions }
 procedure RIRegister_Dialogs_Routines(S: TIFPSExec);
 procedure RIRegister_TReplaceDialog(CL: TIFPSRuntimeClassImporter);
@@ -58,9 +58,7 @@ procedure RIRegister_TCommonDialog(CL: TIFPSRuntimeClassImporter);
 procedure RIRegister_Dialogs(CL: TIFPSRuntimeClassImporter);
 *)
 
-
 implementation
-
 
 uses
    Windows
@@ -72,14 +70,14 @@ uses
   ,StdCtrls
   ,Dialogs
   ;
- 
- 
+
+
 { compile-time importer function }
 (*----------------------------------------------------------------------------
- Sometimes the CL.AddClassN() fails to correctly register a class, 
+ Sometimes the CL.AddClassN() fails to correctly register a class,
  for unknown (at least to me) reasons
  So, you may use the below RegClassS() replacing the CL.AddClassN()
- of the various SIRegister_XXXX calls 
+ of the various SIRegister_XXXX calls
  ----------------------------------------------------------------------------*)
 function RegClassS(CL: TIFPSPascalCompiler; const InheritsFrom, Classname: string): TIFPSCompileTimeClass;
 begin
@@ -88,8 +86,8 @@ begin
     Result := CL.AddClassN(CL.FindClass(InheritsFrom), Classname)
   else Result.ClassInheritsFrom := CL.FindClass(InheritsFrom);
 end;
-  
-  
+
+
 (* === compile-time registration functions === *)
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TReplaceDialog(CL: TIFPSPascalCompiler);
@@ -765,18 +763,18 @@ begin
   RIRegister_TReplaceDialog(CL);
 end;
 
- 
- 
+
+
 { TIFPS3CE_Dialogs }
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_Dialogs.CompOnUses(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_Dialogs.ExecOnUses(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_Dialogs.CompileImport1(CompExec: TIFPS3CompExec);
@@ -786,7 +784,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_Dialogs.CompileImport2(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_Dialogs.ExecImport1(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter);
@@ -797,16 +795,16 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_Dialogs.ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter);
 begin
-  { nothing } 
+  { nothing }
 end;
- 
- 
+
+
 initialization
- (**) 
+ (**)
 {$IFDEF USEIMPORTER}
 CIImporter.AddCallBack(@SIRegister_Dialogs,PT_ClassImport);
 {$ENDIF}
 finalization
- (**) 
- 
+ (**)
+
 end.

@@ -16,7 +16,7 @@
         <CompilerPath Value="$(CompPath)"/>
       </Other>
     </CompilerOptions>
-    <Description Value="RemObjects Pascal Script 
+    <Description Value="RemObjects Pascal Script
 Created by Carlo Kok
 RemObjects Software
 Fixed for Lazarus by Bogusіaw Brandys

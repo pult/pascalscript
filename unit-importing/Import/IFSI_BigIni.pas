@@ -9,7 +9,7 @@ code implementing the class wrapper is taken from Carlo Kok''s conv unility
 }
 {$I PascalScript.inc}
 interface
- 
+
 uses
    SysUtils
   ,Classes
@@ -17,8 +17,8 @@ uses
   ,uPSRuntime
   ,uPSCompiler
   ;
- 
-type 
+
+type
 (*----------------------------------------------------------------------------*)
   TPSImport_BigIni = class(TPSPlugin)
   protected
@@ -29,8 +29,8 @@ type
     procedure ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
     procedure ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
   end;
- 
- 
+
+
 (*
 { compile-time registration functions }
 procedure SIRegister_TLibIniFile(CL: TPSPascalCompiler);
@@ -40,7 +40,7 @@ procedure SIRegister_TBigIniFile(CL: TPSPascalCompiler);
 procedure SIRegister_TSectionList(CL: TPSPascalCompiler);
 procedure SIRegister_TCommaSeparatedInfo(CL: TPSPascalCompiler);
 procedure SIRegister_BigIni(CL: TPSPascalCompiler);
- 
+
 { run-time registration functions }
 procedure RIRegister_BigIni_Routines(S: TPSExec);
 procedure RIRegister_TLibIniFile(CL: TPSRuntimeClassImporter);
@@ -52,21 +52,19 @@ procedure RIRegister_TCommaSeparatedInfo(CL: TPSRuntimeClassImporter);
 procedure RIRegister_BigIni(CL: TPSRuntimeClassImporter);
 *)
 
-
 implementation
-
 
 uses
    BigIni
   ;
- 
- 
+
+
 { compile-time importer function }
 (*----------------------------------------------------------------------------
- Sometimes the CL.AddClassN() fails to correctly register a class, 
+ Sometimes the CL.AddClassN() fails to correctly register a class,
  for unknown (at least to me) reasons
  So, you may use the below RegClassS() replacing the CL.AddClassN()
- of the various SIRegister_XXXX calls 
+ of the various SIRegister_XXXX calls
  ----------------------------------------------------------------------------*)
 function RegClassS(CL: TPSPascalCompiler; const InheritsFrom, Classname: string): TPSCompileTimeClass;
 begin
@@ -75,8 +73,8 @@ begin
     Result := CL.AddClassN(CL.FindClass(InheritsFrom), Classname)
   else Result.ClassInheritsFrom := CL.FindClass(InheritsFrom);
 end;
-  
-  
+
+
 (* === compile-time registration functions === *)
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TLibIniFile(CL: TPSPascalCompiler);
@@ -451,18 +449,18 @@ begin
   RIRegister_TLibIniFile(CL);
 end;
 
- 
- 
+
+
 { TPSImport_BigIni }
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_BigIni.CompOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_BigIni.ExecOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_BigIni.CompileImport1(CompExec: TPSScript);
@@ -472,7 +470,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_BigIni.CompileImport2(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_BigIni.ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
@@ -483,8 +481,8 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_BigIni.ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
 begin
-  { nothing } 
+  { nothing }
 end;
- 
- 
+
+
 end.

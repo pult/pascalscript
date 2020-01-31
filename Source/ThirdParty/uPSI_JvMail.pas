@@ -7,7 +7,7 @@ UnitParser. Components of ifps3 are used in the construction of UnitParser,
 code implementing the class wrapper is taken from Carlo Kok''s conv unility
 }
 interface
- 
+
 uses
   SysUtils, Classes, uPSComponent, uPSCompiler, uPSRuntime;
 
@@ -24,7 +24,6 @@ type
   end;
 
 implementation
-
 
 uses
    Windows
@@ -342,12 +341,12 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_JvMail.CompOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_JvMail.ExecOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_JvMail.CompileImport1(CompExec: TPSScript);
@@ -357,7 +356,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_JvMail.CompileImport2(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_JvMail.ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
@@ -367,7 +366,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_JvMail.ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
 begin
-  { nothing } 
+  { nothing }
 end;
 
 end.

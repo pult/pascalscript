@@ -1,4 +1,3 @@
-
 unit CompilerTestFunctions;
 
 interface
@@ -54,7 +53,6 @@ uses StrUtils, SysUtils, Math, Dialogs,
     ifpiir_controls,
     ifpiir_classes;
 
-
 { TFunctionsTest }
 
 var
@@ -76,7 +74,6 @@ function getWideString(): WideString;
 begin
     Result := aWideString;
 end;
-
 
 function MyWide2String(s: WideString): String;
 begin
@@ -100,7 +97,6 @@ begin
     Sender.AddMethod(Self, @TCompilerTestFunctions.AssertI, 'procedure AssertI(s1, s2: Longint);');
     Sender.AddMethod(Self, @TCompilerTestFunctions.AssertE, 'procedure AssertE(s1, s2: Extended);');
 
-
     Sender.AddFunction(@ResultS, 'procedure ResultS(s: string);');
     Sender.AddFunction(@ResultSw, 'procedure ResultSw(s: WideString);');
     Sender.AddFunction(@MyString2Wide, 'function MyString2Wide(s: String): Widestring;');
@@ -122,7 +118,6 @@ begin
     CompileRun('begin ResultS(''hello''); end.');
     CheckEquals('hello', vResultS, last_script);
 end;
-
 
 procedure TCompilerTestFunctions.WideStringFunctions;
 begin
@@ -163,7 +158,6 @@ begin
   Check(@Meth <> nil, 'Unable to find function');
   CheckEquals('Test Results: INDATA', Meth('INDATA'));
 end;
-
 
 procedure TCompilerTestFunctions.CheckConsts;
 begin

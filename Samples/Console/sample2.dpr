@@ -40,8 +40,8 @@ end;
 procedure ExecuteScript(const Script: string);
 var
   Compiler: TPSPascalCompiler;
-  { TPSPascalCompiler is the compiler part of the scriptengine. This will 
-    translate a Pascal script into a compiled form the executer understands. } 
+  { TPSPascalCompiler is the compiler part of the scriptengine. This will
+    translate a Pascal script into a compiled form the executer understands. }
   Exec: TPSExec;
    { TPSExec is the executer part of the scriptengine. It uses the output of
     the compiler to run a script. }
@@ -61,13 +61,13 @@ begin
 
   Exec := TPSExec.Create;  // Create an instance of the executer.
   Exec.RegisterDelphiFunction(@MyOwnFunction, 'MYOWNFUNCTION', cdRegister);
-  { This will register the function to the executer. The first parameter is a 
-    pointer to the function. The second parameter is the name of the function (in uppercase). 
-	And the last parameter is the calling convention (usually Register). }  
+  { This will register the function to the executer. The first parameter is a
+    pointer to the function. The second parameter is the name of the function (in uppercase).
+	And the last parameter is the calling convention (usually Register). }
 
   if not  Exec.LoadData(Data) then // Load the data from the Data string.
   begin
-    { For some reason the script could not be loaded. This is usually the case when a 
+    { For some reason the script could not be loaded. This is usually the case when a
       library that has been used at compile time isn't registered at runtime. }
     Exec.Free;
      // You could raise an exception here.
@@ -77,8 +77,6 @@ begin
   Exec.RunScript; // Run the script.
   Exec.Free; // Free the executer.
 end;
-
-
 
 const
   Script = 'var s: string; begin s := ''Test''; S := s + ''ing;''; MyOwnFunction(s); end.';

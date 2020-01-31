@@ -1,11 +1,10 @@
- 
 unit uPSComponent_Forms;
 
 interface
 uses
   SysUtils, Classes, uPSRuntime, uPSCompiler, uPSComponent;
 type
-  
+
   TPSImport_Forms = class(TPSPlugin)
   private
     FEnableForms: Boolean;
@@ -16,12 +15,12 @@ type
   public
     constructor Create(AOwner: TComponent); override;
   published
-    
+
     property EnableForms: Boolean read FEnableForms write FEnableForms;
-    
+
     property EnableMenus: Boolean read FEnableMenus write FEnableMenus;
   end;
-  
+
   TIFPS3CE_Forms = class(TPSImport_Forms);
 
 implementation

@@ -20,9 +20,9 @@ function ScriptOnUses(Sender: TPSPascalCompiler; const Name: AnsiString): Boolea
 {$ELSE}
 function ScriptOnUses(Sender: TPSPascalCompiler; const Name: string): Boolean;
 {$ENDIF}
-{ the OnUses callback function is called for each "uses" in the script. 
-  It's always called with the parameter 'SYSTEM' at the top of the script. 
-  For example: uses ii1, ii2;   
+{ the OnUses callback function is called for each "uses" in the script.
+  It's always called with the parameter 'SYSTEM' at the top of the script.
+  For example: uses ii1, ii2;
   This will call this function 3 times. First with 'SYSTEM' then 'II1' and then 'II2'.
 }
 begin
@@ -53,8 +53,8 @@ end;
 procedure ExecuteScript(const Script: string);
 var
   Compiler: TPSPascalCompiler;
-  { TPSPascalCompiler is the compiler part of the scriptengine. This will 
-    translate a Pascal script into a compiled form the executer understands. } 
+  { TPSPascalCompiler is the compiler part of the scriptengine. This will
+    translate a Pascal script into a compiled form the executer understands. }
   Exec: TPSExec;
    { TPSExec is the executer part of the scriptengine. It uses the output of
     the compiler to run a script. }
@@ -103,8 +103,6 @@ begin
   Exec.Free; // Free the executer.
   CI.Free;  // Free the runtime class importer.
 end;
-
-
 
 const
   Script =

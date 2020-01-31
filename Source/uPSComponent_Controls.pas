@@ -4,7 +4,7 @@ interface
 uses
   SysUtils, Classes, uPSComponent, uPSCompiler, uPSRuntime;
 type
-  
+
   TPSImport_Controls = class(TPSPlugin)
   private
     FEnableStreams: Boolean;
@@ -16,14 +16,14 @@ type
   public
     constructor Create(AOwner: TComponent); override;
   published
-    
+
     property EnableStreams: Boolean read FEnableStreams write FEnableStreams;
-    
+
     property EnableGraphics: Boolean read FEnableGraphics write FEnableGraphics;
-    
+
     property EnableControls: Boolean read FEnableControls write FEnableControls;
   end;
-  
+
   TIFPS3CE_Controls = class(TPSImport_Controls);
 
 implementation
@@ -32,7 +32,6 @@ uses
   uPSC_controls,
   uPSR_graphics,
   uPSR_controls;
-
 
 { TPSImport_Controls }
 
@@ -60,6 +59,5 @@ begin
   if FEnableControls then
     RIRegister_Controls(ri);
 end;
-
 
 end.

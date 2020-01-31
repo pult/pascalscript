@@ -26,7 +26,6 @@ type
 
 implementation
 
-
 uses
    Windows ,IniFiles ,Registry ;
 
@@ -307,7 +306,6 @@ begin
     RegisterMethod('procedure SetStrings(List: TStrings)');
   end;
 end;
-
 
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TIniFile(CL: TPSPascalCompiler);

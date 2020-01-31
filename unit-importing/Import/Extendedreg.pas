@@ -2,7 +2,7 @@ unit Extendedreg;
 
 interface
 
-procedure Register;          
+procedure Register;
 
 implementation
 

@@ -1,4 +1,3 @@
-
   {$DEFINE PS_HAVEVARIANT}
   {$DEFINE PS_DYNARRAY}
   {$ifndef mswindows}

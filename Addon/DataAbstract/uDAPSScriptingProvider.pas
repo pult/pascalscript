@@ -160,7 +160,6 @@ begin
   end;
 end;
 
-
 procedure TDAPSScriptingProvider.RunBusinessProcessorScript(
   aBusinessProcessor: TDABusinessProcessor; const aScript, aMethod: string;
   aLanguage: TROSEScriptLanguage);

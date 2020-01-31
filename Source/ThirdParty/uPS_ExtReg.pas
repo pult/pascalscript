@@ -2,7 +2,7 @@ unit uPS_ExtReg;
 
 interface
 
-procedure Register;          
+procedure Register;
 
 implementation
 

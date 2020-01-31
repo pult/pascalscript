@@ -1,11 +1,10 @@
- 
 unit uPSComponent_StdCtrls;
 
 interface
 uses
   SysUtils, Classes, uPSComponent, uPSCompiler, uPSRuntime;
 type
-  
+
   TPSImport_StdCtrls = class(TPSPlugin)
   private
     FEnableButtons: Boolean;
@@ -16,14 +15,13 @@ type
   public
     constructor Create(AOwner: TComponent); override;
   published
-    
+
     property EnableExtCtrls: Boolean read FEnableExtCtrls write FEnableExtCtrls;
-    
+
     property EnableButtons: Boolean read FEnableButtons write FEnableButtons;
   end;
-  
-  TIFPS3CE_StdCtrls = class(TPSImport_StdCtrls);
 
+  TIFPS3CE_StdCtrls = class(TPSImport_StdCtrls);
 
 implementation
 uses

@@ -48,8 +48,8 @@ function ScriptOnUses(Sender: TPSPascalCompiler; const Name: AnsiString): Boolea
 function ScriptOnUses(Sender: TPSPascalCompiler; const Name: string): Boolean;
 {$ENDIF}
 { the OnUses callback function is called for each "uses" in the script.
-  It's always called with the parameter 'SYSTEM' at the top of the script. 
-  For example: uses ii1, ii2;   
+  It's always called with the parameter 'SYSTEM' at the top of the script.
+  For example: uses ii1, ii2;
   This will call this function 3 times. First with 'SYSTEM' then 'II1' and then 'II2'.
 }
 begin
@@ -66,8 +66,8 @@ end;
 procedure ExecuteScript(const Script: string);
 var
   Compiler: TPSPascalCompiler;
-  { TPSPascalCompiler is the compiler part of the scriptengine. This will 
-    translate a Pascal script into a compiled form the executer understands. } 
+  { TPSPascalCompiler is the compiler part of the scriptengine. This will
+    translate a Pascal script into a compiled form the executer understands. }
   Exec: TPSExec;
    { TPSExec is the executer part of the scriptengine. It uses the output of
     the compiler to run a script. }
@@ -96,13 +96,13 @@ begin
   Exec := TPSExec.Create;  // Create an instance of the executer.
 
   Exec.RegisterDelphiFunction(@MyOwnFunction, 'MYOWNFUNCTION', cdRegister);
-  { This will register the function to the executer. The first parameter is the executer. The second parameter is a 
+  { This will register the function to the executer. The first parameter is the executer. The second parameter is a
     pointer to the function. The third parameter is the name of the function (in uppercase). And the last parameter is the
     calling convention (usually Register). }
 
   if not Exec.LoadData(Data) then // Load the data from the Data string.
   begin
-    { For some reason the script could not be loaded. This is usually the case when a 
+    { For some reason the script could not be loaded. This is usually the case when a
       library that has been used at compile time isn't registered at runtime. }
     Exec.Free;
      // You could raise an exception here.
@@ -132,8 +132,6 @@ begin
 
   Exec.Free; // Free the executer.
 end;
-
-
 
 const
   Script = 'procedure test(s: string); begin MyOwnFunction(''Test is called: ''+s);end; begin end.';

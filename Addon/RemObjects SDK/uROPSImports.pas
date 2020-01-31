@@ -7,14 +7,11 @@ uses
   uROXMLSerializer, uROIndyTCPChannel, idTcpClient,
   uROPSServerLink, uROWinInetHttpChannel;
 
-
 procedure SIRegisterTROBINMESSAGE(CL: TIFPSPascalCompiler);
 procedure SIRegisterTROINDYHTTPCHANNEL(CL: TIFPSPascalCompiler);
 procedure SIRegisterTROINDYTCPCHANNEL(CL: TIFPSPascalCompiler);
 procedure SIRegisterTIDTCPCLIENT(CL: TIFPSPascalCompiler);
 procedure SIRegisterRODLImports(Cl: TIFPSPascalCompiler);
-
-
 
 procedure RIRegisterTROBINMESSAGE(Cl: TIFPSRuntimeClassImporter);
 procedure RIRegisterTROINDYHTTPCHANNEL(Cl: TIFPSRuntimeClassImporter);
@@ -32,143 +29,142 @@ Todo:
      end;
 *)
 type
-  
+
   TPSROIndyTCPModule = class(TPSROModule)
   protected
     class procedure ExecImp(exec: TIFPSExec; ri: TIFPSRuntimeClassImporter); override;
     class procedure CompImp(comp: TIFPSPascalCompiler); override;
   end;
-  
+
   TPSROIndyHTTPModule = class(TPSROModule)
   protected
     class procedure ExecImp(exec: TIFPSExec; ri: TIFPSRuntimeClassImporter); override;
     class procedure CompImp(comp: TIFPSPascalCompiler); override;
   end;
-  
+
   TPSROBinModule = class(TPSROModule)
   protected
     class procedure ExecImp(exec: TIFPSExec; ri: TIFPSRuntimeClassImporter); override;
     class procedure CompImp(comp: TIFPSPascalCompiler); override;
   end;
 
-
 implementation
 
 {procedure TROSOAPMESSAGESERIALIZATIONOPTIONS_W(Self: TROSOAPMESSAGE;
   const T: TXMLSERIALIZATIONOPTIONS);
-begin 
-  Self.SERIALIZATIONOPTIONS := T; 
+begin
+  Self.SERIALIZATIONOPTIONS := T;
 end;
 
 procedure TROSOAPMESSAGESERIALIZATIONOPTIONS_R(Self: TROSOAPMESSAGE;
   var T: TXMLSERIALIZATIONOPTIONS);
-begin 
-  T := Self.SERIALIZATIONOPTIONS; 
+begin
+  T := Self.SERIALIZATIONOPTIONS;
 end;
 
 procedure TROSOAPMESSAGECUSTOMLOCATION_W(Self: TROSOAPMESSAGE; const T: string);
-begin 
-  Self.CUSTOMLOCATION := T; 
+begin
+  Self.CUSTOMLOCATION := T;
 end;
 
 procedure TROSOAPMESSAGECUSTOMLOCATION_R(Self: TROSOAPMESSAGE; var T: string);
-begin 
-  T := Self.CUSTOMLOCATION; 
+begin
+  T := Self.CUSTOMLOCATION;
 end;
 
 procedure TROSOAPMESSAGELIBRARYNAME_W(Self: TROSOAPMESSAGE; const T: string);
-begin 
-  Self.LIBRARYNAME := T; 
+begin
+  Self.LIBRARYNAME := T;
 end;
 
 procedure TROSOAPMESSAGELIBRARYNAME_R(Self: TROSOAPMESSAGE; var T: string);
-begin 
-  T := Self.LIBRARYNAME; 
+begin
+  T := Self.LIBRARYNAME;
 end; }
 
 procedure TROBINMESSAGEUSECOMPRESSION_W(Self: TROBINMESSAGE; const T: boolean);
-begin 
-  Self.USECOMPRESSION := T; 
+begin
+  Self.USECOMPRESSION := T;
 end;
 
 procedure TROBINMESSAGEUSECOMPRESSION_R(Self: TROBINMESSAGE; var T: boolean);
-begin 
-  T := Self.USECOMPRESSION; 
+begin
+  T := Self.USECOMPRESSION;
 end;
 
 procedure TROINDYHTTPCHANNELTARGETURL_W(Self: TROINDYHTTPCHANNEL; const T: string);
-begin 
-  Self.TARGETURL := T; 
+begin
+  Self.TARGETURL := T;
 end;
 
 procedure TROINDYHTTPCHANNELTARGETURL_R(Self: TROINDYHTTPCHANNEL; var T: string);
-begin 
-  T := Self.TARGETURL; 
+begin
+  T := Self.TARGETURL;
 end;
 
 procedure TROINDYTCPCHANNELINDYCLIENT_R(Self: TROINDYTCPCHANNEL; var T: TIdTCPClientBaseClass);
-begin 
-  T := Self.INDYCLIENT; 
+begin
+  T := Self.INDYCLIENT;
 end;
 
 procedure TIDTCPCLIENTPORT_W(Self: TIDTCPCLIENT; const T: integer);
-begin 
-  Self.PORT := T; 
+begin
+  Self.PORT := T;
 end;
 
 procedure TIDTCPCLIENTPORT_R(Self: TIdTCPClientBaseClass; var T: integer);
-begin 
+begin
   T := TIdIndy10HackClient(Self).PORT;
 end;
 
 procedure TIDTCPCLIENTHOST_W(Self: TIdTCPClientBaseClass; const T: string);
-begin 
+begin
   TIdIndy10HackClient(Self).HOST := T;
 end;
 
 procedure TIDTCPCLIENTHOST_R(Self: TIdTCPClientBaseClass; var T: string);
-begin 
-  T := TIdIndy10HackClient(Self).HOST; 
+begin
+  T := TIdIndy10HackClient(Self).HOST;
 end;
 
 {procedure TIDTCPCLIENTBOUNDPORT_W(Self: TIdTCPClientBaseClass; const T: integer);
-begin 
-  Self.BOUNDPORT := T; 
+begin
+  Self.BOUNDPORT := T;
 end;
 
 procedure TIDTCPCLIENTBOUNDPORT_R(Self: TIdTCPClientBaseClass; var T: integer);
-begin 
-  T := Self.BOUNDPORT; 
+begin
+  T := Self.BOUNDPORT;
 end;
 
 procedure TIDTCPCLIENTBOUNDIP_W(Self: TIdTCPClientBaseClass; const T: string);
-begin 
-  Self.BOUNDIP := T; 
+begin
+  Self.BOUNDIP := T;
 end;
 
 procedure TIDTCPCLIENTBOUNDIP_R(Self: TIdTCPClientBaseClass; var T: string);
-begin 
-  T := Self.BOUNDIP; 
+begin
+  T := Self.BOUNDIP;
 end;]
 
 procedure TIDTCPCLIENTBOUNDPORTMIN_W(Self: TIdTCPClientBaseClass; const T: integer);
-begin 
-  Self.BOUNDPORTMIN := T; 
+begin
+  Self.BOUNDPORTMIN := T;
 end;
 
 procedure TIDTCPCLIENTBOUNDPORTMIN_R(Self: TIdTCPClientBaseClass; var T: integer);
-begin 
-  T := Self.BOUNDPORTMIN; 
+begin
+  T := Self.BOUNDPORTMIN;
 end;
 
 procedure TIDTCPCLIENTBOUNDPORTMAX_W(Self: TIdTCPClientBaseClass; const T: integer);
-begin 
-  Self.BOUNDPORTMAX := T; 
+begin
+  Self.BOUNDPORTMAX := T;
 end;
 
 procedure TIDTCPCLIENTBOUNDPORTMAX_R(Self: TIdTCPClientBaseClass; var T: integer);
-begin 
-  T := Self.BOUNDPORTMAX; 
+begin
+  T := Self.BOUNDPORTMAX;
 end;
 
 {procedure RIRegisterTROSOAPMESSAGE(Cl: TIFPSRuntimeClassImporter);

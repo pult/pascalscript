@@ -9,7 +9,7 @@ code implementing the class wrapper is taken from Carlo Kok''s conv unility
 }
 {$I ifps3_def.inc}
 interface
- 
+
 uses
    SysUtils
   ,Classes
@@ -17,8 +17,8 @@ uses
   ,ifpscomp
   ,ifps3
   ;
- 
-type 
+
+type
 (*----------------------------------------------------------------------------*)
   TIFPS3CE_Registry = class(TIFPS3Plugin)
   protected
@@ -29,15 +29,15 @@ type
     procedure ExecImport1(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
     procedure ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
   end;
- 
- 
+
+
 (*
 { compile-time registration functions }
 procedure SIRegister_TRegistryIniFile(CL: TIFPSPascalCompiler);
 procedure SIRegister_TRegIniFile(CL: TIFPSPascalCompiler);
 procedure SIRegister_TRegistry(CL: TIFPSPascalCompiler);
 procedure SIRegister_Registry(CL: TIFPSPascalCompiler);
- 
+
 { run-time registration functions }
 procedure RIRegister_TRegistryIniFile(CL: TIFPSRuntimeClassImporter);
 procedure RIRegister_TRegIniFile(CL: TIFPSRuntimeClassImporter);
@@ -45,23 +45,21 @@ procedure RIRegister_TRegistry(CL: TIFPSRuntimeClassImporter);
 procedure RIRegister_Registry(CL: TIFPSRuntimeClassImporter);
 *)
 
-
 implementation
-
 
 uses
    Windows
   ,IniFiles
   ,Registry
   ;
- 
- 
+
+
 { compile-time importer function }
 (*----------------------------------------------------------------------------
- Sometimes the CL.AddClassN() fails to correctly register a class, 
+ Sometimes the CL.AddClassN() fails to correctly register a class,
  for unknown (at least to me) reasons
  So, you may use the below RegClassS() replacing the CL.AddClassN()
- of the various SIRegister_XXXX calls 
+ of the various SIRegister_XXXX calls
  ----------------------------------------------------------------------------*)
 function RegClassS(CL: TIFPSPascalCompiler; const InheritsFrom, Classname: string): TIFPSCompileTimeClass;
 begin
@@ -70,8 +68,8 @@ begin
     Result := CL.AddClassN(CL.FindClass(InheritsFrom), Classname)
   else Result.ClassInheritsFrom := CL.FindClass(InheritsFrom);
 end;
-  
-  
+
+
 (* === compile-time registration functions === *)
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TRegistryIniFile(CL: TIFPSPascalCompiler);
@@ -350,7 +348,6 @@ begin
   end;
 end;
 
-
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TIniFile(CL: TIFPSPascalCompiler);
 begin
@@ -516,7 +513,6 @@ procedure TIFPS3CE_Registry.ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFP
 begin
   { nothing }
 end;
-
 
 initialization
  (**)

@@ -6,15 +6,15 @@ uses
   uPSUtils,
   uPSCompiler,
   uPSRuntime;
-  
+
 {$IFDEF UNICODE}
 function ScriptOnUses(Sender: TPSPascalCompiler; const Name: AnsiString): Boolean;
 {$ELSE}
 function ScriptOnUses(Sender: TPSPascalCompiler; const Name: string): Boolean;
 {$ENDIF}
-{ the OnUses callback function is called for each "uses" in the script. 
-  It's always called with the parameter 'SYSTEM' at the top of the script. 
-  For example: uses ii1, ii2;   
+{ the OnUses callback function is called for each "uses" in the script.
+  It's always called with the parameter 'SYSTEM' at the top of the script.
+  For example: uses ii1, ii2;
   This will call this function 3 times. First with 'SYSTEM' then 'II1' and then 'II2'.
 }
 begin
@@ -23,9 +23,9 @@ begin
     Sender.OnExternalProc := @DllExternalProc;
     { Assign the dll library to the script engine. This function can be found in the uPSC_dll.pas file.
       When you have assigned this, it's possible to do this in the script:
-    
+
         Function FindWindow(c1, c2: PChar): Cardinal; external 'FindWindow@user32.dll stdcall';
-        
+
         The syntax for the external string is 'functionname@dllname callingconvention'.
     }
 
@@ -37,8 +37,8 @@ end;
 procedure ExecuteScript(const Script: string);
 var
   Compiler: TPSPascalCompiler;
-  { TPSPascalCompiler is the compiler part of the scriptengine. This will 
-    translate a Pascal script into a compiled form the executer understands. } 
+  { TPSPascalCompiler is the compiler part of the scriptengine. This will
+    translate a Pascal script into a compiled form the executer understands. }
   Exec: TPSExec;
    { TPSExec is the executer part of the scriptengine. It uses the output of
     the compiler to run a script. }
@@ -63,7 +63,7 @@ begin
 
   if not  Exec.LoadData(Data) then // Load the data from the Data string.
   begin
-    { For some reason the script could not be loaded. This is usually the case when a 
+    { For some reason the script could not be loaded. This is usually the case when a
       library that has been used at compile time isn't registered at runtime. }
     Exec.Free;
      // You could raise an exception here.
@@ -73,7 +73,6 @@ begin
   Exec.RunScript; // Run the script.
   Exec.Free; // Free the executer.
 end;
-
 
 const
   Script =

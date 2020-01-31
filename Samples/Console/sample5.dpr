@@ -20,9 +20,9 @@ function ScriptOnUses(Sender: TPSPascalCompiler; const Name: AnsiString): Boolea
 {$ELSE}
 function ScriptOnUses(Sender: TPSPascalCompiler; const Name: string): Boolean;
 {$ENDIF}
-{ the OnUses callback function is called for each "uses" in the script. 
+{ the OnUses callback function is called for each "uses" in the script.
   It's always called with the parameter 'SYSTEM' at the top of the script.
-  For example: uses ii1, ii2;   
+  For example: uses ii1, ii2;
   This will call this function 3 times. First with 'SYSTEM' then 'II1' and then 'II2'.
 }
 begin
@@ -55,13 +55,13 @@ end;
 procedure ExecuteScript(const Script: string);
 var
   Compiler: TPSPascalCompiler;
-  { TPSPascalCompiler is the compiler part of the scriptengine. This will 
-    translate a Pascal script into a compiled form the executer understands. } 
+  { TPSPascalCompiler is the compiler part of the scriptengine. This will
+    translate a Pascal script into a compiled form the executer understands. }
   Exec: TPSExec;
    { TPSExec is the executer part of the scriptengine. It uses the output of
     the compiler to run a script. }
   {$IFDEF UNICODE}Data: AnsiString;{$ELSE}Data: string;{$ENDIF}
-  CI: TPSRuntimeClassImporter; 
+  CI: TPSRuntimeClassImporter;
 begin
   Compiler := TPSPascalCompiler.Create; // create an instance of the compiler.
   Compiler.OnUses := ScriptOnUses; // assign the OnUses event.
@@ -77,7 +77,7 @@ begin
 
   CI := TPSRuntimeClassImporter.Create;
   { Create an instance of the runtime class importer.}
-  
+
   RIRegister_Std(CI);  // uPSR_std.pas unit.
   RIRegister_Controls(CI); // uPSR_controls.pas unti.
   RIRegister_stdctrls(CI);  // uPSR_stdctrls.pas unit.
@@ -87,7 +87,7 @@ begin
 
   RegisterClassLibraryRuntime(Exec, CI);
   // Assign the runtime class importer to the executer.
-  
+
   if not  Exec.LoadData(Data) then // Load the data from the Data string.
   begin
     { For some reason the script could not be loaded. This is usually the case when a
@@ -102,11 +102,8 @@ begin
 
   Exec.RunScript; // Run the script.
   Exec.Free; // Free the executer.
-  CI.Free;  // Free the runtime class importer. 
+  CI.Free;  // Free the runtime class importer.
 end;
-
-
-
 
 const
   Script =

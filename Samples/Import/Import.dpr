@@ -14,4 +14,3 @@ begin
   Application.CreateForm(Tdwin, dwin);
   Application.Run;
 end.
-

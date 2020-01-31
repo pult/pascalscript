@@ -105,7 +105,6 @@ begin
   Result := TRue;
 end;
 
-
 procedure TMainForm.Compile1Click(Sender: TObject);
 var
   x1: TIFPSPascalCompiler;
@@ -189,7 +188,6 @@ begin
   changed := False;
   Memo1.Lines.Text := 'Program ROTEST;'#13#10'Begin'#13#10'End.';
 end;
-
 
 procedure TMainForm.Exit1Click(Sender: TObject);
 begin

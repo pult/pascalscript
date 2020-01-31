@@ -1,6 +1,6 @@
 unit DataAbstract_Scripting_Reg;
 {----------------------------------------------------------------------------}
-{ Data Abstract Library - Pascal Script                                      } 
+{ Data Abstract Library - Pascal Script                                      }
 {                                                                            }
 { (c)opyright RemObjects Software. all rights reserved.                      }
 {                                                                            }

@@ -60,7 +60,6 @@ begin
     Sender.AddDelphiFunction('procedure MyOwnFunction(Data: string)');
     { This will register the function to the script engine. Now it can be used from within the script. }
 
-
     Result := True;
   end else
     Result := False;
@@ -68,7 +67,7 @@ end;
 
 type
   TTestFunction = function (const s: string): string of object;
-  // Header of the test function, added of object. 
+  // Header of the test function, added of object.
 
 procedure ExecuteScript(const Script: string);
 var
@@ -88,7 +87,7 @@ begin
   Compiler.OnExportCheck := ScriptOnExportCheck; // Assign the onExportCheck event.
 
   Compiler.AllowNoBegin := True;
-  Compiler.AllowNoEnd := True; // AllowNoBegin and AllowNoEnd allows it that begin and end are not required in a script. 
+  Compiler.AllowNoEnd := True; // AllowNoBegin and AllowNoEnd allows it that begin and end are not required in a script.
 
   if not Compiler.Compile(Script) then  // Compile the Pascal script into bytecode.
   begin
@@ -106,7 +105,7 @@ begin
 
   if not Exec.LoadData(Data) then // Load the data from the Data string.
   begin
-    { For some reason the script could not be loaded. This is usually the case when a 
+    { For some reason the script could not be loaded. This is usually the case when a
       library that has been used at compile time isn't registered at runtime. }
     Exec.Free;
      // You could raise an exception here.
@@ -119,8 +118,6 @@ begin
 
   Exec.Free; // Free the executer.
 end;
-
-
 
 const
   Script = 'function test(s: string): string; begin MyOwnFunction(''Test Called with param: ''+s); Result := ''Test Result: ''+s; end;';

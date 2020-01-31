@@ -1,11 +1,9 @@
-
 unit uPSR_extctrls;
 
 {$I PascalScript.inc}
 interface
 uses
   uPSRuntime, uPSUtils;
-
 
 procedure RIRegister_ExtCtrls(cl: TPSRuntimeClassImporter);
 

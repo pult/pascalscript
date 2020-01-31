@@ -8,7 +8,7 @@ code implementing the class wrapper is taken from Carlo Kok''s conv unility
 }
 {$I ifps3_def.inc}
 interface
- 
+
 uses
    SysUtils
   ,Classes
@@ -16,8 +16,8 @@ uses
   ,ifpscomp
   ,ifps3
   ;
- 
-type 
+
+type
 (*----------------------------------------------------------------------------*)
   TIFPS3CE_IBDatabase = class(TIFPS3Plugin)
   protected
@@ -28,8 +28,8 @@ type
     procedure ExecImport1(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
     procedure ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
   end;
- 
- 
+
+
 (*
 { compile-time registration functions }
 procedure SIRegister_TIBBASE(CL: TIFPSPascalCompiler);
@@ -37,7 +37,7 @@ procedure SIRegister_TIBTRANSACTION(CL: TIFPSPascalCompiler);
 procedure SIRegister_TIBDATABASE(CL: TIFPSPascalCompiler);
 procedure SIRegister_TIBSCHEMA(CL: TIFPSPascalCompiler);
 procedure SIRegister_IBDatabase(CL: TIFPSPascalCompiler);
- 
+
 { run-time registration functions }
 procedure RIRegister_TIBBASE(CL: TIFPSRuntimeClassImporter);
 procedure RIRegister_TIBTRANSACTION(CL: TIFPSRuntimeClassImporter);
@@ -46,9 +46,7 @@ procedure RIRegister_TIBSCHEMA(CL: TIFPSRuntimeClassImporter);
 procedure RIRegister_IBDatabase(CL: TIFPSRuntimeClassImporter);
 *)
 
-
 implementation
-
 
 uses
    WINDOWS
@@ -63,14 +61,14 @@ uses
   ,IB
   ,IBDatabase
   ;
- 
- 
+
+
 { compile-time importer function }
 (*----------------------------------------------------------------------------
- Sometimes the CL.AddClassN() fails to correctly register a class, 
+ Sometimes the CL.AddClassN() fails to correctly register a class,
  for unknown (at least to me) reasons
  So, you may use the below RegClassS() replacing the CL.AddClassN()
- of the various SIRegister_XXXX calls 
+ of the various SIRegister_XXXX calls
  ----------------------------------------------------------------------------*)
 function RegClassS(CL: TIFPSPascalCompiler; const InheritsFrom, Classname: string): TIFPSCompileTimeClass;
 begin
@@ -79,8 +77,8 @@ begin
     Result := CL.AddClassN(CL.FindClass(InheritsFrom), Classname)
   else Result.ClassInheritsFrom := CL.FindClass(InheritsFrom);
 end;
-  
-  
+
+
 (* === compile-time registration functions === *)
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TIBBASE(CL: TIFPSPascalCompiler);
@@ -658,18 +656,18 @@ begin
   RIRegister_TIBBASE(CL);
 end;
 
- 
- 
+
+
 { TIFPS3CE_IBDatabase }
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_IBDatabase.CompOnUses(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_IBDatabase.ExecOnUses(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_IBDatabase.CompileImport1(CompExec: TIFPS3CompExec);
@@ -679,7 +677,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_IBDatabase.CompileImport2(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_IBDatabase.ExecImport1(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter);
@@ -689,16 +687,16 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_IBDatabase.ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter);
 begin
-  { nothing } 
+  { nothing }
 end;
- 
- 
+
+
 initialization
- (**) 
+ (**)
 {$IFDEF USEIMPORTER}
 CIImporter.AddCallBack(@SIRegister_IBDatabase,PT_ClassImport);
 {$ENDIF}
 finalization
- (**) 
- 
+ (**)
+
 end.

@@ -9,7 +9,7 @@ code implementing the class wrapper is taken from Carlo Kok''s conv unility
 }
 {$I ifps3_def.inc}
 interface
- 
+
 uses
    SysUtils
   ,Classes
@@ -17,8 +17,8 @@ uses
   ,ifpscomp
   ,ifps3
   ;
- 
-type 
+
+type
 (*----------------------------------------------------------------------------*)
   TIFPS3CE_JvMail = class(TIFPS3Plugin)
   protected
@@ -29,15 +29,15 @@ type
     procedure ExecImport1(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
     procedure ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter); override;
   end;
- 
- 
+
+
 (*
 { compile-time registration functions }
 procedure SIRegister_TJvMail(CL: TIFPSPascalCompiler);
 procedure SIRegister_TJvMailRecipients(CL: TIFPSPascalCompiler);
 procedure SIRegister_TJvMailRecipient(CL: TIFPSPascalCompiler);
 procedure SIRegister_JvMail(CL: TIFPSPascalCompiler);
- 
+
 { run-time registration functions }
 procedure RIRegister_TJvMail(CL: TIFPSRuntimeClassImporter);
 procedure RIRegister_TJvMailRecipients(CL: TIFPSRuntimeClassImporter);
@@ -45,13 +45,11 @@ procedure RIRegister_TJvMailRecipient(CL: TIFPSRuntimeClassImporter);
 procedure RIRegister_JvMail(CL: TIFPSRuntimeClassImporter);
 *)
 
-
 implementation
-
 
 uses
    Windows
-  ,Controls                                                              
+  ,Controls
   ,Forms
   ,Mapi
   ,JclBase
@@ -59,14 +57,14 @@ uses
   ,JvComponent
   ,JvMail
   ;
- 
- 
+
+
 { compile-time importer function }
 (*----------------------------------------------------------------------------
- Sometimes the CL.AddClassN() fails to correctly register a class, 
+ Sometimes the CL.AddClassN() fails to correctly register a class,
  for unknown (at least to me) reasons
  So, you may use the below RegClassS() replacing the CL.AddClassN()
- of the various SIRegister_XXXX calls 
+ of the various SIRegister_XXXX calls
  ----------------------------------------------------------------------------*)
 function RegClassS(CL: TIFPSPascalCompiler; const InheritsFrom, Classname: string): TIFPSCompileTimeClass;
 begin
@@ -75,8 +73,8 @@ begin
     Result := CL.AddClassN(CL.FindClass(InheritsFrom), Classname)
   else Result.ClassInheritsFrom := CL.FindClass(InheritsFrom);
 end;
-  
-  
+
+
 (* === compile-time registration functions === *)
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TJvMail(CL: TIFPSPascalCompiler);
@@ -378,18 +376,18 @@ begin
   RIRegister_TJvMail(CL);
 end;
 
- 
- 
+
+
 { TIFPS3CE_JvMail }
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_JvMail.CompOnUses(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_JvMail.ExecOnUses(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_JvMail.CompileImport1(CompExec: TIFPS3CompExec);
@@ -399,7 +397,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_JvMail.CompileImport2(CompExec: TIFPS3CompExec);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_JvMail.ExecImport1(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter);
@@ -409,16 +407,16 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TIFPS3CE_JvMail.ExecImport2(CompExec: TIFPS3CompExec; const ri: TIFPSRuntimeClassImporter);
 begin
-  { nothing } 
+  { nothing }
 end;
- 
- 
+
+
 initialization
- (**) 
+ (**)
 {$IFDEF USEIMPORTER}
 CIImporter.AddCallBack(@SIRegister_JvMail,PT_ClassImport);
 {$ENDIF}
 finalization
- (**) 
- 
+ (**)
+
 end.

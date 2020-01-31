@@ -8,7 +8,7 @@ uses
   uROClient, uRODL, uROTypes, uROClientIntf, uROSerializer;
 
 type
-  
+
   TPSROModule = class
   protected
     class procedure ExecImp(exec: TPSExec; ri: TPSRuntimeClassImporter); virtual;
@@ -17,13 +17,13 @@ type
   TPSROModuleClass = class of TPSROModule;
   TPSRemObjectsSdkPlugin = class;
   TPSROModuleLoadEvent = procedure (Sender: TPSRemObjectsSdkPlugin) of object;
-  
+
   TPSRemObjectsSdkPlugin = class(TPSPlugin)
   private
     FRodl: TRODLLibrary;
     FModules: TList;
     FOnLoadModule: TPSROModuleLoadEvent;
-    
+
     FEnableIndyTCP: Boolean;
     FEnableIndyHTTP: Boolean;
     FEnableBinary: Boolean;
@@ -35,32 +35,32 @@ type
   protected
     procedure Loaded; override;
   public
-    
+
     procedure RODLLoadFromFile(const FileName: string);
-    
+
     procedure RODLLoadFromResource;
 
     procedure RODLLoadFromStream(S: TStream);
-    
+
     procedure ClearRodl;
-    
+
     property HaveRodl: Boolean read GetHaveRodl;
-    
+
     constructor Create(AOwner: TComponent); override;
-    
+
     destructor Destroy; override;
 
-    
+
     procedure ReloadModules;
-    
+
     procedure RegisterModule(Module: TPSROModuleClass);
   published
     property OnLoadModule: TPSROModuleLoadEvent read FOnLoadModule write FOnLoadModule;
-    
+
     property EnableIndyTCP: Boolean read FEnableIndyTCP write FEnableIndyTCP default true;
-    
+
     property EnableIndyHTTP: Boolean read FEnableIndyHTTP write FEnableIndyHTTP default true;
-    
+
     property EnableBinary: Boolean read FEnableBinary write FEnableBinary default true;
   end;
 
@@ -115,7 +115,7 @@ with Cl.Add(TROMESSAGE) do
   end;
 end;
 
- 
+
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_TROBinaryMemoryStream(CL: TPSPascalCompiler);
 begin
@@ -184,7 +184,6 @@ begin
   RIRegister_TROBinaryMemoryStream(CL);
 end;
 
- 
 
 (*----------------------------------------------------------------------------*)
 
@@ -205,8 +204,6 @@ type
     property Message: IROMessage read FMessage write FMessage;
     property Channel: IROTransportChannel read FChannel write FChannel;
   end;
-
-
 
 function CreateProc(Caller: TPSExec; p: PIFProcRec; Global, Stack: TPSStack): Boolean;
 var
@@ -473,7 +470,6 @@ begin
   Result := True;
 end;
 
-
 type
   TMYComp = class(TPSPascalCompiler);
   TRoClass = class(TPSExternalClass)
@@ -534,7 +530,6 @@ begin
     end;
   end;
 end;
-
 
 destructor TPSRemObjectsSdkPlugin.Destroy;
 begin
@@ -767,7 +762,6 @@ begin
   FRefCount := 1;
 end;
 
-
 function TPSRemObjectsSdkPlugin.MkStructName(Struct: TRODLStruct): string;
 var
   i: Longint;
@@ -798,7 +792,7 @@ begin
       repeat dec(r); until CompareStructItem(Struct.Items[r], Struct.Items[Pivot]) <= 0;
       if l >= r then break;
       Struct.Exchange(l, r);
-    until false;                                     
+    until false;
     if First < r then SortStruct(Struct, First, r);
     First := r+1;
   end;
@@ -1189,7 +1183,6 @@ begin
   IntWrite(FExec, Serializer, Name, FVar, -1);
 end;
 
-
 function TROStructure._AddRef: Integer;
 begin
   // do nothing
@@ -1212,7 +1205,7 @@ end;
 
 procedure TROStructure.SetTypeName(const s: string);
 begin
-  // Do nothing  
+  // Do nothing
 end;
 
 { TROArray }

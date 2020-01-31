@@ -1,36 +1,36 @@
 March 2008
-- 0005235: Re: Error in compile error report 
+- 0005235: Re: Error in compile error report
 Feb 2008
-- 0005025: InvokeExternalMethod possible bug 
-- 0003016: ranges .. in case statement not working 
+- 0005025: InvokeExternalMethod possible bug
+- 0003016: ranges .. in case statement not working
 Jan 2008
-- 0004974: TPSScriptExtension: trivial bug 
+- 0004974: TPSScriptExtension: trivial bug
 - 0004975: bug fixed uPSRuntime.pas
-- 0004862: FPC/Lazarus please check. 
-- 0004870: Re: fixed bug 
+- 0004862: FPC/Lazarus please check.
+- 0004870: Re: fixed bug
 - 0004905: Duplicate Identifiers with constants
-- 0004906: strange issue 
+- 0004906: strange issue
 Dec 2007
-- 0004927: PS can't determine the length of a variant type anymore 
-- 0004836: Semicolon bug 
+- 0004927: PS can't determine the length of a variant type anymore
+- 0004836: Semicolon bug
 Nov 2007
-- 0004797: [Hint] issue with modules 
-- 0004786: CreateOpenArray function issue 
+- 0004797: [Hint] issue with modules
+- 0004786: CreateOpenArray function issue
 - Power pc support (done by Henry Vermaak)
 - 0004558: Re: Exception problem
 Oct 2007
-- 0004504: Getting characters at a given position 
-- 0004404: PreProcessor issue 
-- 0004503: Pascalscript error position for var params 
+- 0004504: Getting characters at a given position
+- 0004404: PreProcessor issue
+- 0004503: Pascalscript error position for var params
 - "With" on record
 
 Sept 2007
-- 0003488: breakpoints in unit support 
-- 0003535: byref/ open arrays of string give runtime type mismatch 
-- 0004434: Re: Exception Support broken 
-- 0004176: Duplicate local with diff caps don't show errors 
-- 0004192: Fix for ErTypeMismatch in TPSExec.DoBooleanCalc 
-- 0004443: public.pascalscript: uPSComponentExt.pas issue 
+- 0003488: breakpoints in unit support
+- 0003535: byref/ open arrays of string give runtime type mismatch
+- 0004434: Re: Exception Support broken
+- 0004176: Duplicate local with diff caps don't show errors
+- 0004192: Fix for ErTypeMismatch in TPSExec.DoBooleanCalc
+- 0004443: public.pascalscript: uPSComponentExt.pas issue
 - 0003310: bugfix for PascalScript
 - fix for casing of dll exports
 
@@ -40,11 +40,11 @@ April 2007
  - 5 apr: Fix by Fabio Lindner: using AND on booleans and notification variants
 
 March 2007
- - 2 mar: 0003179: strange assignment result 
- - 2 mar: 0003180: Type mismatch with currency 
+ - 2 mar: 0003179: strange assignment result
+ - 2 mar: 0003180: Type mismatch with currency
 
 February 2007
- - 22 feb: 0003033: string results are returned wrong on FreePascal 
+ - 22 feb: 0003033: string results are returned wrong on FreePascal
  - 22 feb: fix for parameter type of TStream.CopyFRom
  - 19 feb: 0002735: Problem with function returning record; Give an error when calling record members on a funtion instead of an AV
  - 2 Feb: Allow converting a Variant back to an array of Variant
@@ -70,7 +70,7 @@ November 2004;
 October 2004:
   - New compiletime support functions
   - getconst/getconstcount
-  - allow interface to be registered more than once and in any order 
+  - allow interface to be registered more than once and in any order
   - widestring published properties support.
 
 August 2004:

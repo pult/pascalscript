@@ -62,7 +62,6 @@ uses StrUtils, SysUtils, Math, Dialogs,
 
 { TCompilerTestSimple }
 
-
 procedure TCompilerTestSimple.OnCompImport(Sender: TObject;
   x: TIFPSPascalCompiler);
 begin
@@ -71,14 +70,12 @@ begin
   CompExec.AddMethod(Self, @TCompilerTestSimple.ResultB, 'procedure ResultB(const b: Boolean);');
   CompExec.AddMethod(Self, @TCompilerTestSimple.ResultI, 'procedure ResultI(const I: Longint);');
   CompExec.AddMethod(Self, @TCompilerTestSimple.ResultD, 'procedure ResultD(const D: Double);');
-end;                  
-
+end;
 
 procedure TCompilerTestSimple.ResultS(const s: string);
 begin
   LastResult := s;
 end;
-
 
 const
   CaseScript =
@@ -169,14 +166,11 @@ begin
   CheckEquals(False, LastResultB, last_script);
 end;
 
-
-
 procedure TCompilerTestSimple.RepeatLoop;
 begin
   CompileRun('var i: Integer; begin Repeat i := i + 8; until i mod 7 = 6; ResultI(I); end.');
   CheckEquals(48, LastResultI, last_script);
 end;
-
 
 procedure TCompilerTestSimple.WhileLoop;
 begin
@@ -237,7 +231,6 @@ const
 'wpSelectDir''); if i = 3 then RaiseException(erCustomError, ''not False and False'');end;'+
 'Begin backclicked := false; curpage := 0; wpSelectDir := 5; if not BackClicked then Beep(1);'+
 'if CurPage = wpSelectDir then Beep(2); if not BackClicked and (CurPage = wpSelectDir) then Beep(3);End.';
-
 
 procedure TCompilerTestSimple.IfTest2;
 begin

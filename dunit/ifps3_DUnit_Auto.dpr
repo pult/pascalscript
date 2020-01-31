@@ -11,8 +11,8 @@ uses
 
 exports
   RegisteredTests name 'Test';
-  
-{$R *.RES}  
+
+{$R *.RES}
 begin
   RunRegisteredTests(rxbHaltOnFailures);
 end.

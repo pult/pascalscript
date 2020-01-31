@@ -51,11 +51,9 @@ begin
                                        TPSCustomPlugin]);
 end;
 
-
 {$IFDEF FPC}
  initialization;
  {$i pascalscript.lrs}
 {$ENDIF}
-
 
 end.

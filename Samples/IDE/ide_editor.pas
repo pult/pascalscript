@@ -11,7 +11,7 @@ uses
   uPSComponent_COM, uPSComponent_StdCtrls, uPSComponent_Forms,
   uPSComponent_Default, uPSComponent_Controls,
   uPSRuntime, uPSDisassembly, uPSUtils,
-  uPSComponent, uPSDebugger, SynEditRegexSearch, 
+  uPSComponent, uPSDebugger, SynEditRegexSearch,
   SynEditSearch, SynEditMiscClasses, SynEditHighlighter;
 
 type
@@ -408,7 +408,7 @@ begin
   if CE.Execute then
   begin
     Messages.Items.Add(STR_SUCCESSFULLY_EXECUTED);
-    Result := True; 
+    Result := True;
   end else
   begin
     messages.Items.Add(Format(STR_RUNTIME_ERROR, [extractFileName(aFile), ce.ExecErrorRow,ce.ExecErrorCol,ce.ExecErrorProcNo,ce.ExecErrorByteCodePosition,ce.ExecErrorToString])); //Birb
@@ -646,4 +646,3 @@ begin
 end;
 
 end.
-

@@ -39,7 +39,6 @@ type
 
 implementation
 
-
 { TCompilerTestExtended }
 
 procedure TCompilerTestExtended.ArrayRefCounting;

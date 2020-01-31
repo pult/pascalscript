@@ -1,10 +1,8 @@
-
 unit uPSR_buttons;
 {$I PascalScript.inc}
 interface
 uses
   uPSRuntime, uPSUtils;
-
 
 procedure RIRegisterTSPEEDBUTTON(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTBITBTN(Cl: TPSRuntimeClassImporter);
@@ -20,7 +18,6 @@ begin
   Cl.Add(TSPEEDBUTTON);
 end;
 
-
 procedure RIRegisterTBITBTN(Cl: TPSRuntimeClassImporter);
 begin
   Cl.Add(TBITBTN);
@@ -33,6 +30,5 @@ begin
 end;
 
 // PS_MINIVCL changes by Martijn Laan (mlaan at wintax _dot_ nl)
-
 
 end.

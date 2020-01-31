@@ -29,4 +29,3 @@ The .dpk file was build with Delphi 7, if you don't have Delphi 7, it might
 complain about missing packages, you can remove those from the requires list
 and remove and compiler directives it will complain about. Install the .dpk
 file, and add the IFPS3 directory to your search paths.
-

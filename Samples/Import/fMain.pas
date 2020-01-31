@@ -177,7 +177,6 @@ begin
   Result := True;
 end;
 
-
 procedure TMainForm.Compile1Click(Sender: TObject);
 var
   x1: TPSPascalCompiler;
@@ -437,7 +436,6 @@ begin
     xPre.Free;
   end;
 end;
-
 
 procedure TMainForm.CompilewithTimer1Click(Sender: TObject);
 var

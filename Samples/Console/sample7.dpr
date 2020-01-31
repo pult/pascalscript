@@ -51,7 +51,7 @@ function ScriptOnUses(Sender: TPSPascalCompiler; const Name: AnsiString): Boolea
 function ScriptOnUses(Sender: TPSPascalCompiler; const Name: string): Boolean;
 {$ENDIF}
 { the OnUses callback function is called for each "uses" in the script.
-  It's always called with the parameter 'SYSTEM' at the top of the script. 
+  It's always called with the parameter 'SYSTEM' at the top of the script.
   For example: uses ii1, ii2;
   This will call this function 3 times. First with 'SYSTEM' then 'II1' and then 'II2'.
 }
@@ -109,7 +109,7 @@ begin
 
   if not Exec.LoadData(Data) then // Load the data from the Data string.
   begin
-    { For some reason the script could not be loaded. This is usually the case when a 
+    { For some reason the script could not be loaded. This is usually the case when a
       library that has been used at compile time isn't registered at runtime. }
     Exec.Free;
      // You could raise an exception here.
@@ -142,8 +142,6 @@ begin
 
   Exec.Free; // Free the executer.
 end;
-
-
 
 const
   Script = 'procedure test(s: tstringarray); var i: Longint; begin for i := 0 to GetArrayLength(S) -1 do MyOwnFunction(''Test is called: ''+s[i]);end; begin end.';

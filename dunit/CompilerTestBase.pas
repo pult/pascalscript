@@ -1,4 +1,3 @@
-
 unit CompilerTestBase;
 
 interface
@@ -52,7 +51,6 @@ function MyFormat(const Format: string;
 begin
   Result := SysUtils.Format(Format, Args);
 end;
-
 
 { TCompilerTestBase }
 

@@ -163,10 +163,6 @@ begin
   CL.AddTypeS('TOpenOption', '(ofReadOnly, ofOverwritePrompt, ofHideReadOnly, ofNoChangeDir, ofShowHelp, ofNoValidate, ofAllowMultiSelect, ofExtensionDifferent' +
     ', ofPathMustExist, ofFileMustExist, ofCreatePrompt, ofShareAware, ofNoReadOnlyReturn, ofNoTestFileCreate, ofNoNetworkButton, ofNoLongNames, ofOldStyleDialog, ofNoDereferenceLinks, ofEnableIncludeNotify, ofEnableSizing)');
 
-
-
-
-
   CL.AddTypeS('TOpenOptions', 'set of TOpenOption');
   CL.AddTypeS('TFileEditStyle', '(fsEdit, fsComboBox)');
   CL.AddTypeS('TIncludeItemEvent', 'procedure (const OFN: TOFNotifyEx; var Include: Boolean)');
@@ -179,8 +175,6 @@ begin
   SIRegister_TColorDialog(CL);
   CL.AddTypeS('TFontDialogOption', '(fdAnsiOnly, fdTrueTypeOnly, fdEffects, fdFixedPitchOnly, fdForceFontExist, fdNoFaceSel, fdNoOEMFonts, fdNoSimulations, fdNoSizeSel, fdNoStyleSel, fdNoVectorFonts, fdShowHelp, fdWysiwyg, fdLimitSize, fdScalableOnly, fdApplyButton)');
 
-
-
   CL.AddTypeS('TFontDialogOptions', 'set of TFontDialogOption');
   CL.AddTypeS('TFontDialogDevice', '(fdScreen, fdPrinter, fdBoth)');
   CL.AddTypeS('TFDApplyEvent', 'procedure (Sender: TObject; Wnd: HWND)');
@@ -192,7 +186,6 @@ begin
   CL.AddTypeS('TPrintDialogOptions', 'set of TPrintDialogOption');
   SIRegister_TPrintDialog(CL);
   CL.AddTypeS('TFindOption', '(frDown, frFindNext, frHideMatchCase, frHideWholeWord, frHideUpDown, frMatchCase, frDisableMatchCase, frDisableUpDown, frDisableWholeWord, frReplace, frReplaceAll, frWholeWord, frShowHelp)');
-
 
   CL.AddTypeS('TFindOptions', 'set of TFindOption');
   SIRegister_TFindDialog(CL);
@@ -704,18 +697,18 @@ begin
   RIRegister_TReplaceDialog(CL);
 end;
 
- 
- 
+
+
 { TPSImport_Dialogs }
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.CompOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.ExecOnUses(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.CompileImport1(CompExec: TPSScript);
@@ -725,7 +718,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.CompileImport2(CompExec: TPSScript);
 begin
-  { nothing } 
+  { nothing }
 end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
@@ -736,7 +729,7 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure TPSImport_Dialogs.ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter);
 begin
-  { nothing } 
+  { nothing }
 end;
- 
+
 end.

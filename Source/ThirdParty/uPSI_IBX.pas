@@ -22,10 +22,7 @@ type
     procedure ExecImport2(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
   end;
 
-
-
 implementation
-
 
 uses
    WINDOWS
@@ -1369,7 +1366,6 @@ begin
   SIRegister_TIBOUTPUTXML(CL);
   CL.AddTypeS('TIBSQLTypes', '(SQLUnknown, SQLSelect, SQLInsert, SQLUpdate, SQLDelete, SQLDDL, SQLGetSegment, SQLPutSegment, SQLExecProcedure, SQLStartTransaction, SQLCommit, SQLRollback, SQLSelectForUpdate, SQLSetGenerator)');
 
-
   SIRegister_TIBSQL(CL);
  CL.AddDelphiFunction('procedure OutputXML(SQLObject: TIBSQL; OutputObject: TIBOutputXML)');
 end;
@@ -1917,7 +1913,6 @@ begin
   end;
 end;
 
-
 (*----------------------------------------------------------------------------*)
 procedure RIRegister_TIBXSQLDA(CL: TPSRuntimeClassImporter);
 begin
@@ -2107,8 +2102,6 @@ procedure RIRegister_IBQuery(CL: TPSRuntimeClassImporter);
 begin
   RIRegister_TIBQuery(CL);
 end;
-
-
 
 { TIFPS3CE_IBCustomDataSet }
 (*----------------------------------------------------------------------------*)

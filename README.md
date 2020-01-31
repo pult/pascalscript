@@ -41,3 +41,5 @@ Pascal Script includes the following features:
     Support for compiler defines
     Capability to call RemObjects SDK Services from within scripts
     Includes a tool to create headers for importing classes and interfaces
+
+**PS:** *Seee also "RemObjects Script 2.0 for .NET":* https://www.remobjects.com/script

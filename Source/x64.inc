@@ -1499,8 +1499,8 @@ begin // function TPSExec.InnerfuseCall
         {$ENDIF}
         btu16, bts16:  tbtu16(res.dta^) := _RAX;
 
-        btClass :
-          IPointer(res.dta^) := _RAX;
+        btClass:
+          IPointer(res.dta^) := _RAX; // @dbg: TObject(_RAX).ClassName  ;  TMBCSEncoding(_RAX),r
         btu32, bts32:
           tbtu32(res.dta^) := _RAX;
         btPChar:

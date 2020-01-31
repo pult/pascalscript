@@ -757,13 +757,13 @@ type
     ecMathError,
     ecUnsatisfiedForward,
     ecForwardParameterMismatch,
-    ecInvalidnumberOfParameters
+    ecInvalidnumberOfParameters,
     {$IFDEF PS_USESSUPPORT}
-    , ecNotAllowed,
+    ecNotAllowed,
     ecUnitNotFoundOrContainsErrors,
-    ecCrossReference
+    ecCrossReference,
     {$ENDIF}
-    , ecUnClosedAttributes
+    ecUnClosedAttributes
     );
 
   TPSPascalCompilerHintType = (
@@ -13904,7 +13904,7 @@ begin
     exit;
   end;
   f := AddType(Name, btInterface);
-  Result := TPSInterface.Create(Self, InheritedFrom, GUID, FastUpperCase(Name), f);
+  Result := TPSInterface.Create(Self, InheritedFrom, GUID, {FastUpperCase(Name)}f.Name, f);
   FInterfaces.Add(Result);
   TPSInterfaceType(f).Intf := Result;
 end;
@@ -13963,7 +13963,7 @@ begin
     exit;
   end;
   f := AddType(aClass, btClass);
-  Result := TPSCompileTimeClass.Create(FastUpperCase(aClass), Self, f);
+  Result := TPSCompileTimeClass.Create({FastUpperCase(aClass)}f.Name, Self, f);
   TPSClassType(f).Cl := Result;
   Result.FInheritsFrom := InheritsFrom;
   FClasses.Add(Result);

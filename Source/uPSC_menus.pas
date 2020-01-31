@@ -16,41 +16,41 @@ implementation
 
 procedure SIRegisterTMENUITEMSTACK(CL: TPSPascalCompiler);
 begin
-  With cl.AddClassN(Cl.FindClass('TStack'),'TMenuItemStack') do
-  begin
-    RegisterMethod('procedure ClearItem(AItem: TMenuItem)');
-  end;
+	With cl.AddClassN(Cl.FindClass('TStack'),'TMenuItemStack') do
+	begin
+	  RegisterMethod('procedure ClearItem(AItem: TMenuItem)');
+	end;
 end;
 
 procedure SIRegisterTPOPUPLIST(CL: TPSPascalCompiler);
 begin
-  With cl.AddClassN(Cl.FindClass('TList'),'TPopupList') do
-  begin
-    RegisterProperty('Window', 'HWND', iptr);
-    RegisterMethod('procedure Add(Popup: TPopupMenu)');
-    RegisterMethod('procedure Remove(Popup: TPopupMenu)');
-  end;
+	With cl.AddClassN(Cl.FindClass('TList'),'TPopupList') do
+	begin
+		RegisterProperty('Window', 'HWND', iptr);
+		RegisterMethod('procedure Add(Popup: TPopupMenu)');
+		RegisterMethod('procedure Remove(Popup: TPopupMenu)');
+	end;
 end;
 
 procedure SIRegisterTPOPUPMENU(CL: TPSPascalCompiler);
 var
-  cc: TPSCompileTimeClass;
+	cc: TPSCompileTimeClass;
 begin
-  With cl.AddClassN(Cl.FindClass('TMenu'),'TPopupMenu') do
-  begin
-    cc := Cl.FindClass('TLabel');
-    if cc <> nil then
-      RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
-    with Cl.FindClass('TForm') do
-    begin
-      RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
-    end;
-  RegisterMethod('constructor Create(AOwner: TComponent)');
-  RegisterMethod('procedure Popup(X, Y: Integer)');
-  RegisterProperty('PopupComponent', 'TComponent', iptrw);
-  RegisterProperty('Alignment', 'TPopupAlignment', iptrw);
-  RegisterProperty('AutoPopup', 'Boolean', iptrw);
-  RegisterProperty('HelpContext', 'THelpContext', iptrw);
+	With cl.AddClassN(Cl.FindClass('TMenu'),'TPopupMenu') do
+	begin
+		cc := Cl.FindClass('TLabel');
+		if cc <> nil then
+			RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
+		with Cl.FindClass('TForm') do
+		begin
+			RegisterProperty('PopupMenu', 'TPopupMenu', iptRW);
+		end;
+	RegisterMethod('constructor Create(AOwner: TComponent)');
+	RegisterMethod('procedure Popup(X, Y: Integer)');
+	RegisterProperty('PopupComponent', 'TComponent', iptrw);
+	RegisterProperty('Alignment', 'TPopupAlignment', iptrw);
+	RegisterProperty('AutoPopup', 'Boolean', iptrw);
+	RegisterProperty('HelpContext', 'THelpContext', iptrw);
     RegisterProperty('MenuAnimation', 'TMenuAnimation', iptrw);
     RegisterProperty('TrackButton', 'TTrackButton', iptrw);
     RegisterProperty('OnPopup', 'TNotifyEvent', iptrw);

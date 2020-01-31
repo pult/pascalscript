@@ -27,9 +27,10 @@ begin
   begin
     RegisterMethod('constructor Create');
     RegisterMethod('procedure Free');
-  {+}
+    {+}
+    RegisterMethod('procedure Destroy');
     RegisterMethod('function ClassName: string');
-  {+.}
+    {+.}
   end;
 end;
 

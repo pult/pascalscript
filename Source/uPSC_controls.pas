@@ -219,9 +219,9 @@ begin
     RegisterMethod('procedure ShowDragImage');
 {$IFDEF DELPHI4UP}
     RegisterProperty('Cancelling', 'Boolean', iptrw);
-  {+}
+	{+}
     RegisterProperty('DragHandle', 'NativeUInt', iptrw); // == HWND == UINT_PTR == NativeUInt
-  {+.}
+	{+.}
     RegisterProperty('DragPos', 'TPoint', iptrw);
     RegisterProperty('DragTargetPos', 'TPoint', iptrw);
     RegisterProperty('MouseDeltaX', 'Double', iptr);

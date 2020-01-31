@@ -7,7 +7,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202001031637; // format: yyyymmddhhnn
+  uPSVersion = 202001131137; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -15,7 +15,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202001031637)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202001131137)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -1579,12 +1579,12 @@ begin
 end;
 //-------------------------------------------------------------------
 
-function TPSList.GetItem(Nr: Cardinal): Pointer;  {12}
+function TPSList.GetItem(Nr: Cardinal): Pointer;
 begin
   if Nr < FCount then
-     GetItem := FData[Nr]
+    Result := FData[Nr]
   else
-    GetItem := nil;
+    Result := nil;
 end;
 
 //-------------------------------------------------------------------

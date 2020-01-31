@@ -623,6 +623,9 @@ begin
       FCanAdd := False;
       if (not SuppressLoadData) and (not LoadExec) then
       begin
+        {+}
+        FComp.MakeError('', ecInternalError, tbtString('Failed Define/Load Exec'));
+        {+.}
         Result := False;
       end else
         Result := True;
@@ -636,6 +639,9 @@ begin
       FCanAdd := False;
       if not LoadExec then
       begin
+        {+}
+        FComp.MakeError('', ecInternalError, tbtString('Failed Define/Load Exec'));
+        {+.}
         Result := False;
       end else
         Result := True;
@@ -870,8 +876,8 @@ begin
   end
   else begin
     Result := DoOnUnknowUses (Sender, Name);
-{    If Not Result then
-      Sender.MakeError('', ecUnknownIdentifier, Name);}
+    {If Not Result then
+       Sender.MakeError('', ecUnknownIdentifier, Name);}
   end;
 end;
 

@@ -629,7 +629,7 @@ begin
               btExtended:    tbtextended(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4);
               btchar,btU8, btS8:    tbtu8(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
               {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
-              btClass :
+              btClass:
               begin
               {+}
               {$warnings off}
@@ -755,7 +755,7 @@ begin
           Result := True;
         end;
 
-      CdCdecl: begin
+      cdCDecl: begin
           RegUsage := 3;
           if assigned(_Self) then begin
             Stack := StringOfChar(AnsiChar(#0),4);
@@ -802,7 +802,7 @@ begin
           end;
           Result := True;
         end;
-      CdStdCall: begin
+      cdStdCall: begin
           RegUsage := 3;
           for I := Params.Count - 1 downto 0 do begin
             if not GetPtr(Params[I]) then exit;
@@ -818,7 +818,7 @@ begin
               btExtended:    tbtextended(res^.dta^):= RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
               btChar, btU8, btS8:    tbtu8(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
               {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
-              btclass, btu32, bts32:  tbtu32(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
+              btClass, btu32, bts32:  tbtu32(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
               btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
               {+}
               {$IFNDEF PS_NOWIDESTRING}

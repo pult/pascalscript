@@ -50,7 +50,8 @@ end;
 
 function TObject_ClassName(ASelf: TObject): string;
 begin
-  Result := ASelf.ClassName;
+  if Assigned(ASelf) and (ASelf.ClassType <> nil) then
+    Result := ASelf.ClassName;
 end;
 {+.}
 
@@ -59,15 +60,16 @@ begin
   with cl.Add(TObject) do
   begin
     RegisterConstructor(@TObject.Create, 'Create');
-  {+}
+    {+}
     {.$IFDEF DELPHI}
     RegisterMethod(@TObject_Free, 'Free'); // @@@ TODO: FPC Check ...
+    //RegisterVirtualMethod(@TObject_Free, 'Destroy');
+    RegisterMethod(@TObject_Free, 'Destroy');
     {.$ELSE}
     //RegisterMethod(@TObject.Free, 'Free');
     {.$ENDIF}
-
     RegisterMethod(@TObject_ClassName, 'ClassName'); // class function allow call only for assigned object
-  {+.}
+    {+.}
   end;
 end;
 

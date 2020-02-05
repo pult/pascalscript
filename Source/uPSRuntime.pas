@@ -28,6 +28,27 @@ uses
   {$ENDIF !PS_NOIDISPATCH}
   ;
 
+{+}
+const // TPSRuntimeClass.Register*  => RTCLRG_*
+  RTCLRG_CONSTRUCTOR     = 4;
+  RTCLRG_CONTRUCTOR_VIRT = 5;
+
+  RTCLRG_METHOD               = 0;
+  RTCLRG_METHOD_NAME          = 8;
+  RTCLRG_METHOD_VIRT_ABSTRACT = 1;
+  RTCLRG_METHOD_VIRT          = 1;
+
+//RTCLRG_PROP_INFO        = 2;
+  RTCLRG_PROP_HELPER      = 3;
+  RTCLRG_PROP_HELPER_NAME = 7;
+  RTCLRG_PROP_NAME_HELPER = 9;
+
+  RTCLRG_EVENT_PROP_HELPER = 6;
+
+//RTCLRG_CLASS_METHOD      = 10; // TODO: implementation
+//RTCLRG_CLASS_PROP        = 11; // TODO: implementation
+{+.}
+
 type
   TPSExec = class;
   TPSStack = class;
@@ -536,18 +557,30 @@ type
     FNameHash: Longint;
     b: byte;
     case byte of
-      0: (Ptr: Pointer);
-      1: (PointerInList: Pointer);
-      3: (FReadFunc, FWriteFunc: Pointer); {Property Helper}
-      4: (Ptr2: Pointer);
-      5: (PointerInList2: Pointer);
-      6: (); {Property helper, like 3}
-      7: (); {Property helper that will pass it's name}
+	  {+}
+      RTCLRG_METHOD: (
+        Ptr: Pointer);
+      RTCLRG_METHOD_VIRT: ( // == RTCLRG_METHOD_VIRT_ABSTRACT
+        PointerInList: Pointer);
+      RTCLRG_PROP_HELPER: (
+        FReadFunc, FWriteFunc: Pointer); // Property Helper
+      RTCLRG_CONSTRUCTOR: (
+        PtrC, ClassTypeC1, ClassTypeC2: Pointer);
+      RTCLRG_CONTRUCTOR_VIRT: (
+        PtrCV: Pointer);
+      RTCLRG_EVENT_PROP_HELPER: (); // Property helper, like RTCLRG_PROP_HELPER
+      RTCLRG_PROP_HELPER_NAME: ();  // Property helper that will pass it's name
       {+} // https://github.com/remobjects/pascalscript/pull/210
-      8: (ProcPtr: TPSProcPtr;
-          Ext1, Ext2: Pointer);
-      9: (ReadProcPtr, WriteProcPtr: TPSProcPtr;
-          ExtRead1, ExtRead2, ExtWrite1, ExtWrite2: Pointer); {Property Helper}
+      RTCLRG_METHOD_NAME: (
+        ProcPtr: TPSProcPtr;
+        Ext1, Ext2: Pointer);
+      RTCLRG_PROP_NAME_HELPER: ( // Property Helper
+        ReadProcPtr, WriteProcPtr: TPSProcPtr;
+        ExtRead1, ExtRead2, ExtWrite1, ExtWrite2: Pointer);
+      {RTCLRG_CLASS_METHOD: ( // TODO: implementation
+        );}
+      {RTCLRG_CLASS_PROP: ( // TODO: implementation
+        );}
       {+.}
   end;
 
@@ -1060,6 +1093,10 @@ type
     FClass: TClass;
 
     FEndOfVmt: Longint;
+
+    {+}
+    procedure NewPClassItem(var P: PClassItem);
+    {+.}
   public
 
     procedure RegisterConstructor(ProcPtr: Pointer; const Name: tbtstring);
@@ -13169,25 +13206,21 @@ begin
     begin
       p.Decl := s;
       case px^.b of
-  {0: ext1=ptr}
-  {1: ext1=pointerinlist}
-  {2: ext1=propertyinfo}
-  {3: ext1=readfunc; ext2=writefunc}
-        4:
+        RTCLRG_CONSTRUCTOR:
           begin
             p.ProcPtr := ClassCallProcConstructor;
             p.Ext1 := px^.Ptr;
             if p.Ext1 = nil then begin result := false; exit; end;
             p.Ext2 := Tag;
           end;
-        5:
+        RTCLRG_CONTRUCTOR_VIRT:
           begin
             p.ProcPtr := ClassCallProcVirtualConstructor;
             p.Ext1 := px^.Ptr;
            if p.Ext1 = nil then begin result := false; exit; end;
             p.Ext2 := Tag;
           end;
-        6:
+        RTCLRG_EVENT_PROP_HELPER:
           begin
             p.ProcPtr := ClassCallProcEventPropertyHelper;
             if IsRead then
@@ -13202,21 +13235,22 @@ begin
               if p.Ext2 = nil then begin result := false; exit; end;
             end;
           end;
-        0:
+        RTCLRG_METHOD: // ext1=ptr
           begin
             p.ProcPtr := ClassCallProcMethod;
             p.Ext1 := px^.Ptr;
             if p.Ext1 = nil then begin result := false; exit; end;
             p.Ext2 := nil;
           end;
-        1:
+        RTCLRG_METHOD_VIRT{==RTCLRG_METHOD_VIRT_ABSTRACT}: // ext1=pointerinlist
           begin
             p.ProcPtr := ClassCallProcMethod;
             p.Ext1 := px^.PointerInList;
             //if p.Ext1 = nil then begin result := false; exit; end;
             p.ext2 := pointer(1);
           end;
-        3:
+        //? RTCLRG_PROP_INFO: ext1=propertyinfo
+        RTCLRG_PROP_HELPER: // ext1=readfunc; ext2=writefunc
           begin
             p.ProcPtr := ClassCallProcPropertyHelper;
             if IsRead then
@@ -13231,7 +13265,7 @@ begin
               if p.Ext2 = nil then begin result := false; exit; end;
             end;
           end;
-        7:
+        RTCLRG_PROP_HELPER_NAME:
           begin
             p.ProcPtr := ClassCallProcPropertyHelperName;
             if IsRead then
@@ -13247,13 +13281,13 @@ begin
             end;
           end;
         {+} // https://github.com/remobjects/pascalscript/pull/210
-        8:
+        RTCLRG_METHOD_NAME:
           begin
             p.ProcPtr := px^.ProcPtr;
             p.Ext1 := px^.Ext1;
             p.Ext2 := px^.Ext2;
           end;
-        9:
+        RTCLRG_PROP_NAME_HELPER:
           begin
             if IsRead then
             begin
@@ -13267,6 +13301,14 @@ begin
               p.Ext2 := px^.ExtWrite2;
             end;
           end;
+         {RTCLRG_CLASS_METHOD:
+           begin
+             // TODO: implementation
+           end;}
+         {RTCLRG_CLASS_PROP:
+           begin
+             // TODO: implementation
+           end;}
         {+.}
         else
          begin
@@ -13527,15 +13569,28 @@ begin
   inherited Destroy;
 end;
 
+{+}
+//var
+//  NullClassItem: TClassItem;
+procedure TPSRuntimeClass.NewPClassItem(var P: PClassItem);
+begin
+  New(P);
+  FillChar(P^, SizeOf(P^), 0);
+  //P^ := NullClassItem;
+  //Move(NullClassItem, P^, SizeOF(P^));
+end;
+{+.}
+
 procedure TPSRuntimeClass.RegisterVirtualAbstractMethod(ClassDef: TClass;
   ProcPtr: Pointer; const Name: tbtString);
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 1;
+  p^.b := RTCLRG_METHOD_VIRT_ABSTRACT;
   p^.PointerInList := FindVirtualMethodPtr(Self, ClassDef, ProcPtr);
   FClassItems.Add(p);
 end;
@@ -13545,10 +13600,11 @@ procedure TPSRuntimeClass.RegisterConstructor(ProcPtr: Pointer;
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 4;
+  p^.b := RTCLRG_CONSTRUCTOR;
   p^.Ptr := ProcPtr;
   FClassItems.Add(p);
 end;
@@ -13557,10 +13613,11 @@ procedure TPSRuntimeClass.RegisterMethod(ProcPtr: Pointer; const Name: tbtString
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 0;
+  p^.b := RTCLRG_METHOD;
   p^.Ptr := ProcPtr;
   FClassItems.Add(p);
 end;
@@ -13571,10 +13628,11 @@ procedure TPSRuntimeClass.RegisterMethodName(const Name: tbtString;
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUppercase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 8;
+  p^.b := RTCLRG_METHOD_NAME;
   p^.ProcPtr := ProcPtr;
   p^.Ext1 := Ext1;
   p^.Ext2 := Ext2;
@@ -13586,24 +13644,25 @@ procedure TPSRuntimeClass.RegisterPropertyHelper(ReadFunc,
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 3;
+  p^.b := RTCLRG_PROP_HELPER;
   p^.FReadFunc := ReadFunc;
   p^.FWriteFunc := WriteFunc;
   FClassItems.Add(p);
 end;
 
-procedure TPSRuntimeClass.RegisterVirtualConstructor(ProcPtr: Pointer;
-  const Name: tbtString);
+procedure TPSRuntimeClass.RegisterVirtualConstructor(ProcPtr: Pointer; const Name: tbtString);
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 5;
+  p^.b := RTCLRG_CONTRUCTOR_VIRT;
   p^.PointerInList := FindVirtualMethodPtr(Self, FClass, ProcPtr);
   FClassItems.Add(p);
 end;
@@ -13612,10 +13671,11 @@ procedure TPSRuntimeClass.RegisterVirtualMethod(ProcPtr: Pointer; const Name: tb
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 1;
+  p^.b := RTCLRG_METHOD_VIRT;
   p^.PointerInList := FindVirtualMethodPtr(Self, FClass, ProcPtr);
   FClassItems.Add(p);
 end;
@@ -13625,10 +13685,11 @@ procedure TPSRuntimeClass.RegisterEventPropertyHelper(ReadFunc,
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 6;
+  p^.b := RTCLRG_EVENT_PROP_HELPER;
   p^.FReadFunc := ReadFunc;
   p^.FWriteFunc := WriteFunc;
   FClassItems.Add(p);
@@ -13639,10 +13700,11 @@ procedure TPSRuntimeClass.RegisterPropertyHelperName(ReadFunc,
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUpperCase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 7;
+  p^.b := RTCLRG_PROP_HELPER_NAME;
   p^.FReadFunc := ReadFunc;
   p^.FWriteFunc := WriteFunc;
   FClassItems.Add(p);
@@ -13654,10 +13716,11 @@ procedure TPSRuntimeClass.RegisterPropertyNameHelper(const Name: tbtString;
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUppercase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 9;
+  p^.b := RTCLRG_PROP_NAME_HELPER;
   p^.ReadProcPtr := ProcPtr;
   p^.WriteProcPtr := ProcPtr;
   p^.ExtRead1 := ExtRead1;
@@ -13674,10 +13737,11 @@ procedure TPSRuntimeClass.RegisterPropertyNameHelper(const Name: tbtString;
 var
   P: PClassItem;
 begin
-  New(P);
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
   p^.FName := FastUppercase(Name);
   p^.FNameHash := MakeHash(p^.FName);
-  p^.b := 9;
+  p^.b := RTCLRG_PROP_NAME_HELPER;
   p^.ReadProcPtr := ProcReadPtr;
   p^.WriteProcPtr := ProcWritePtr;
   p^.ExtRead1 := ExtRead1;

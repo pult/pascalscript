@@ -312,9 +312,59 @@ type
 
   PPSVariantData = ^TPSVariantData;
 
+  TNullRecord = packed record end;
+  PNullRecord = ^TNullRecord;
+
+  TPSVarRec = packed record
+   case Byte of
+    btReturnAddress: (vRet: Pointer);
+    btU8           : (vU8: tbtU8);
+    btS8           : (vS8: tbtS8);
+    btU16          : (vU16: tbtU16);
+    btS16          : (vS16: tbtS16);
+    btU32          : (vU32: tbtU32);
+    btS32          : (vS32: tbtS32);
+    btSingle       : (vSingle: tbtSingle);
+    btDouble       : (vDouble: tbtDouble);
+    btExtended     : (vExtended: tbtExtended);
+    btString       : (vString: ^tbtString);
+    btRecord       : (vRecord: TNullRecord);
+    btArray        : (vArray: array[0..0] of Byte);
+    btPointer      : (vPt: Pointer);
+    btPChar        : (vPChar: ^tbtChar);
+    btResourcePointer : (vResPtr: Pointer);
+    btVariant      : (vVar: TVarData);
+    {$IFNDEF PS_NOINT64}
+    btS64          : (vS64: tbtS64);
+    {$ENDIF}
+    btChar         : (vChar: AnsiChar);
+    {$IFNDEF PS_NOWIDESTRING}
+    btWideString   : (vWideString: ^tbtWideString);
+    btWideChar     : (vWideChar: tbtWideChar);
+    {$ENDIF}
+    btProcPtr      : (vProcPtr: Pointer); // PPSVariantProcPtr
+    btStaticArray  : (vStaticArray: TPSTypeRec_StaticArray);
+    btSet          : (vSet: TPSTypeRec_Set);
+    btCurrency     : (vCurrency: tbtCurrency);
+    btClass        : (vClass: TObject);
+    btInterface    : (vIntf: Pointer);
+    btNotificationVariant: (vNotifVar: Pointer);
+    btUnicodeString: (vUnicodeString: ^tbtUnicodeString);
+    {$if derclared(btPWideChar)}
+    btPWideChar    : (vPWideChar: ^tbtWideChar);
+    {$ifend}
+    //btType         : ;
+    btEnum         : (vEnum8: tbtU8; vEnum16: tbtU16; vEnum32: tbtU32);
+    //btExtClass     : ; // TPSUndefinedClassType
+  end;
+  PPSVarRec = ^TPSVarRec;
+
   TPSVariantData = packed record
     VI: TPSVariant;
-    Data: array[0..0] of Byte;
+    //Data: array[0..0] of Byte;
+    Data: TNullRecord;
+    //Data: array[0..SizeOf(Pointer)-1] of Byte; // TODO: ???
+    //Data: TPSVarRec;
   end;
 
   PPSVariantU8 = ^TPSVariantU8;
@@ -466,7 +516,7 @@ type
 
   TPSVariantRecord = packed record
     VI: TPSVariant;
-    data: array[0..0] of byte;
+    Data: array[0..0] of byte;
   end;
 
   PPSVariantDynamicArray = ^TPSVariantDynamicArray;
@@ -480,7 +530,7 @@ type
 
   TPSVariantStaticArray = packed record
     VI: TPSVariant;
-    data: array[0..0] of byte;
+    Data: array[0..0] of byte;
   end;
 
   PPSVariantPointer = ^TPSVariantPointer;
@@ -557,7 +607,6 @@ type
     FNameHash: Longint;
     b: byte;
     case byte of
-	  {+}
       RTCLRG_METHOD: (
         Ptr: Pointer);
       RTCLRG_METHOD_VIRT: ( // == RTCLRG_METHOD_VIRT_ABSTRACT
@@ -662,7 +711,7 @@ type
   TLoadDebugInfoEvent = procedure(Sender: TPSExec; var OK: Boolean) of object;
   {+.}
   TPSExec = class(TObject)
-  Private
+  private
     FOnGetNVariant: TPSOnGetNVariant;
     FOnSetNVariant: TPSOnSetNVariant;
     FId: Pointer;
@@ -682,7 +731,7 @@ type
     function DoMinus(Dta: Pointer; aType: TPSTypeRec): Boolean;
     function DoIntegerNot(Dta: Pointer; aType: TPSTypeRec): Boolean;
     procedure RegisterStandardProcs;
-  Protected
+  protected
 
     FReturnAddressType: TPSTypeRec;
 
@@ -753,7 +802,7 @@ type
     procedure ExceptionProc(proc, Position: Cardinal; Ex: TPSError; const s: tbtstring; NewObject: TObject); Virtual;
 
     function FindSpecialProcImport(P: TPSOnSpecialProcImport): pointer;
-  Public
+  public
     function LastEx: TPSError;
     function LastExParam: tbtstring;
     function LastExProc: Integer;
@@ -1172,16 +1221,12 @@ type
   TIFTypeRec = TPSTypeRec;
 
   TPSCallingConvention = uPSUtils.TPSCallingConvention;
+
 const
-
   cdRegister = uPSUtils.cdRegister;
-
   cdPascal = uPSUtils.cdPascal;
-
   cdCdecl = uPSUtils.cdCdecl;
-
   cdStdCall = uPSUtils.cdStdCall;
-
   InvalidVal = Cardinal(-1);
 
 function  PSDynArrayGetLength(arr: Pointer; aType: TPSTypeRec): Longint;
@@ -3002,14 +3047,13 @@ var
   fname: tbtString;
   I, fnh: Longint;
   P: PSpecialProc;
-
 begin
   if name = '' then
   begin
     fname := proc.Decl;
-    fname := copy(fname, 1, pos(tbtchar(':'), fname)-1);
+    fname := copy(fname, 1, pos(tbtChar(':'), fname)-1);
     fnh := MakeHash(fname);
-    for I := FSpecialProcList.Count -1 downto 0 do
+    for I := FSpecialProcList.Count-1 downto 0 do
     begin
       p := FSpecialProcList[I];
       IF (p^.name = '') or ((p^.namehash = fnh) and (p^.name = fname)) then
@@ -3021,7 +3065,7 @@ begin
         end;
       end;
     end;
-    Result := FAlse;
+    Result := False;
     exit;
   end;
   u := LookupProc(FRegProcs, Name);
@@ -3617,11 +3661,10 @@ var
     l, L2, L3: Longint;
     Curr: TPSProcRec;
   begin
-    LoadProcs := True;
+    Result := False;
     for l := 0 to HDR.ProcCount - 1 do begin
       if not read(Rec, SizeOf(Rec)) then begin
         CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-        LoadProcs := False;
         exit;
       end;
       if (Rec.Flags and 1) <> 0 then
@@ -3630,14 +3673,12 @@ var
         if not read(b, 1) then begin
           Curr.Free;
           CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-          LoadProcs := False;
           exit;
         end;
         SetLength(n, b);
         if not read(n[1], b) then begin
           Curr.Free;
           CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-          LoadProcs := False;
           exit;
         end;
         TPSExternalProcRec(Curr).Name := n;
@@ -3647,7 +3688,6 @@ var
           begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-            LoadProcs := False;
             exit;
           end;
           SetLength(n, L2);
@@ -3660,7 +3700,6 @@ var
           else
             CMD_Err2(erCannotImport, TPSExternalProcRec(curr).Decl);
           Curr.Free;
-          LoadProcs := False;
           exit;
         end;
       end else begin
@@ -3668,19 +3707,16 @@ var
         if not read(L2, 4) then begin
           Curr.Free;
           CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-          LoadProcs := False;
           exit;
         end;
         if not read(L3, 4) then begin
           Curr.Free;
           CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-          LoadProcs := False;
           exit;
         end;
         if (L2 < 0) or (L2 >= Length(s)) or (L2 + L3 > Length(s)) or (L3 = 0) then begin
           Curr.Free;
           CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-          LoadProcs := False;
           exit;
         end;
 
@@ -3691,39 +3727,33 @@ var
           if not read(L3, 4) then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-            LoadProcs := False;
             exit;
           end;
           if L3 > PSAddrNegativeStackStart then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-            LoadProcs := False;
             exit;
           end;
           SetLength(TPSInternalProcRec(Curr).FExportName, L3);
           if not read(TPSInternalProcRec(Curr).FExportName[1], L3) then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-            LoadProcs := False;
             exit;
           end;
           if not read(L3, 4) then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-            LoadProcs := False;
             exit;
           end;
           if L3 > PSAddrNegativeStackStart then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-            LoadProcs := False;
             exit;
           end;
           SetLength(TPSInternalProcRec(Curr).FExportDecl, L3);
           if not read(TPSInternalProcRec(Curr).FExportDecl[1], L3) then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, tbtString(RPS_UnexpectedEof));
-            LoadProcs := False;
             exit;
           end;
           TPSInternalProcRec(Curr).FExportNameHash := MakeHash(TPSInternalProcRec(Curr).ExportName);
@@ -3734,12 +3764,13 @@ var
         if not ReadAttributes(Curr.Attributes) then
         begin
           Curr.Free;
-          LoadProcs := False;
+          CMD_Err2(erCustomError, tbtString('Failed LoadProcs, ReadAttributes'));
           exit;
         end;
       end;
       FProcs.Add(Curr);
-    end;
+    end; // for l
+    Result := True;
   end;
 {$WARNINGS ON}
 
@@ -3819,16 +3850,25 @@ begin
   if not LoadTypes then
   begin
     Clear;
+    {+}
+    CMD_Err2(erCustomError, tbtString('Failed LoadTypes'));
+    {+.}
     exit;
   end;
   if not LoadProcs then
   begin
     Clear;
+    {+}
+    CMD_Err2(erCustomError, tbtString('Failed Define/Load Procs'));
+    {+.}
     exit;
   end;
   if not LoadVars then
   begin
     Clear;
+    {+}
+    CMD_Err2(erCustomError, tbtString('Failed LoadVars'));
+    {+.}
     exit;
   end;
   if (HDR.MainProcNo >= FProcs.Count) and (HDR.MainProcNo <> InvalidVal)then begin
@@ -4059,7 +4099,7 @@ begin
     raise Exception.Create(RPS_InvalidVariable);
   temp.Dta := @PPSVariantData(Src).Data;
   temp.aType := Src.FType;
-  temp.VarParam := false;
+  temp.VarParam := False;
   VNSetPointerTo(temp, Data, AType);
 end;
 
@@ -5702,7 +5742,7 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
       btClass:
         begin
           if srctype.BaseType = btClass then
-            TObject(Dest^) := TObject(Src^)
+            TObject(Dest^) := TObject(Src^) // @dbg: TObject(Src^).ClassName  ;  PPSVarRec(src)^.vClass.ClassName
           else
           if srctype.BaseType = btVariant then
           {+}
@@ -7798,7 +7838,7 @@ begin
   Inc(FCurrentPosition, 4);
   case VarType of
     0:
-      begin
+      begin // @dbg: Dest.aType,r
         Dest.FreeType := vtNone;
         if Param < PSAddrNegativeStackStart then
         begin
@@ -7811,8 +7851,7 @@ begin
           Tmp := FGlobalVars.Data[param];
         end else
         begin
-          Param := Cardinal(Longint(-PSAddrStackStart) +
-            Longint(FCurrStackBase) + Longint(Param));
+          Param := Cardinal(Longint(-PSAddrStackStart) + Longint(FCurrStackBase) + Longint(Param));
           if Param >= Cardinal(FStack.Count) then
           begin
             CMD_Err2(erOutOfStackRange, tbtString(RPS_OutOfStackRange));
@@ -7822,8 +7861,8 @@ begin
           Tmp := FStack.Data[param];
         end;
         if (UsePointer) and (Tmp.FType.BaseType = btPointer) then
-        begin
-          Dest.aType := PPSVariantPointer(Tmp).DestType;
+        begin // @dbg: TObject(PPSVariantPointer(Tmp).DataDest).ClassName  ;  TMBCSEncoding(PPSVariantPointer(Tmp).DataDest),r
+          Dest.aType := PPSVariantPointer(Tmp).DestType; // @dbg: PPSVariantPointer(Tmp).VI.FType,r
           Dest.P := PPSVariantPointer(Tmp).DataDest;
           if Dest.P = nil then
           begin
@@ -7833,8 +7872,8 @@ begin
           end;
         end else
         begin
-          Dest.aType := PPSVariantData(Tmp).vi.FType;
-          Dest.P := @PPSVariantData(Tmp).Data;
+          Dest.aType := PPSVariantData(Tmp).vi.FType; // @dbg: PPSVariantData(Tmp).VI.FType,r
+          Dest.P := Pointer(@PPSVariantData(Tmp).Data); // @dbg: TObject(@PPSVariantData(Tmp).Data).ClassName  ; TMBCSEncoding(@PPSVariantData(Tmp).Data),r
         end;
       end;
     1: begin
@@ -7863,7 +7902,7 @@ begin
       {$ENDIF}
 
         Tmp.FType := at;
-        Dest.P := @PPSVariantData(Tmp).Data;
+        Dest.P := Pointer(@PPSVariantData(Tmp).Data);
         Dest.aType := tmp.FType;
         dest.FreeType := vtTempVar;
         case Dest.aType.BaseType of
@@ -8132,7 +8171,7 @@ begin
         end else
         begin
           Dest.aType := PPSVariantData(Tmp).vi.FType;
-          Dest.P := @PPSVariantData(Tmp).Data;
+          Dest.P := Pointer(@PPSVariantData(Tmp).Data);
         end;
         if FCurrentPosition + 3 >= FDataLength then
         begin
@@ -8246,7 +8285,7 @@ begin
         end else
         begin
           Dest.aType := PPSVariantData(Tmp).vi.FType;
-          Dest.P := @PPSVariantData(Tmp).Data;
+          Dest.P := Pointer(@PPSVariantData(Tmp).Data);
         end;
   {$ifdef FPC_REQUIRES_PROPER_ALIGNMENT}
         Param := unaligned(Cardinal((@FData[FCurrentPosition])^));
@@ -8386,7 +8425,7 @@ begin
       exit;
     end;
   end;
-  Result := true;
+  Result := True; // @dbg: TObject(Dest.P^).ClassName  ; UnicodeString(Dest.P^)
 end;
 
 function TPSExec.DoMinus(Dta: Pointer; aType: TPSTypeRec): Boolean;
@@ -8740,7 +8779,6 @@ var
   l: Cardinal;
 begin
   FindType2 := FindType(0, BaseType, l);
-
 end;
 
 function TPSExec.FindType(StartAt: Cardinal; BaseType: TPSBaseType; var l: Cardinal): PIFTypeRec;
@@ -9084,7 +9122,7 @@ begin
 //    Cmd := InvalidVal;
     while FStatus = isRunning do
     begin
-      if @CallRunLine <> nil then
+      if Assigned(CallRunLine) then
         CallRunLine(Self);
       if FCurrentPosition >= FDataLength then
       begin
@@ -9335,7 +9373,7 @@ end.
                 break;
               end;
               FStack.Pop;
-(*              Dec(FStack.FCount);
+(*            Dec(FStack.FCount);
               {$IFNDEF PS_NOSMARTLIST}
               Inc(FStack.FCheckCount);
               if FStack.FCheckCount > FMaxCheckCount then FStack.Recreate;
@@ -12062,7 +12100,10 @@ begin
     if Ret.FEndOfVMT = MaxInt then
     begin
       Ret.FEndOfVMT := 0; // cound not find EndOfVMT
-      Result := nil;
+      {+}
+      //Result := nil;
+      Result := Pointer(-1);
+      {++.}
       exit;
     end;
   end;
@@ -12076,7 +12117,10 @@ begin
     end;
     I := I + 1;
   end;
-  Result := nil;
+  {+}
+  //Result := nil;
+  Result := Pointer(-1);
+  {+.}
 end;
 
 {$ELSE}
@@ -12101,7 +12145,10 @@ begin
     end;
     I := I + 1;
   end;
-  Result := nil;
+  {+}
+  //Result := nil;
+  Result := Pointer(-1);
+  {+.}
 end;
 
 {$ENDIF}
@@ -12253,11 +12300,11 @@ begin
     result := false;
     exit;
   end;
-  FSelf := PPSVariantClass(n).Data;
+  FSelf := PPSVariantClass(n).Data; // @dbg: TMBCSEncoding(PPSVariantClass(n).Data),r
   {+}
   {$IFDEF DELPHI} // @@@ TODO: FPC Check ... ( We need a new "correst uPSR_std.pas" with the corrected TObject_Free )
   if Assigned(FSelf) and (TObject(FSelf).ClassType = nil) then begin
-    if p.FName = 'FREE' then begin
+    if (p.FName = 'FREE') then begin
       Result := True;
       Exit;
     end;
@@ -12409,7 +12456,8 @@ var
   v: PPSVariantIFC;
   MyList: TPSList;
   n: PIFVariant;
-  FSelf: Pointer;
+  FSelf: TClass;
+  FAddress: Pointer;
   CurrStack: Cardinal;
   cc: TPSCallingConvention;
   s: tbtString;
@@ -12417,28 +12465,29 @@ var
   x: TPSRuntimeClass;
   IntVal: PIFVariant;
 begin
-  n := Stack[Stack.Count -2];
+  n := Stack[Stack.Count-2];
   if (n = nil) or (n^.FType.BaseType <> btU32)  then
   begin
     Caller.CMD_Err2(erNullPointerException, tbtString(RPS_NullPointerException));
     result := false;
     exit;
   end;
-  FType := Caller.GetTypeNo(PPSVariantU32(N).Data);
+  FType := Caller.GetTypeNo(PPSVariantU32(n).Data);
   if (FType = nil)  then
   begin
     Caller.CMD_Err2(erNullPointerException, tbtString(RPS_NullPointerException));
     Result := False;
     exit;
   end;
-  h := MakeHash(FType.ExportName);
+  h := FType.FExportNameHash; // == MakeHash(FType.ExportName);
   FSelf := nil;
-  for i := 0 to TPSRuntimeClassImporter(p.Ext2).FClasses.Count -1 do
+  for i := TPSRuntimeClassImporter(p.Ext2).FClasses.Count-1 downto 0 do
   begin
     x:= TPSRuntimeClassImporter(p.Ext2).FClasses[i];
     if (x.FClassNameHash = h) and (x.FClassName = FType.ExportName) then
     begin
       FSelf := x.FClass;
+      Break;
     end;
   end;
   if FSelf = nil then begin
@@ -12456,14 +12505,14 @@ begin
   CurrStack := Cardinal(Stack.Count) - Cardinal(length(s)) -1;
   if s[1] = #0 then inc(CurrStack);
   IntVal := CreateHeapVariant(Caller.FindType2(btU32));
-  if IntVal = nil then
+  if IntVal = nil then // @dbg: IntVal^.FType,r
   begin
     Result := False;
     exit;
   end;
   PPSVariantU32(IntVal).Data := 1;
   MyList := TPSList.Create;
-  MyList.Add(NewPPSVariantIFC(intval, false));
+  MyList.Add(NewPPSVariantIFC(IntVal, False));
   for i := 2 to length(s) do
   begin
     MyList.Add(nil);
@@ -12475,21 +12524,22 @@ begin
     inc(CurrStack);
   end;
   if s[1] <> #0 then
-  begin
-    v := NewPPSVariantIFC(Stack[CurrStack + 1], True);
-  end else v := nil;
+    v := NewPPSVariantIFC(Stack[CurrStack + 1], True)
+  else
+    v := nil;
   try
     {+}
+    FAddress := VirtualClassMethodPtrToPtr(p.Ext1, FSelf);
     {$IFDEF _INVOKECALL_INC_}
-    Result := Caller.InnerfuseCall(FSelf, VirtualClassMethodPtrToPtr(p.Ext1, FSelf), TPSCallingConvention(Integer(cc) or 128), MyList, v);
+    Result := Caller.InnerfuseCall(FSelf, FAddress, TPSCallingConvention(Integer(cc) or 128), MyList, v);
     {$ELSE}
-    Result := Caller.InnerfuseCall(FSelf, VirtualClassMethodPtrToPtr(p.Ext1, FSelf), {$IFDEF FPC}TPSCallingConvention(Integer(cc) or 128){$ELSE}cc{$ENDIF}, MyList, v);
-    {$ENDIF}
+    Result := Caller.InnerfuseCall(FSelf, FAddress, {$IFDEF FPC}TPSCallingConvention(Integer(cc) or 128){$ELSE}cc{$ENDIF}, MyList, v);
+    {$ENDIF} // @dbg: TObject(v^.Dta^).ClassName  ;  TMBCSEncoding(v^.Dta^),r
     {+.}
   finally
     DisposePPSVariantIFC(v);
-    DisposePPSVariantIFCList(mylist);
-    DestroyHeapVariant(intval);
+    DisposePPSVariantIFCList(MyList);
+    DestroyHeapVariant(IntVal);
   end;
 end;
 
@@ -13151,45 +13201,57 @@ function SpecImport(Sender: TPSExec; p: TPSExternalProcRec; Tag: Pointer): Boole
 var
   H, I: Longint;
   S, s2: tbtString;
+  CI: TPSRuntimeClassImporter absolute Tag;
+  //CC: TPSList;
   CL: TPSRuntimeClass;
-  Px: PClassItem;
+  px: PClassItem;
   pp: PPropInfo;
   IsRead: Boolean;
 begin
   s := p.Decl;
   delete(s, 1, 6);
-  if s = '-' then {nil function}
+  if Length(S) = 1 then
   begin
-    p.ProcPtr := NilProc;
-    Result := True;
-    exit;
-  end;
-  if s = '+' then {cast function}
-  begin
-    p.ProcPtr := CastProc;
-    p.Ext2 := Tag;
-    Result := True;
-    exit;
+    if s = '-' then {nil function}
+    begin
+      p.ProcPtr := NilProc;
+      Result := True;
+      exit;
+    end;
+    if s = '+' then {cast function}
+    begin
+      p.ProcPtr := CastProc;
+      p.Ext2 := Tag;
+      Result := True;
+      exit;
+    end;
   end;
   s2 := copy(S, 1, pos(tbtchar('|'), s)-1);
   delete(s, 1, length(s2) + 1);
+  {+}
+  {
   H := MakeHash(s2);
   ISRead := False;
-  cl := nil;
-  for I := TPSRuntimeClassImporter(Tag).FClasses.Count -1 downto 0 do
+  CC := TPSRuntimeClassImporter(Tag).FClasses; // == CI.FClasses
+  CL := nil;
+  for I := CC.Count-1 downto 0 do
   begin
-    Cl := TPSRuntimeClassImporter(Tag).FClasses[I];
+    CL := CC[I];
     if (Cl.FClassNameHash = h) and (cl.FClassName = s2) then
     begin
       IsRead := True;
       break;
     end;
   end;
+  }
+  CL := TPSRuntimeClassImporter(Tag).FindClass(s2);
+  IsRead := Assigned(CL); // @dbg: CL.FClassName='TORACLESESSION'
+  {+.}
   if not isRead then begin
     Result := False;
     exit;
   end;
-  s2 := copy(S, 1, pos(tbtchar('|'), s)-1);
+  s2 := copy(S, 1, pos(tbtChar('|'), s)-1);
   delete(s, 1, length(s2) + 1);
   if (s2 <> '') and (s2[length(s2)] = '@') then
   begin
@@ -13199,12 +13261,13 @@ begin
     isRead := True;
   p.Name := s2;
   H := MakeHash(s2);
-  for i := cl.FClassItems.Count -1 downto 0 do
+  for i := CL.FClassItems.Count-1 downto 0 do
   begin
-    px := cl.FClassItems[I];
+    px := CL.FClassItems[I];
     if (px^.FNameHash = h) and (px^.FName = s2) then
     begin
       p.Decl := s;
+      {+}
       case px^.b of
         RTCLRG_CONSTRUCTOR:
           begin
@@ -13312,17 +13375,18 @@ begin
         {+.}
         else
          begin
-           result := false;
+           Result := False;
            exit;
          end;
       end;
-      Result := true;
+      {+.}
+      Result := True;
       exit;
     end;
   end;
-  if cl.FClass.ClassInfo <> nil then
+  if CL.FClass.ClassInfo <> nil then
   begin
-    pp := GetPropInfo(cl.FClass.ClassInfo, string(s2));
+    pp := GetPropInfo(CL.FClass.ClassInfo, string(s2));
     if pp <> nil then
     begin
        p.ProcPtr := ClassCallProcProperty;
@@ -13333,7 +13397,7 @@ begin
          p.Ext2 := Pointer(0);
        Result := True;
     end else
-      result := false;
+      Result := False;
   end else
     Result := False;
 end;
@@ -14217,7 +14281,7 @@ var
 begin
   lName := FastUpperCase(Name);
   h := MakeHash(lName);
-  for i := FClasses.Count -1 downto 0 do
+  for i := FClasses.Count-1 downto 0 do
   begin
     p := FClasses[i];
     if (p.FClassNameHash = h) and (p.FClassName = lName) then
@@ -14599,7 +14663,7 @@ begin
     val := items[Longint(ItemNo) + Longint(Count)]
   else
     val := items[ItemNo];
-  Result := PSGetreal(@PPSVariantData(val).Data, val.FType);
+  Result := PSGetReal(@PPSVariantData(val).Data, val.FType);
 end;
 
 function TPSStack.GetAnsiString(ItemNo: Longint): tbtString;
@@ -14658,7 +14722,7 @@ var
   p1: Pointer;
   c: Longint;
 begin
-  c := count -1;
+  c := Count-1;
   p1 := Data[c];
   DeleteLast;
   FLength := IPointer(p1) - IPointer(FDataPtr);

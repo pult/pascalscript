@@ -104,6 +104,10 @@ type
     FName: tbtstring;
     FProcPtr: TPSProcPtr;
     FDecl: tbtstring;
+    {+}
+    FRCL: Pointer; // == TPSRuntimeClass;
+    FWrap: Boolean;
+    {+.}
   public
 
     property Name: tbtstring read FName write FName;
@@ -610,13 +614,13 @@ type
       RTCLRG_METHOD: (
         Ptr: Pointer);
       RTCLRG_METHOD_VIRT: ( // == RTCLRG_METHOD_VIRT_ABSTRACT
-        PointerInList: Pointer);
+        PointerInList, ClassTypeM1, ClassTypeM2: Pointer);
       RTCLRG_PROP_HELPER: (
         FReadFunc, FWriteFunc: Pointer); // Property Helper
       RTCLRG_CONSTRUCTOR: (
         PtrC, ClassTypeC1, ClassTypeC2: Pointer);
       RTCLRG_CONTRUCTOR_VIRT: (
-        PtrCV: Pointer);
+        PtrCV, ClassTypeCV1, ClassTypeCV2: Pointer);
       RTCLRG_EVENT_PROP_HELPER: (); // Property helper, like RTCLRG_PROP_HELPER
       RTCLRG_PROP_HELPER_NAME: ();  // Property helper that will pass it's name
       {+} // https://github.com/remobjects/pascalscript/pull/210
@@ -1151,12 +1155,18 @@ type
     procedure RegisterConstructor(ProcPtr: Pointer; const Name: tbtstring);
 
     procedure RegisterVirtualConstructor(ProcPtr: Pointer; const Name: tbtstring);
-
+    {+}
+    procedure RegisterVirtualConstructorWrapper(ProcPtr, AClassType: Pointer; const Name: tbtstring);
+    {+.}
     procedure RegisterMethod(ProcPtr: Pointer; const Name: tbtstring);
 
     procedure RegisterMethodName(const Name: tbtString; ProcPtr: TPSProcPtr; Ext1, Ext2: Pointer);
 
     procedure RegisterVirtualMethod(ProcPtr: Pointer; const Name: tbtstring);
+
+    {+}
+    procedure RegisterVirtualMethodWrapper(ProcPtr, AClassType: Pointer; const Name: tbtstring);
+    {+.}
 
     procedure RegisterVirtualAbstractMethod(ClassDef: TClass; ProcPtr: Pointer; const Name: tbtstring);
 
@@ -12529,7 +12539,10 @@ begin
     v := nil;
   try
     {+}
-    FAddress := VirtualClassMethodPtrToPtr(p.Ext1, FSelf);
+    if p.FWrap then // @dbg: TPSRuntimeClassImporter(p.FExt2).FClasses,r
+      FAddress := p.FExt1
+    else
+      FAddress := VirtualClassMethodPtrToPtr(p.Ext1, FSelf);
     {$IFDEF _INVOKECALL_INC_}
     Result := Caller.InnerfuseCall(FSelf, FAddress, TPSCallingConvention(Integer(cc) or 128), MyList, v);
     {$ELSE}
@@ -13260,6 +13273,9 @@ begin
   end else
     isRead := True;
   p.Name := s2;
+  {+}
+  p.FRCL := CL;
+  {+.}
   H := MakeHash(s2);
   for i := CL.FClassItems.Count-1 downto 0 do
   begin
@@ -13269,48 +13285,30 @@ begin
       p.Decl := s;
       {+}
       case px^.b of
-        RTCLRG_CONSTRUCTOR:
-          begin
-            p.ProcPtr := ClassCallProcConstructor;
-            p.Ext1 := px^.Ptr;
-            if p.Ext1 = nil then begin result := false; exit; end;
-            p.Ext2 := Tag;
-          end;
-        RTCLRG_CONTRUCTOR_VIRT:
-          begin
-            p.ProcPtr := ClassCallProcVirtualConstructor;
-            p.Ext1 := px^.Ptr;
-           if p.Ext1 = nil then begin result := false; exit; end;
-            p.Ext2 := Tag;
-          end;
-        RTCLRG_EVENT_PROP_HELPER:
-          begin
-            p.ProcPtr := ClassCallProcEventPropertyHelper;
-            if IsRead then
-            begin
-              p.Ext1 := px^.FReadFunc;
-              if p.Ext1 = nil then begin result := false; exit; end;
-              p.Ext2 := nil;
-            end else
-            begin
-              p.Ext1 := nil;
-              p.Ext2 := px^.FWriteFunc;
-              if p.Ext2 = nil then begin result := false; exit; end;
-            end;
-          end;
         RTCLRG_METHOD: // ext1=ptr
           begin
             p.ProcPtr := ClassCallProcMethod;
             p.Ext1 := px^.Ptr;
-            if p.Ext1 = nil then begin result := false; exit; end;
+            if p.Ext1 = nil then begin
+              result := false; exit; end;
             p.Ext2 := nil;
           end;
         RTCLRG_METHOD_VIRT{==RTCLRG_METHOD_VIRT_ABSTRACT}: // ext1=pointerinlist
           begin
             p.ProcPtr := ClassCallProcMethod;
             p.Ext1 := px^.PointerInList;
-            //if p.Ext1 = nil then begin result := false; exit; end;
-            p.ext2 := pointer(1);
+            //if p.Ext1 = nil then begin
+            //  result := false; exit; end;
+            if (p.Ext1 = Pointer(-1)) then begin
+              Sender.CMD_Err2(erCustomError, tbtString('Failed Define/Load Procs: '+CL.FClassName+'.'+s2));
+              result := false;
+              exit;
+            end;
+            p.Ext2 := pointer(1);
+            //p.FWrap := Assigned(px^.Ext1);
+            p.FWrap := Assigned(px^.ClassTypeM1);
+            //p.FWrap := Assigned(px^.Ext2) and (px^.Ext2 = px^.Ext1);
+            //p.FWrap := Assigned(px^.ClassTypeM1) and (px^.ClassTypeM1 = px^.ClassTypeM2);
           end;
         //? RTCLRG_PROP_INFO: ext1=propertyinfo
         RTCLRG_PROP_HELPER: // ext1=readfunc; ext2=writefunc
@@ -13319,13 +13317,55 @@ begin
             if IsRead then
             begin
               p.Ext1 := px^.FReadFunc;
-              if p.Ext1 = nil then begin result := false; exit; end;
+              if p.Ext1 = nil then begin
+                result := false; exit; end;
               p.Ext2 := nil;
             end else
             begin
               p.Ext1 := nil;
               p.Ext2 := px^.FWriteFunc;
-              if p.Ext2 = nil then begin result := false; exit; end;
+              if p.Ext2 = nil then begin
+                result := false; exit; end;
+            end;
+          end;
+        RTCLRG_CONSTRUCTOR:
+          begin
+            p.ProcPtr := ClassCallProcConstructor;
+            p.Ext1 := px^.Ptr;
+            if p.Ext1 = nil then begin
+              result := false; exit; end;
+            p.Ext2 := Tag;
+          end;
+        RTCLRG_CONTRUCTOR_VIRT:
+          begin
+            p.ProcPtr := ClassCallProcVirtualConstructor;
+            p.Ext1 := px^.Ptr;
+            if (p.Ext1 = nil) or (p.Ext1 = Pointer(-1)) then begin
+              Sender.CMD_Err2(erCustomError, tbtstring('Failed Define/Load Procs: '+CL.FClassName+'.'+s2));
+              result := false;
+              exit;
+            end;
+            p.Ext2 := Tag;
+            //p.FWrap := Assigned(px^.Ext1);
+            p.FWrap := Assigned(px^.ClassTypeC1);
+            //p.FWrap := Assigned(px^.Ext1) and (px^.Ext2 = px^.Ext1);
+            //p.FWrap := Assigned(px^.ClassTypeC1) and (px^.ClassTypeC1 = px^.ClassTypeC2);
+          end;
+        RTCLRG_EVENT_PROP_HELPER:
+          begin
+            p.ProcPtr := ClassCallProcEventPropertyHelper;
+            if IsRead then
+            begin
+              p.Ext1 := px^.FReadFunc;
+              if p.Ext1 = nil then begin
+                result := false; exit; end;
+              p.Ext2 := nil;
+            end else
+            begin
+              p.Ext1 := nil;
+              p.Ext2 := px^.FWriteFunc;
+              if p.Ext2 = nil then begin
+                result := false; exit; end;
             end;
           end;
         RTCLRG_PROP_HELPER_NAME:
@@ -13334,13 +13374,15 @@ begin
             if IsRead then
             begin
               p.Ext1 := px^.FReadFunc;
-              if p.Ext1 = nil then begin result := false; exit; end;
+              if p.Ext1 = nil then begin
+                result := false; exit; end;
               p.Ext2 := nil;
             end else
             begin
               p.Ext1 := nil;
               p.Ext2 := px^.FWriteFunc;
-              if p.Ext2 = nil then begin result := false; exit; end;
+              if p.Ext2 = nil then begin
+                result := false; exit; end;
             end;
           end;
         {+} // https://github.com/remobjects/pascalscript/pull/210
@@ -13731,6 +13773,23 @@ begin
   FClassItems.Add(p);
 end;
 
+{+}
+procedure TPSRuntimeClass.RegisterVirtualConstructorWrapper(ProcPtr, AClassType: Pointer; const Name: tbtstring);
+var
+  P: PClassItem;
+begin
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
+  p^.FName := FastUpperCase(Name);
+  p^.FNameHash := MakeHash(p^.FName);
+  p^.b := RTCLRG_CONTRUCTOR_VIRT;
+  p^.PtrCV := ProcPtr;
+  P^.ClassTypeC1 := AClassType;
+  P^.ClassTypeC2 := AClassType;
+  FClassItems.Add(p);
+end;
+{+.}
+
 procedure TPSRuntimeClass.RegisterVirtualMethod(ProcPtr: Pointer; const Name: tbtString);
 var
   P: PClassItem;
@@ -13741,6 +13800,21 @@ begin
   p^.FNameHash := MakeHash(p^.FName);
   p^.b := RTCLRG_METHOD_VIRT;
   p^.PointerInList := FindVirtualMethodPtr(Self, FClass, ProcPtr);
+  FClassItems.Add(p);
+end;
+
+procedure TPSRuntimeClass.RegisterVirtualMethodWrapper(ProcPtr, AClassType: Pointer; const Name: tbtstring);
+var
+  P: PClassItem;
+begin
+  //New(P); FillChar(P^, SizeOf(P^), 0);
+  NewPClassItem(P);
+  p^.FName := FastUpperCase(Name);
+  p^.FNameHash := MakeHash(p^.FName);
+  p^.b := RTCLRG_METHOD_VIRT;
+  p^.Ptr := ProcPtr;
+  P^.ClassTypeM1 := AClassType;
+  P^.ClassTypeM2 := AClassType;
   FClassItems.Add(p);
 end;
 

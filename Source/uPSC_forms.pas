@@ -165,7 +165,7 @@ begin
     RegisterProperty('OnMouseMove', 'TMouseMoveEvent', iptrw);
     RegisterProperty('OnMouseUp', 'TMouseEvent', iptrw);
     RegisterProperty('OnPaint', 'TNotifyEvent', iptrw);
-    {$ENDIF}
+    {$ENDIF !PS_MINIVCL}
   end;
 end;
 
@@ -177,12 +177,12 @@ begin
 {$IFDEF PS_PANSICHAR}
     RegisterMethod('function MessageBox(Text,Caption: PAnsiChar; Flags: Word): Integer');
 {$ELSE}
-{$IFDEF UNICODE}
+  {$IFDEF UNICODE}
     RegisterMethod('function MessageBox(Text,Caption: string; Flags: Word): Integer');
   {$ELSE}
     RegisterMethod('function MessageBox(Text,Caption: PChar; Flags: Word): Integer');
   {$ENDIF}
-{$ENDIF}
+{$ENDIF !PS_PANSICHAR}
     RegisterMethod('procedure Minimize');
     RegisterMethod('procedure ProcessMessages');
     RegisterMethod('procedure Restore');
@@ -236,7 +236,7 @@ begin
     RegisterProperty('HintHidePause', 'Integer', iptrw);
     RegisterProperty('Icon', 'TIcon', iptrw);
     RegisterProperty('OnHelp', 'THelpEvent', iptrw);
-    {$ENDIF}
+    {$ENDIF !PS_MINIVCL}
   end;
 end;
 

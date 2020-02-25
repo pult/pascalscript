@@ -291,11 +291,17 @@ begin
           linepos := Item.LineOffset[j];
         end else
         begin
-          Res.Row := j; // j -1, but line counting starts at 1
-          Res.Col := pos - linepos + 1;
+          //[-] https://github.com/remobjects/pascalscript/pull/221
+          //Res.Row := j; // j -1, but line counting starts at 1
+          //Res.Col := pos - linepos + 1;
+          //[-]
           Break;
         end;
-      end;
+        //[+] https://github.com/remobjects/pascalscript/pull/221
+        Res.Row := j + 1; // line counting starts at 1
+        Res.Col := pos - linepos + 1;
+        //[+]
+      end; // for j
       Result := True;
       exit;
     end;

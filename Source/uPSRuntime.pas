@@ -3774,7 +3774,9 @@ var
         if not ReadAttributes(Curr.Attributes) then
         begin
           Curr.Free;
+          {+}
           CMD_Err2(erCustomError, tbtString('Failed LoadProcs, ReadAttributes'));
+          {+.}
           exit;
         end;
       end;
@@ -12290,60 +12292,58 @@ var
   FSelf: Pointer;
   CurrStack: Cardinal;
   cc: TPSCallingConvention;
-  s: tbtString;
+  S: tbtString;
+{+}
+  MAddr: Pointer;
 begin
-  s := p.Decl;
-  if length(S) < 2 then
-  begin
-    Result := False;
-    exit;
-  end;
-  cc := TPSCallingConvention(s[1]);
-  Delete(s, 1, 1);
-  if s[1] = #0 then
-    n := Stack[Stack.Count -1]
-  else
-    n := Stack[Stack.Count -2];
-  if (n = nil) or (n^.FType.BaseType <> btClass)or (PPSVariantClass(n).Data = nil) then
-  begin
+  Result := False;
+  S := p.Decl;
+  if Length(S) < 2 then
+    Exit;
+  cc := TPSCallingConvention(S[1]);
+  Delete(S, 1, 1);
+  if S[1] = #0
+  then n := Stack[Stack.Count -1]
+  else n := Stack[Stack.Count -2];
+  if (n = nil) or (n^.FType.BaseType <> btClass) {+}{or (PPSVariantClass(n).Data = nil){+.} then begin
     Caller.CMD_Err2(erNullPointerException, tbtString(RPS_NullPointerException));
-    result := false;
-    exit;
+    Exit;
   end;
   FSelf := PPSVariantClass(n).Data; // @dbg: TMBCSEncoding(PPSVariantClass(n).Data),r
-  {+}
-  {$IFDEF DELPHI} // @@@ TODO: FPC Check ... ( We need a new "correst uPSR_std.pas" with the corrected TObject_Free )
-  if Assigned(FSelf) and (TObject(FSelf).ClassType = nil) then begin
-    if (p.FName = 'FREE') then begin
+  if (FSelf = nil)
+    {.$IFDEF DELPHI} // ClassType == nil:  We need a new "correst uPSR_std.pas" with the corrected TObject_Free )
+    or (TObject(FSelf).ClassType = nil)
+    {.$ENDIF DELPHI}
+  then begin
+    if (p.FName = 'FREE') or (p.FName = 'DESTROY') then begin
       Result := True;
       Exit;
     end;
-    raise EPSError.Create('Invalid Object Reference'); // EPSError InvalidPointer
+    if (FSelf = nil)
+    then Caller.CMD_Err2(erNullPointerException, tbtString(RPS_NullPointerException))
+    else raise EPSError.Create('Invalid Object Reference'); // EPSError InvalidPointer
   end;
-  {$ENDIF DELPHI}
   {+.}
-  CurrStack := Cardinal(Stack.Count) - Cardinal(length(s)) -1;
-  if s[1] = #0 then inc(CurrStack);
+  CurrStack := Cardinal(Stack.Count) - Cardinal(Length(S)) - 1;
+  if S[1] = #0 then
+    Inc(CurrStack);
   MyList := TPSList.Create;
-  for i := 2 to length(s) do
-  begin
+  for i := 2 to Length(S) do begin
     MyList.Add(nil);
   end;
-  for i := length(s) downto 2 do
-  begin
+  for i := Length(S) downto 2 do begin
     n := Stack[CurrStack];
-    MyList[i - 2] := NewPPSVariantIFC(n, s[i] <> #0);
+    MyList[i - 2] := NewPPSVariantIFC(n, S[i] <> #0);
     inc(CurrStack);
   end;
-  if s[1] <> #0 then
-  begin
-    v := NewPPSVariantIFC(Stack[CurrStack + 1], True);
-  end else v := nil;
+  if S[1] <> #0
+  then v := NewPPSVariantIFC(Stack[CurrStack + 1], True)
+  else v := nil;
   try
-    if p.Ext2 = nil then
-      Result := Caller.InnerfuseCall(FSelf, p.Ext1, cc, MyList, v)
-    else
-      Result := Caller.InnerfuseCall(FSelf, VirtualMethodPtrToPtr(p.Ext1, FSelf), cc, MyList, v);
+    if p.Ext2 = nil
+    then MAddr := p.Ext1
+    else MAddr := VirtualMethodPtrToPtr(p.Ext1, FSelf);
+    Result := Caller.InnerfuseCall(FSelf, MAddr, cc, MyList, v)
   finally
     DisposePPSVariantIFC(v);
     DisposePPSVariantIFCList(mylist);

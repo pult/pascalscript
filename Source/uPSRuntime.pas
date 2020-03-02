@@ -12322,6 +12322,7 @@ begin
     if (FSelf = nil)
     then Caller.CMD_Err2(erNullPointerException, tbtString(RPS_NullPointerException))
     else raise EPSError.Create('Invalid Object Reference'); // EPSError InvalidPointer
+    Exit;
   end;
   {+.}
   CurrStack := Cardinal(Stack.Count) - Cardinal(Length(S)) - 1;

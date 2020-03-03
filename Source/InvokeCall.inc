@@ -219,7 +219,7 @@ begin
         btVariant:
           begin
             //?Arg := TValue.From<Variant>(Variant(fvar.dta^));
-			Arg := TValue.From(PVariant(fvar.dta)^);
+            Arg := TValue.From(PVariant(fvar.dta)^);
           end;
         {+.}
         btSet:

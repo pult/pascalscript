@@ -116,9 +116,19 @@ begin
 
   for I := 0 to Params.Count - 1 do
   begin
-    if Params[i] = nil
-      then Exit;
     fvar := Params[i];
+    if fvar = nil then begin
+      S := 'Unassigned parameter #"'
+        + SysUtils.IntToStr(i)
+        + '"!';
+      {$IFDEF MSWINDOWS}
+      OutputDebugString(PChar('rps:> ' + S));
+      {$ELSE}
+      //writeln(stderr, S);
+      {$ENDIF}
+      raise EInvocationError.Create('Internal: ' + S); // optional
+      Exit;
+    end;
 
     if fvar.varparam then
     begin { var param }
@@ -130,6 +140,15 @@ begin
           Arg := TValue.From<Pointer>( Pointer(fvar.dta) );
         else
           begin
+            S := 'Parameter type (var) "'
+              + SysUtils.IntToStr(Integer(fvar.aType.BaseType))
+              + '" not implemented!';
+            {$IFDEF MSWINDOWS}
+            OutputDebugString(PChar('rps:> ' + S));
+            {$ELSE}
+            //writeln(stderr, S);
+            {$ENDIF}
+            raise EInvocationError.Create('Internal: ' + S); // optional
             Exit;
           end;
       end;
@@ -196,6 +215,13 @@ begin
              else //dynarray = just push pointer
                Arg := TValue.From<Pointer>(fvar.dta);
           end;
+        {+}
+        btVariant:
+          begin
+            //?Arg := TValue.From<Variant>(Variant(fvar.dta^));
+			Arg := TValue.From(PVariant(fvar.dta)^);
+          end;
+        {+.}
         btSet:
           begin
             case TPSTypeRec_Set(fvar.aType).aByteSize  of
@@ -210,7 +236,7 @@ begin
         else
         {+}
         begin
-          S := 'Parameter type "'
+          S := 'Parameter type (!var) "'
             + SysUtils.IntToStr(Integer(fvar.aType.BaseType))
             + '" not implemented!';
           {$IFDEF MSWINDOWS}
@@ -218,8 +244,8 @@ begin
           {$ELSE}
           //writeln(stderr, S);
           {$ENDIF}
-          raise EInvocationError.Create('Internal: ' + S);
-          //Exit;
+          raise EInvocationError.Create('Internal: ' + S); // optional
+          Exit;
         end;
         {+.}
       end;  { case }
@@ -246,15 +272,15 @@ begin
     case res.atype.basetype of
       { add result types here }
       {+}
-      btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(String),False,IsConstr).AsString);
-    //btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(AnsiString),False,IsConstr).AsType<AnsiString>());
+      btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(String),True,IsConstr).AsString);
+    //btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(AnsiString),True,IsConstr).AsType<AnsiString>());
       {+.}
       {$IFNDEF PS_NOWIDESTRING}
       {+}
-      btUnicodeString:         tbtunicodestring(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(String),False,IsConstr).AsString;
-    //btUnicodeString:         tbtunicodestring(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(UnicodeString),False,IsConstr).AsType<UnicodeString>();
-      btWideString:            tbtWideString(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(String),False,IsConstr).AsString;
-    //btWideString:            tbtWideString(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(WideString),False,IsConstr).AsType<WideString>();
+      btUnicodeString:         tbtunicodestring(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(String),True,IsConstr).AsString;
+    //btUnicodeString:         tbtunicodestring(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(UnicodeString),True,IsConstr).AsType<UnicodeString>();
+      btWideString:            tbtWideString(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(String),True,IsConstr).AsString;
+    //btWideString:            tbtWideString(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(WideString),True,IsConstr).AsType<WideString>();
       {+.}
       {$ENDIF}
       btU8, btS8:              pbyte(res.dta)^ := Byte(Invoke(Address,Args,SysCalConv,TypeInfo(Byte),False,IsConstr).AsInteger);
@@ -285,6 +311,7 @@ begin
         {$ifend}
       {$ENDIF}
       {+.}
+      btInterface:             IDispatch(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(IDispatch),False,IsConstr).AsType<IDispatch>();
       btSet:
         begin
           case TPSTypeRec_Set(res.aType).aByteSize  of
@@ -333,6 +360,11 @@ begin
       end;
       btArray: //need to check with open arrays
       begin
+        //NB. When you have types-synonyms like TCardinalDynArray = array of Cardinal;
+        //it will NOT be added to RTTI list by compiler. So, it will be never
+        //finded by this way. The only way is to declares types like:
+        //TCardinalDynArray_ = array of Cardinal;
+        //TCardinalDynArray = type TCardinalDynArray_
         for RttiType in ctx.GetTypes do
           if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkDynArray) then
           begin
@@ -355,8 +387,8 @@ begin
         {$ELSE}
         //writeln(stderr, S);
         {$ENDIF}
-        raise EInvocationError.Create('Internal: ' + S);
-        //Exit;
+        raise EInvocationError.Create('Internal: ' + S); // optional
+        Exit;
       end;
       {+.}
     end;  { case }

@@ -2579,7 +2579,8 @@ begin
   Result := x;
 end;
 
-function TPSPascalCompiler.MakeHint(const Module: tbtString; E: TPSPascalCompilerHintType; const Param: tbtString): TPSPascalCompilerMessage;
+function TPSPascalCompiler.MakeHint(const Module: tbtString; E: TPSPascalCompilerHintType;
+  const Param: tbtString): TPSPascalCompilerMessage;
 var
   n: TPSPascalCompilerHint;
 begin {+}{@dbg@:hook.makehint}{+.} // dbg.cond:
@@ -2592,8 +2593,8 @@ begin {+}{@dbg@:hook.makehint}{+.} // dbg.cond:
   Result := n;
 end;
 
-function TPSPascalCompiler.MakeError(const Module: tbtString; E:
-  TPSPascalCompilerErrorType; const Param: tbtString): TPSPascalCompilerMessage;
+function TPSPascalCompiler.MakeError(const Module: tbtString; E: TPSPascalCompilerErrorType;
+  const Param: tbtString): TPSPascalCompilerMessage;
 var
   n: TPSPascalCompilerError;
 begin {+}{@dbg@:hook.makerror}{+.} // dbg.cond:
@@ -12110,7 +12111,7 @@ var
   {$IFDEF PS_USESSUPPORT}
   Block : TPSBlockInfo; //nvds
   {$ENDIF}
-begin {+}{@dbg@:hook.compile}{+.} // dbg.cond:
+begin {+}{@dbg@:hook.compile}{+.} // dbg.cond:  // "function TPSPascalCompiler.Compile"
   Result := False;
   FWithCount := -1;
 
@@ -12344,8 +12345,7 @@ begin {+}{@dbg@:hook.compile}{+.} // dbg.cond:
       end;
     end
     else if (FParser.CurrTokenId = CSTII_Begin)
-      {$IFDEF PS_USESSUPPORT}
-             or ((FParser.CurrTokenID = CSTII_initialization) and FIsUnit) {$ENDIF}  then //nvds
+      {$IFDEF PS_USESSUPPORT}or((FParser.CurrTokenID = CSTII_initialization) and FIsUnit){$ENDIF}then //nvds
     begin
       {$IFDEF PS_USESSUPPORT}
       if FIsUnit then
@@ -12362,7 +12362,8 @@ begin {+}{@dbg@:hook.compile}{+.} // dbg.cond:
         FUnitInits.Add(Block);
         if ProcessSub(Block) then
         begin
-          if (Fparser.CurrTokenId = CSTI_EOF) THEN break;
+          if (Fparser.CurrTokenId = CSTI_EOF) then
+            Break;
         end
         else
         begin
@@ -14526,7 +14527,6 @@ begin
   else
     Result := tbtstring(RPS_UnknownError);
   end;
-  Result := Result;
 end;
 
 { TPSPascalCompilerHint }

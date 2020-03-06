@@ -272,8 +272,8 @@ begin
     case res.atype.basetype of
       { add result types here }
       {+}
-      btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(String),True,IsConstr).AsString);
-    //btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(AnsiString),True,IsConstr).AsType<AnsiString>());
+    //btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(String),True,IsConstr).AsString);
+      btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(AnsiString),True,IsConstr).AsType<AnsiString>);
       {+.}
       {$IFNDEF PS_NOWIDESTRING}
       {+}
@@ -283,35 +283,35 @@ begin
     //btWideString:            tbtWideString(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(WideString),True,IsConstr).AsType<WideString>();
       {+.}
       {$ENDIF}
-      btU8, btS8:              pbyte(res.dta)^ := Byte(Invoke(Address,Args,SysCalConv,TypeInfo(Byte),False,IsConstr).AsInteger);
-      btU16, btS16:            pword(res.dta)^ := word(Invoke(Address,Args,SysCalConv,TypeInfo(Word),False,IsConstr).AsInteger);
-      btU32, btS32:            pCardinal(res.dta)^ := Cardinal(Invoke(Address,Args,SysCalConv,TypeInfo(Cardinal),False,IsConstr).AsInteger);
+      btU8, btS8:              pbyte(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Byte),False,IsConstr).AsType<Byte>;
+      btU16, btS16:            pword(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Word),False,IsConstr).AsType<Word>;
+      btU32, btS32:            pCardinal(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Cardinal),False,IsConstr).AsType<Cardinal>;
       {+}
       {$IFNDEF PS_NOINT64}
-      bts64:                   pInt64(res.dta)^ := Int64(Invoke(Address,Args,SysCalConv,TypeInfo(Int64),False,IsConstr).AsInt64);
+      bts64:                   pInt64(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Int64),False,IsConstr).AsInt64;
       {$ENDIF}
       {+.}
       //TODO: XE3: Error: E2089 Invalid typecast
-      btSingle:                psingle(res.dta)^ := Double(Invoke(Address,Args,SysCalConv,TypeInfo(Single),False,IsConstr).AsExtended);
+      btSingle:                psingle(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Single),False,IsConstr).AsType<Single>;
       //TODO: XE3: Error: E2089 Invalid typecast
-      btDouble:                pdouble(res.dta)^ := Double(Invoke(Address,Args,SysCalConv,TypeInfo(Double),False,IsConstr).AsExtended);
-      btExtended:              pextended(res.dta)^ := Extended(Invoke(Address,Args,SysCalConv,TypeInfo(Extended),False,IsConstr).AsExtended);
+      btDouble:                pdouble(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Double),False,IsConstr).AsType<Double>;
+      btExtended:              pextended(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Extended),False,IsConstr).AsExtended;
 
       {+}
-    //btPChar:                 ppchar(res.dta)^ := pchar(Invoke(Address,Args,SysCalConv,TypeInfo(PChar),False,IsConstr).AsType<PChar>());
-      btPChar:                 ppansichar(res.dta)^ := pansichar(Invoke(Address,Args,SysCalConv,TypeInfo(PAnsiChar),False,IsConstr).AsType<PAnsiChar>());
-      //btChar:                  pchar(res.dta)^ := Char(Invoke(Address,Args,SysCalConv,TypeInfo(Char),False,IsConstr).AsType<Char>());
-      btChar:                  pansichar(res.dta)^ := AnsiChar(Invoke(Address,Args,SysCalConv,TypeInfo(AnsiChar),False,IsConstr).AsType<AnsiChar>());
+    //btPChar:                 ppchar(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(PChar),False,IsConstr).AsType<PChar>;
+      btPChar:                 ppansichar(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(PAnsiChar),False,IsConstr).AsType<PAnsiChar>;
+      //btChar:                pchar(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Char),False,IsConstr).AsType<Char>;
+      btChar:                  pansichar(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(AnsiChar),False,IsConstr).AsType<AnsiChar>;
       {+.}
       {+}
       {$IFNDEF PS_NOWIDESTRING}
-      btWideChar:              pwidechar(res.dta)^ := WideChar(Invoke(Address,Args,SysCalConv,TypeInfo(WideChar),False,IsConstr).AsType<WideChar>());
+      btWideChar:              pwidechar(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(WideChar),False,IsConstr).AsType<WideChar>;
         {$if declared(btPWideChar)}
-      btPWideChar:             ppwidechar(res.dta)^ := pwidechar(Invoke(Address,Args,SysCalConv,TypeInfo(PWideChar),False,IsConstr).AsType<PWideChar>());
+      btPWideChar:             ppwidechar(res.dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(PWideChar),False,IsConstr).AsType<PWideChar>;
         {$ifend}
       {$ENDIF}
       {+.}
-      btInterface:             IDispatch(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(IDispatch),False,IsConstr).AsType<IDispatch>();
+      btInterface:             IUnknown(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(IUnknown),True,IsConstr).AsType<IUnknown>;
       btSet:
         begin
           case TPSTypeRec_Set(res.aType).aByteSize  of

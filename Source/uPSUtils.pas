@@ -7,7 +7,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202001131137; // format: yyyymmddhhnn
+  uPSVersion = 202003162141; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -15,7 +15,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202001131137)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202003162141)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -41,7 +41,7 @@ const
 
   PSAddrNegativeStackStart = 1073741824;
 type
-  TbtString = {$IFDEF DELPHI2009UP}AnsiString{$ELSE}String{$ENDIF};
+  TbtString = {$IFDEF UNICODE}AnsiString{$ELSE}String{$ENDIF}; // UNICODE or DELPHI2009UP
 
   TPSBaseType = Byte;
 

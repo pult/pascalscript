@@ -1252,7 +1252,7 @@ function MakeWString(const s: tbtunicodestring): tbtstring;
 {$ENDIF}
 
 {$IFNDEF PS_NOIDISPATCH}
-function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string; const Par: array of Variant): Variant;
+function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: tbtString; const Par: array of Variant): Variant;
 {$ENDIF}
 
 implementation
@@ -15114,7 +15114,7 @@ type
 {$ENDIF CPU64}{$ENDIF FPC}
 {+.}
 
-function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string; const Par: array of Variant): Variant;
+function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: tbtString; const Par: array of Variant): Variant;
 var
   Param: Word;
   i, ArgErr: Longint;

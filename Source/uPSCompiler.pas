@@ -13510,7 +13510,7 @@ begin
   begin
     ExportName := True;
   end;
-  AddDelphiFunction('function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string; Par: array of Variant): Variant;');
+  AddDelphiFunction('function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: AnsiString; Par: array of Variant): Variant;');
   {$ENDIF !PS_NOIDISPATCH}
   {$ENDIF !PS_NOINTERFACES}
 

@@ -7,7 +7,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202003162141; // format: yyyymmddhhnn
+  uPSVersion = 202004301657; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -15,7 +15,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202003162141)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202004301657)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}

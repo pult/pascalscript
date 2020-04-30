@@ -132,28 +132,31 @@ type
 
     FType: TPSType;
     case Byte of
-      1: (tU8: TbtU8);
-      2: (tS8: TbtS8);
-      3: (tU16: TbtU16);
-      4: (tS16: TbtS16);
-      5: (tU32: TbtU32);
-      6: (tS32: TbtS32);
-      7: (tSingle: TbtSingle);
-      8: (tDouble: TbtDouble);
-      9: (tExtended: TbtExtended);
-      11: (tCurrency: tbtCurrency);
-      10: (tString: Pointer);
+      {+}
+      btU8:            (tU8: TbtU8);
+      btS8:            (tS8: TbtS8);
+      btU16:           (tU16: TbtU16);
+      btS16:           (tS16: TbtS16);
+      btU32:           (tU32: TbtU32);
+      btS32:           (tS32: TbtS32);
+      btSingle:        (tSingle: TbtSingle);
+      btDouble:        (tDouble: TbtDouble);
+      btExtended:      (tExtended: TbtExtended);
+      btCurrency:      (tCurrency: TbtCurrency);
+      btString:        (tString: Pointer);
       {$IFNDEF PS_NOINT64}
-      17: (tS64: Tbts64);
+      btS64:           (tS64: TbtS64);
+      30{btU64}:       (tU64: TbtU64); // TODO: change btU64 to unique and add this type of processingadd this type of processing
       {$ENDIF}
-      19: (tChar: tbtChar);
+      btChar:          (tChar: TbtChar);
       {$IFNDEF PS_NOWIDESTRING}
-      18: (tWideString: Pointer);
-      20: (tWideChar: tbtwidechar);
+      btWideString:    (tWideString: Pointer);
+      btWideChar:      (tWideChar: TbtWideChar);
       {$ENDIF}
-      21: (tType: TPSType);
-      22: (tUniString: Pointer);
-  end;
+      btUnicodeString: (tUniString: Pointer);
+      btType:          (tType: TPSType);
+      {+.}
+  end; // TIfRVariant
 
   TPSRecordFieldTypeDef = class(TObject)
   private
@@ -12636,11 +12639,17 @@ begin
   {+} {+.}
   {$IFNDEF PS_NOINT64}
   AddType('Int64', btS64);
+  AddType('UInt64', btU64);
   {$ENDIF}
   {+}
   //PointerSize = IPointer({$IFDEF CPU64}8{$ELSE}4{$ENDIF});
+  {$IFNDEF PS_NOINT64}
   AddType('NativeInt', {$IFDEF CPU64}btS64{$ELSE}btS32{$ENDIF});
-  AddType('NativeUInt', {$IFDEF CPU64}btS64{$ELSE}btU32{$ENDIF});
+  AddType('NativeUInt', {$IFDEF CPU64}btU64{$ELSE}btU32{$ENDIF});
+  {$ELSE}
+  AddType('NativeInt', btS32);
+  AddType('NativeUInt', btU32);
+  {$ENDIF}
   //AddType('Pointer', btPointer);
   AddTypeCopyN('Pointer', 'NativeUInt');
   {+.}

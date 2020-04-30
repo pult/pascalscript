@@ -85,6 +85,9 @@ const
 
 {$IFNDEF PS_NOINT64}
   btS64             = 17;
+  {+}
+  btU64             = btS64{30}; // TODO: change value to unique and add this type of processing
+  {+.}
 {$ENDIF}
 
   btChar            = 18;
@@ -324,7 +327,14 @@ type
   tbtCurrency = Currency;
 
 {$IFNDEF PS_NOINT64}
-  tbts64 = int64;
+  TbtS64 = Int64;
+  {+} // TODO: add this type of processing
+  {$if declared(UInt64)}
+  TbtU64 = UInt64;
+  {$else}
+  TbtU64 = Int64;
+  {$ifend}
+  {+.}
 {$ENDIF}
 
   tbtchar = {$IFDEF DELPHI4UP}AnsiChar{$ELSE}CHAR{$ENDIF};

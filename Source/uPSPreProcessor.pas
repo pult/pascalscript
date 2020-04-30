@@ -283,7 +283,7 @@ begin
       Res.Pos := Pos;
       Res.Col := 1;
       Res.Row := 1;
-      LinePos := 0;
+      LinePos := 0; // DCC64: Hint: H2077 Value assigned to 'linepos' never used
       for j := 0 to Item.LineOffsetCount -1 do
       begin
         if Pos >= Item.LineOffset[j] then
@@ -302,6 +302,11 @@ begin
         Res.Col := pos - linepos + 1;
         //[+]
       end; // for j
+      {+}
+      {$IFDEF CPU64}
+      if LinePos = 0 then ; // DCC64: Hint: H2077 Value assigned to 'linepos' never used
+      {$ENDIF}
+      {+.}
       Result := True;
       exit;
     end;

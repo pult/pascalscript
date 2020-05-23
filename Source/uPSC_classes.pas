@@ -168,10 +168,22 @@ begin
     {$IFDEF DELPHI4UP}
     {$IFNDEF PS_NOINT64}
     RegisterMethod('function CopyFrom(Source: TStream; Count: Int64): Int64');
-    {$ENDIF}
     {$ELSE}
     RegisterMethod('function CopyFrom(Source: TStream; Count: Integer): LongInt');
     {$ENDIF}
+    {$ELSE !DELPHI4UP}
+    RegisterMethod('function CopyFrom(Source: TStream; Count: Integer): LongInt');
+    {$ENDIF !DELPHI4UP}
+    //
+    {$IFDEF DELPHI4UP}
+    {$IFNDEF PS_NOINT64}
+    RegisterMethod('function CopyFromBuffer(Source: TStream; Count: Int64; BufferSize: Integer): Int64');
+    {$ELSE}
+    RegisterMethod('function CopyFromBuffer(Source: TStream; Count: Integer; BufferSize: Integer): LongInt');
+    {$ENDIF}
+    {$ELSE !DELPHI4UP}
+    RegisterMethod('function CopyFromBuffer(Source: TStream; Count: Integer; BufferSize: Integer): LongInt');
+    {$ENDIF !DELPHI4UP}
     {+}
     {$IFNDEF PS_NOINT64}
     RegisterProperty('Position', 'Int64', iptrw);

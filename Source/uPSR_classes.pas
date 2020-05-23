@@ -516,6 +516,34 @@ begin
     Self.Position := iPos;
   end;
 end;
+
+{$IFDEF DELPHI4UP}
+{$IFNDEF PS_NOINT64}
+function TStream_CopyFrom(Self: TStream; Source: TStream; Count: Int64): Int64;
+{$ELSE}
+function TStream_CopyFrom(Self: TStream; Source: TStream; Count: Integer): LongInt;
+{$ENDIF}
+{$ELSE !DELPHI4UP}
+function TStream_CopyFrom(Self: TStream; Source: TStream; Count: Integer): LongInt;
+{$ENDIF !DELPHI4UP}
+begin
+  Result := Self.CopyFrom(Source, Count);// {$IFDEF DELPHI27UP},64*1024{$ENDIF});
+end;
+
+{$IFDEF DELPHI4UP}
+{$IFNDEF PS_NOINT64}
+function TStream_CopyFromBuffer(Self: TStream; Source: TStream; Count: Int64; BufferSize: Integer): Int64;
+{$ELSE}
+function TStream_CopyFromBuffer(Self: TStream; Source: TStream; Count: Integer; BufferSize: Integer): LongInt;
+{$ENDIF}
+{$ELSE !DELPHI4UP}
+function TStream_CopyFromBuffer(Self: TStream; Source: TStream; Count: Integer; BufferSize: Integer): LongInt;
+{$ENDIF !DELPHI4UP}
+begin
+  Result := Self.CopyFrom(Source, Count{$IFDEF DELPHI27UP},BufferSize{$ENDIF});
+  // TODO: ? implement CopyFromBuffer for D26Down
+end;
+
 {+.}
 
 procedure RIRegisterTSTREAM(Cl: TPSRuntimeClassImporter);
@@ -551,8 +579,10 @@ begin
     RegisterMethod(@TStream_WriteBufferA, 'WriteBufferA');
     RegisterMethod(@TStream_WriteBufferB, 'WriteBufferB');
     RegisterMethod(@TStream_WriteBufferW, 'WriteBufferW');
+    //
+    RegisterMethod(@TStream_CopyFrom, 'CopyFrom'); // TStream.CopyFrom - changed declaration on DX10.4 Sydney
+    RegisterMethod(@TStream_CopyFromBuffer, 'CopyFromBuffer');
     {+.}
-    RegisterMethod(@TStream.CopyFrom, 'CopyFrom');
     RegisterPropertyHelper(@TSTREAMPOSITION_R, @TSTREAMPOSITION_W, 'Position');
     RegisterPropertyHelper(@TSTREAMSIZE_R, {$IFDEF DELPHI3UP}@TSTREAMSIZE_W, {$ELSE}nil, {$ENDIF}'Size');
     {+}

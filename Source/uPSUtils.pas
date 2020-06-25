@@ -7,7 +7,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202006250900; // format: yyyymmddhhnn
+  uPSVersion = 202006250950; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -15,7 +15,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202006250900)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202006250950)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -1380,31 +1380,32 @@ begin
   FData[FCount] := P; // Instead of SetItem
   Result := FCount;
   Inc(FCount);
-{$IFNDEF PS_NOSMARTLIST}
+  {$IFNDEF PS_NOSMARTLIST}
   Inc(FCheckCount);
-  if FCheckCount > FMaxCheckCount then Recreate;
-{$ENDIF}
+  if FCheckCount > FMaxCheckCount then
+    Recreate;
+  {$ENDIF}
 end;
 
 procedure TPSList.AddBlock(List: PPointerList; Count: Longint);
 var
   L: Longint;
-
 begin
   if Longint(FCount) + Count > Longint(FCapacity) then
   begin
     Inc(FCapacity, mm(Count, FCapacityInc));
     ReAllocMem(FData, FCapacity *PointerSize);
   end;
-  for L := 0 to Count -1 do
+  for L := 0 to Count-1 do
   begin
     FData[FCount] := List[L];
     Inc(FCount);
   end;
-{$IFNDEF PS_NOSMARTLIST}
+  {$IFNDEF PS_NOSMARTLIST}
   Inc(FCheckCount);
-  if FCheckCount > FMaxCheckCount then Recreate;
-{$ENDIF}
+  if FCheckCount > FMaxCheckCount then
+    Recreate;
+  {$ENDIF}
 end;
 
 procedure TPSList.DeleteLast;
@@ -1428,10 +1429,11 @@ begin
     {only move if we aren't deleting the last element}
     if Nr < FCount then
       Move(FData[Nr + 1], FData[Nr], (FCount - Nr) * PointerSize);
-{$IFNDEF PS_NOSMARTLIST}
+    {$IFNDEF PS_NOSMARTLIST}
     Inc(FCheckCount);
-    if FCheckCount > FMaxCheckCount then Recreate;
-{$ENDIF}
+    if FCheckCount > FMaxCheckCount then
+      Recreate;
+    {$ENDIF}
   end;
 end;
 
@@ -1463,17 +1465,15 @@ end;
 {+}
 procedure TPSList.ClearAsObjects();
 var
-  D: PPointerList;
   O: TObject;
 begin
   if FCount > 0 then
   begin
-    D := FData;
     while FCount > 0 do
     begin
       Dec(FCount);
-      O := TObject(D[FCount]);
-      D[FCount] := nil;
+      O := TObject(FData[FCount]);
+      FData[FCount] := nil;
       O.Free;
     end;
   end;
@@ -1504,9 +1504,11 @@ begin
     Result := nil;
 end;
 
+{ TPSStringList }
+
 function TPSStringList.Count: LongInt;
 begin
-  count := List.count;
+  Result := List.Count;
 end;
 
 function TPSStringList.GetItem(Nr: LongInt): TbtString;
@@ -1525,8 +1527,7 @@ var
   p: PTbtString;
 begin
   p := List.GetItem(Nr);
-  if p = nil
-    then
+  if p = nil then
     Exit;
   p^ := s;
 end;
@@ -1551,9 +1552,23 @@ begin
 end;
 
 procedure TPSStringList.Clear;
+var
+  W: PTbtString;
+  i: Integer;
 begin
-  while List.Count > 0 do
-    Delete(Pred(List.Count));
+  if Assigned(List) and (List.Count > 0) then
+  begin
+    for i := List.Count-1 downto 0 do
+    begin
+      W := List.FData[i]; // == List.GetItem(i);
+      if W <> nil then
+      begin
+        List.FData[i] := nil;
+        Dispose(W);
+      end;
+    end;
+    List.Clear;
+  end;
 end;
 
 constructor TPSStringList.Create;
@@ -1566,8 +1581,7 @@ destructor TPSStringList.Destroy;
 begin
   if Assigned(List) then
   begin
-    while List.Count > 0 do
-      Delete(0);
+    Clear();
     FreeAndNil(List);
   end;
   inherited Destroy;
@@ -1578,9 +1592,10 @@ var
   x: integer;
 begin
   x := Pos(tbtString(' '), s);
-  if x > 0
-    then Fw := Copy(S, 1, x - 1)
-  else Fw := S;
+  if x > 0 then
+    Fw := Copy(S, 1, x - 1)
+  else
+    Fw := S;
 end;
 
 function FastUpperCase(const s: TbtString): TbtString;
@@ -2237,11 +2252,16 @@ end;
 destructor TPSUnitList.Destroy;
 var
   i: Integer;
+  O: TObject;
 begin
   if Assigned(fList) then
   begin
     for i := fList.Count-1 downto 0 do
-      TObject(fList[i]).Free;
+    begin
+      O := TObject(fList.FData[i]);
+      fList.FData[i] := nil;
+      O.Free;
+    end;
     FreeAndNil(fList);
   end;
   inherited;
@@ -2283,7 +2303,7 @@ end;
 
 destructor TPSUnit.Destroy;
 begin
-  FreeAndNIl(fUnits);
+  FreeAndNil(fUnits);
   inherited;
 end;
 
@@ -2292,13 +2312,10 @@ var
   i: Integer;
 begin
   pUnitName := FastUpperCase(pUnitName);
-  if fUnitName = pUnitName then
-  begin
-    Result:=true;
+  Result := fUnitName = pUnitName;
+  if Result then
     Exit;
-  end;
-  Result := False;
-  for i:=0 to fUnits.Count-1 do
+  for i := 0 to fUnits.Count-1 do
   begin
     Result := TPSUnit(fUnits[i]).HasUses(pUnitName);
     if Result then

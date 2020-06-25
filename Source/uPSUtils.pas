@@ -7,7 +7,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202004301657; // format: yyyymmddhhnn
+  uPSVersion = 202006250900; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -15,7 +15,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202004301657)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202006250900)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -24,106 +24,92 @@ const
 {+.}
 
 const
-
-  PSMainProcName = '!MAIN';
-
-  PSMainProcNameOrg = 'Main Proc';
-
-  PSLowBuildSupport = 12;
-
-  PSCurrentBuildNo = 23;
-
-  PSCurrentversion = '1.31';
-
-  PSValidHeader = 1397769801;
-
-  PSAddrStackStart = 1610612736;
-
+  PSMainProcName           = '!MAIN';
+  PSMainProcNameOrg        = 'Main Proc';
+  PSLowBuildSupport        = 12;
+  PSCurrentBuildNo         = 23;
+  PSCurrentversion         = '1.31';
+  PSValidHeader            = 1397769801;
+  PSAddrStackStart         = 1610612736;
   PSAddrNegativeStackStart = 1073741824;
+
 type
-  TbtString = {$IFDEF UNICODE}AnsiString{$ELSE}String{$ENDIF}; // UNICODE or DELPHI2009UP
-
+  {$IFDEF NEXTGEN}
+    //AnsiChar = Char;
+    //PAnsiChar = ^AnsiChar;
+    //AnsiString = string;
+    //PAnsiString = ^AnsiString;
+  {$ELSE !NEXTGEN}
+    {.$if not declared(AnsiChar)}
+    {$IFNDEF FPC}{$IFNDEF DELPHI4UP}
+    AnsiChar = Char;
+    PAnsiChar = ^AnsiChar;
+    {$ENDIF}{$ENDIF}
+    {.$ifend}
+    //
+    {.$if not declared(AnsiString)}
+    {$IFNDEF FPC}{$IFNDEF DELPHI4UP}
+    AnsiString = string;
+    PAnsiString = ^AnsiString;
+    {$ENDIF}{$ENDIF}
+    {.$ifend}
+  {$ENDIF !NEXTGEN}
+  //
+  TbtChar = AnsiChar;
+  PTbtChar = PAnsiChar;
+  TbtString = AnsiString; //TbtString = {$IFDEF UNICODE}AnsiString{$ELSE}string{$ENDIF}; // UNICODE or DELPHI2009UP
+  PTbtString = PAnsiString;
+  //
   TPSBaseType = Byte;
-
   TPSVariableType = (ivtGlobal, ivtParam, ivtVariable);
 
 const
+  btCharSize = SizeOf(TbtChar);
 
-  btReturnAddress   = 0;
-
-  btU8              = 1;
-
-  btS8              = 2;
-
-  btU16             = 3;
-
-  btS16             = 4;
-
-  btU32             = 5;
-
-  btS32             = 6;
-
-  btSingle          = 7;
-
-  btDouble          = 8;
-
-  btExtended        = 9;
-
-  btString          = 10;
-
-  btRecord          = 11;
-
-  btArray           = 12;
-
-  btPointer         = 13;
-
-  btPChar           = 14;
-
-  btResourcePointer = 15;
-
-  btVariant         = 16;
-
+const
+  btReturnAddress       = 0;
+  btU8                  = 1;
+  btS8                  = 2;
+  btU16                 = 3;
+  btS16                 = 4;
+  btU32                 = 5;
+  btS32                 = 6;
+  btSingle              = 7;
+  btDouble              = 8;
+  btExtended            = 9;
+  btString              = 10;
+  btRecord              = 11;
+  btArray               = 12;
+  btPointer             = 13;
+  btPChar               = 14;
+  btResourcePointer     = 15;
+  btVariant             = 16;
 {$IFNDEF PS_NOINT64}
-  btS64             = 17;
+  btS64                 = 17;
   {+}
-  btU64             = btS64{30}; // TODO: change value to unique and add this type of processing
+  btU64                 = btS64{30}; // TODO: change value to unique and add this type of processing
   {+.}
 {$ENDIF}
-
-  btChar            = 18;
-
+  btChar                = 18;
 {$IFNDEF PS_NOWIDESTRING}
-  btWideString      = 19;
-
-  btWideChar        = 20;
+  btWideString          = 19;
+  btWideChar            = 20;
 {$ENDIF}
-
-  btProcPtr         = 21;
-
-  btStaticArray     = 22;
-
-  btSet             = 23;
-
-  btCurrency        = 24;
-
-  btClass           = 25;
-
-  btInterface       = 26;
-
+  btProcPtr             = 21;
+  btStaticArray         = 22;
+  btSet                 = 23;
+  btCurrency            = 24;
+  btClass               = 25;
+  btInterface           = 26;
   btNotificationVariant = 27;
-
-  btUnicodeString = 28;
-
+  btUnicodeString       = 28;
   {+}
-  btPWideChar = 29;
+  btPWideChar           = 29;
   {$EXTERNALSYM btPWideChar}
   {+.}
-
-  btType = 130;
-
-  btEnum = 129;
-
-  btExtClass = 131;
+  btType                = 130;
+  btEnum                = 129;
+  btExtClass            = 131;
 
 function MakeHash(const s:  TbtString): Longint;
 
@@ -305,27 +291,16 @@ const
   Cm_P2G = 26;
 
 type
-
   TbtU8 = Byte;
-
   TbtS8 = ShortInt;
-
   TbtU16 = Word;
-
   TbtS16 = SmallInt;
-
   TbtU32 = Cardinal;
-
   TbtS32 = Longint;
-
   TbtSingle = Single;
-
-  TbtDouble = double;
-
+  TbtDouble = Double;
   TbtExtended = Extended;
-
-  tbtCurrency = Currency;
-
+  TbtCurrency = Currency;
 {$IFNDEF PS_NOINT64}
   TbtS64 = Int64;
   {+} // TODO: add this type of processing
@@ -336,50 +311,39 @@ type
   {$ifend}
   {+.}
 {$ENDIF}
-
-  tbtchar = {$IFDEF DELPHI4UP}AnsiChar{$ELSE}CHAR{$ENDIF};
+  {$if not declared(ShortString)}
+  ShortString = AnsiString;
+  {$ifend}
 {$IFNDEF PS_NOWIDESTRING}
-
-  tbtwidestring = widestring;
-  tbtunicodestring = {$IFDEF DELPHI2009UP}UnicodeString{$ELSE}widestring{$ENDIF};
-
-  tbtwidechar = widechar;
-  tbtNativeString = {$IFDEF DELPHI2009UP}tbtUnicodeString{$ELSE}tbtString{$ENDIF};
+  TbtWideString = WideString;
+  {$if not declared(UnicodeString)}
+  {-IFNDEF DELPHI2009UP}
+  UnicodeString = WideString;
+  {-ENDIF}
+  {$ifend}
+  TbtUnicodeString = UnicodeString;
+  TbtWideChar = WideChar;
+  TbtNativeString = {$IFDEF DELPHI2009UP}tbtUnicodeString{$ELSE}tbtString{$ENDIF};
 {$ENDIF !PS_NOWIDESTRING}
 {+}
 {$IFDEF FPC}
-  IPointer = PtrUInt;
+  {$if not declared(NativeUInt)}
   NativeInt = PtrInt;
   NativeUInt = PtrUInt;
+  {$ifend}
+  IPointer = PtrUInt;
 {$ELSE !FPC}
-
-  //(*
-  {$IFDEF CPUX64}
-  IPointer = IntPtr;
-  {$ELSE}
-  {$IFDEF CPU64} IPointer = LongWord;{$ELSE}  IPointer = Cardinal;{$ENDIF}{$ENDIF}
-  //*)
-  // OR: // TODO: compiler [Pascal Fatal Error] uPSRuntime.pas(...): F2084 Internal Error: C11238
-  (*
-  {$IFDEF VER140UP}
-  IPointer = NativeUInt;
-  {$ELSE !VER140UP}
-    {$IFDEF CPUX64}
-  IPointer = UIntPtr;
-    {$ELSE !CPUX64}
-      {$IFDEF CPU64}
-  IPointer = LongWord;
-      {$ELSE !CPU64}
-  IPointer = Cardinal;
-      {$ENDIF !CPU64}
-    {$ENDIF !CPUX64}
-  {$ENDIF !VER140UP}
-  //*)
-
+  {.$if not declared(NativeUInt)} // failed for Delphi 2007
   {$IFNDEF DELPHI16UP}
   NativeInt = Integer;
   NativeUInt = Cardinal;
   {$ENDIF}
+  {.$ifend}
+  {.$if not declared(PtrUInt)}
+  PtrInt = NativeInt;
+  PtrUInt = NativeUInt;
+  {.$ifend}
+  IPointer = NativeUInt;
 {$ENDIF !FPC}
   PNativeInt = ^NativeInt;
   PNativeUInt = ^NativeUInt;
@@ -387,10 +351,9 @@ type
   TPSCallingConvention = (cdRegister, cdPascal, cdCdecl, cdStdCall, cdSafeCall);
 
 const
-
   PointerSize = IPointer({$IFDEF CPU64}8{$ELSE}4{$ENDIF});
   PointerSize2 = IPointer(2*PointerSize);
-  MaxListSize = Maxint div 16;
+  MaxListSize = MaxInt div 16;
 
 type
   {+}
@@ -400,79 +363,60 @@ type
 
   TPointerList = array[0..MaxListSize - 1] of Pointer;
 
-  TPSList = class(TObject)
+  TPSList = class
   protected
-
     FData: PPointerList;
-
     FCapacity: Cardinal;
-
     FCount: Cardinal;
-
     FCheckCount: Cardinal;
   private
     function GetItem(Nr: Cardinal): Pointer;
     procedure SetItem(Nr: Cardinal; P: Pointer);
   public
+    constructor Create;
+    destructor Destroy; override;
+
     {$IFNDEF PS_NOSMARTLIST}
     procedure Recreate;
     {$ENDIF}
-
-    property Data: PPointerList read FData;
-
-    constructor Create;
-
     function IndexOf(P: Pointer): Longint;
-
-    destructor Destroy; override;
-
-    property Count: Cardinal read FCount;
-
-    property Items[nr: Cardinal]: Pointer read GetItem write SetItem; default;
-
     function Add(P: Pointer): Longint;
-
     procedure AddBlock(List: PPointerList; Count: Longint);
-
     procedure Remove(P: Pointer);
-
     procedure Delete(Nr: Cardinal);
-
     procedure DeleteLast;
-
     procedure Clear; virtual;
     {+}
     procedure ClearAsObjects();
     {+.}
+
+    property Data: PPointerList read FData;
+    property Count: Cardinal read FCount;
+    property Items[nr: Cardinal]: Pointer read GetItem write SetItem; default;
   end;
   TIFList = TPSList;
 
-  TPSStringList = class(TObject)
+  TPSStringList = class
   private
     List: TPSList;
     function GetItem(Nr: LongInt): TbtString;
     procedure SetItem(Nr: LongInt; const s: TbtString);
   public
+    constructor Create;
+    destructor Destroy; override;
 
     function Count: LongInt;
-
-    property Items[Nr: Longint]: TbtString read GetItem write SetItem; default;
-
     procedure Add(const P: TbtString);
-
-    procedure Delete(NR: LongInt);
-
+    procedure Delete(Nr: LongInt);
     procedure Clear;
 
-    constructor Create;
-
-    destructor Destroy; override;
+    property Items[Nr: Longint]: TbtString read GetItem write SetItem; default;
   end;
   TIFStringList = TPSStringList;
 
   TPSUnitList = class;
 
-  TPSUnit = class(TObject)
+  TPSUnit = class
   private
     fList     : TPSUnitList;
     fUnits    : TPSList;
@@ -480,11 +424,9 @@ type
     procedure SetUnitName(const Value: TbtString);
   public
     constructor Create(List: TPSUnitList);
-
     destructor Destroy; override;
 
-    procedure AddUses(pUnitName: TbtString);
-
+    procedure AddUses(const pUnitName: TbtString);
     function HasUses(pUnitName: TbtString): Boolean;
 
     {$WARNINGS OFF}
@@ -496,23 +438,20 @@ type
   private
     fList: TPSList;
     function Add: TPSUnit;
-
   public
     constructor Create;
+    destructor Destroy; override;
 
     function GetUnit(UnitName: TbtString): TPSUnit;
-
-    destructor Destroy; override;
   end;
 
 type
-
   TPSPasToken = (
     CSTI_EOF,
-
+    //
     CSTIINT_Comment,
     CSTIINT_WhiteSpace,
-
+    //
     CSTI_Identifier,
     CSTI_SemiColon,
     CSTI_Comma,
@@ -541,7 +480,7 @@ type
     CSTI_AddressOf,
     CSTI_Dereference,
     CSTI_TwoDots,
-
+    //
     CSTII_and,
     CSTII_array,
     CSTII_begin,
@@ -588,7 +527,7 @@ type
     CSTII_property,
     CSTII_virtual,
     CSTII_override,
-    //CSTII_default, //Birb
+  //CSTII_default,         //Birb
     CSTII_As,
     CSTII_Is,
     CSTII_Unit,
@@ -604,17 +543,18 @@ type
     CSTII_Ord,
     CSTII_Interface,
     CSTII_Implementation,
-    CSTII_initialization,            //* Nvds
-    CSTII_finalization,              //* Nvds
+    CSTII_initialization,  //* Nvds
+    CSTII_finalization,    //* Nvds
     CSTII_out,
     CSTII_nil
     );
 
-  TPSParserErrorKind = (iNoError
-  , iCommentError
-  , iStringError
-  , iCharError
-  , iSyntaxError
+  TPSParserErrorKind = (
+    iNoError,
+    iCommentError,
+    iStringError,
+    iCharError,
+    iSyntaxError
   );
   TPSParserErrorEvent = procedure (Parser: TObject; Kind: TPSParserErrorKind) of object;
 
@@ -630,7 +570,7 @@ type
   end;
   {+.}
 
-  TPSPascalParser = class(TObject)
+  TPSPascalParser = class
   protected
     FData: TbtString;
     FText: {$IFDEF DELPHI4UP}PAnsiChar{$ELSE}PChar{$ENDIF};
@@ -648,40 +588,25 @@ type
     procedure StateSave(out AState: TPSPascalParserStateData; ALevel: TPSPascalParserStateLevel);
     procedure StateRestore(var AState: TPSPascalParserStateData);
     {+.}
-
-    property EnableComments: Boolean read FEnableComments write FEnableComments;
-
-    property EnableWhitespaces: Boolean read FEnableWhitespaces write FEnableWhitespaces;
-
-    procedure Next; virtual;
-
-    property GetToken: TbtString read FToken;
-
-    property OriginalToken: TbtString read FOriginalToken;
-
-    property CurrTokenPos: Cardinal read FRealPosition;
-
-    property CurrTokenID: TPSPasToken read FTokenId;
-
-    property Row: Cardinal read FRow;
-
-    property Col: Cardinal read GetCol;
-
     procedure SetText(const Data: TbtString); virtual;
 
+    property EnableComments: Boolean read FEnableComments write FEnableComments;
+    property EnableWhitespaces: Boolean read FEnableWhitespaces write FEnableWhitespaces;
+    procedure Next; virtual;
+    property GetToken: TbtString read FToken;
+    property OriginalToken: TbtString read FOriginalToken;
+    property CurrTokenPos: Cardinal read FRealPosition;
+    property CurrTokenID: TPSPasToken read FTokenId;
+    property Row: Cardinal read FRow;
+    property Col: Cardinal read GetCol;
     property OnParserError: TPSParserErrorEvent read FParserError write FParserError;
   end;
 
 function FloatToStr(E: Extended): TbtString; {$ifdef INLINE_SUPPORT} inline; {$endif}
-
 function FastLowerCase(const s: TbtString): TbtString;
-
 function Fw(const S: TbtString): TbtString;
-
 function IntToStr(I: LongInt): TbtString;
-
 function StrToIntDef(const S: TbtString; Def: LongInt): LongInt;
-
 function StrToInt(const S: TbtString): LongInt;
 function StrToFloat(const s: TbtString): Extended;
 
@@ -700,12 +625,10 @@ function string_starts_with(const S, Look: string): Boolean; {-ifdef INLINE_SUPP
 {+.}
 
 const
-
   FCapacityInc = 32;
-{$IFNDEF PS_NOSMARTLIST}
-
+  {$IFNDEF PS_NOSMARTLIST}
   FMaxCheckCount = (FCapacityInc div 4) * 64;
-{$ENDIF}
+  {$ENDIF}
 
 {$IFNDEF DELPHI5UP}{$IFNDEF FPC}
 function WideUpperCase(const S: WideString): WideString;
@@ -1363,7 +1286,6 @@ begin
   Val(string(s), Result, i);
   if i <> 0 then raise Exception.Create(RPS_InvalidFloat);
 end;
-//-------------------------------------------------------------------
 
 function IntToStr(I: LongInt): TbtString;
 var
@@ -1372,7 +1294,6 @@ begin
   Str(i, s);
   IntToStr := s;
 end;
-//-------------------------------------------------------------------
 
 function FloatToStr(E: Extended): TbtString;
 {+}
@@ -1398,7 +1319,6 @@ begin
   else
     StrToInt := Res;
 end;
-//-------------------------------------------------------------------
 
 function StrToIntDef(const S: TbtString; Def: LongInt): LongInt;
 var
@@ -1411,7 +1331,6 @@ begin
   else
     StrToIntDef := Res;
 end;
-//-------------------------------------------------------------------
 
 constructor TPSList.Create;
 begin
@@ -1424,7 +1343,7 @@ begin
   GetMem(FData, FCapacity * PointerSize);
 end;
 
-function MM(i1,i2: Integer): Integer;
+function MM(i1, i2: Integer): Integer;
 begin
   if ((i1 div i2) * i2) < i1 then
     mm := (i1 div i2 + 1) * i2
@@ -1444,16 +1363,12 @@ begin
   if NewCapacity < 64 then NewCapacity := 64;
   GetMem(NewData, NewCapacity * PointerSize);
   for I := 0 to Longint(FCount) -1 do
-  begin
     NewData^[i] := FData[I];
-  end;
   FreeMem(FData, FCapacity * PointerSize);
   FData := NewData;
   FCapacity := NewCapacity;
 end;
 {$ENDIF}
-
-//-------------------------------------------------------------------
 
 function TPSList.Add(P: Pointer): Longint;
 begin
@@ -1492,8 +1407,6 @@ begin
 {$ENDIF}
 end;
 
-//-------------------------------------------------------------------
-
 procedure TPSList.DeleteLast;
 begin
   if FCount = 0 then Exit;
@@ -1521,7 +1434,6 @@ begin
 {$ENDIF}
   end;
 end;
-//-------------------------------------------------------------------
 
 procedure TPSList.Remove(P: Pointer);
 var
@@ -1539,7 +1451,6 @@ begin
     Inc(I);
   end;
 end;
-//-------------------------------------------------------------------
 
 procedure TPSList.Clear;
 begin
@@ -1572,14 +1483,11 @@ begin
 end;
 {+.}
 
-//-------------------------------------------------------------------
-
 destructor TPSList.Destroy;
 begin
   FreeMem(FData, FCapacity * PointerSize);
   inherited Destroy;
 end;
-//-------------------------------------------------------------------
 
 procedure TPSList.SetItem(Nr: Cardinal; P: Pointer);
 begin
@@ -1587,7 +1495,6 @@ begin
     Exit;
   FData[Nr] := P;
 end;
-//-------------------------------------------------------------------
 
 function TPSList.GetItem(Nr: Cardinal): Pointer;
 begin
@@ -1597,19 +1504,14 @@ begin
     Result := nil;
 end;
 
-//-------------------------------------------------------------------
-
 function TPSStringList.Count: LongInt;
 begin
   count := List.count;
 end;
-type pStr = ^TbtString;
-
-//-------------------------------------------------------------------
 
 function TPSStringList.GetItem(Nr: LongInt): TbtString;
 var
-  S: PStr;
+  S: PTbtString;
 begin
   s := List.GetItem(Nr);
   if s = nil then
@@ -1617,11 +1519,10 @@ begin
   else
     Result := s^;
 end;
-//-------------------------------------------------------------------
 
 procedure TPSStringList.SetItem(Nr: LongInt; const s: TbtString);
 var
-  p: PStr;
+  p: PTbtString;
 begin
   p := List.GetItem(Nr);
   if p = nil
@@ -1629,28 +1530,24 @@ begin
     Exit;
   p^ := s;
 end;
-//-------------------------------------------------------------------
 
 procedure TPSStringList.Add(const P: TbtString);
 var
-  w: PStr;
+  w: PTbtString;
 begin
-  new(w);
-  w^ := p;
+  New(w);
+  w^ := P;
   List.Add(w);
 end;
-//-------------------------------------------------------------------
 
-procedure TPSStringList.Delete(NR: LongInt);
+procedure TPSStringList.Delete(Nr: LongInt);
 var
-  W: PStr;
+  W: PTbtString;
 begin
-  W := list.getitem(nr);
-  if w<>nil then
-  begin
-    dispose(w);
-  end;
-  list.Delete(Nr);
+  W := List.GetItem(Nr);
+  if w <> nil then
+    Dispose(w);
+  List.Delete(Nr);
 end;
 
 procedure TPSStringList.Clear;
@@ -1667,24 +1564,25 @@ end;
 
 destructor TPSStringList.Destroy;
 begin
-  while List.Count > 0 do
-    Delete(0);
-  List.Destroy;
+  if Assigned(List) then
+  begin
+    while List.Count > 0 do
+      Delete(0);
+    FreeAndNil(List);
+  end;
   inherited Destroy;
 end;
-
-//-------------------------------------------------------------------
 
 function Fw(const S: TbtString): TbtString; //  First word
 var
   x: integer;
 begin
-  x := pos(tbtstring(' '), s);
+  x := Pos(tbtString(' '), s);
   if x > 0
     then Fw := Copy(S, 1, x - 1)
   else Fw := S;
 end;
-//-------------------------------------------------------------------
+
 function FastUpperCase(const s: TbtString): TbtString;
 {Fast uppercase}
 var
@@ -1696,11 +1594,12 @@ begin
   while I > 0 do
   begin
     C := Result[I];
-    if c in [#97..#122] then
-      Result[I] := tbtchar(Ord(Result[I]) -32);
+    if C in [#97..#122] then
+      Result[I] := tbtChar(Ord(C) - 32);
     Dec(I);
   end;
 end;
+
 function FastLowerCase(const s: TbtString): TbtString;
 {Fast lowercase}
 var
@@ -1713,11 +1612,10 @@ begin
   begin
     C := Result[I];
     if C in [#65..#90] then
-      Result[I] := tbtchar(Ord(Result[I]) + 32);
+      Result[I] := tbtChar(Ord(C) + 32);
     Dec(I);
   end;
 end;
-//-------------------------------------------------------------------
 
 type
   TRTab = record
@@ -1728,72 +1626,72 @@ type
 const
   KEYWORD_COUNT = 65;  //*NVDS
   LookupTable: array[0..KEYWORD_COUNT - 1] of TRTab = (
-      (name: 'AND'; c: CSTII_and),
-      (name: 'ARRAY'; c: CSTII_array),
-      (name: 'AS'; c: CSTII_as),
-      (name: 'BEGIN'; c: CSTII_begin),
-      (name: 'CASE'; c: CSTII_case),
-      (name: 'CHR'; c: CSTII_chr),
-      (name: 'CLASS'; c: CSTII_class),
-      (name: 'CONST'; c: CSTII_const),
-      (name: 'CONSTRUCTOR'; c: CSTII_constructor),
-      (name: 'DESTRUCTOR'; c: CSTII_destructor),
-      (name: 'DIV'; c: CSTII_div),
-      (name: 'DO'; c: CSTII_do),
-      (name: 'DOWNTO'; c: CSTII_downto),
-      (name: 'ELSE'; c: CSTII_else),
-      (name: 'END'; c: CSTII_end),
-      (name: 'EXCEPT'; c: CSTII_except),
-      (name: 'EXIT'; c: CSTII_exit),
-      (name: 'EXPORT'; c: CSTII_Export),
-      (name: 'EXTERNAL'; c: CSTII_External),
-      (Name: 'FINALIZATION'; c : CSTII_finalization),//* Nvds
-      (name: 'FINALLY'; c: CSTII_finally),
-      (name: 'FOR'; c: CSTII_for),
-      (name: 'FORWARD'; c: CSTII_Forward),
-      (name: 'FUNCTION'; c: CSTII_function),
-      (name: 'GOTO'; c: CSTII_Goto),
-      (name: 'IF'; c: CSTII_if),
+      (name: 'AND';            c: CSTII_and),
+      (name: 'ARRAY';          c: CSTII_array),
+      (name: 'AS';             c: CSTII_as),
+      (name: 'BEGIN';          c: CSTII_begin),
+      (name: 'CASE';           c: CSTII_case),
+      (name: 'CHR';            c: CSTII_chr),
+      (name: 'CLASS';          c: CSTII_class),
+      (name: 'CONST';          c: CSTII_const),
+      (name: 'CONSTRUCTOR';    c: CSTII_constructor),
+      (name: 'DESTRUCTOR';     c: CSTII_destructor),
+      (name: 'DIV';            c: CSTII_div),
+      (name: 'DO';             c: CSTII_do),
+      (name: 'DOWNTO';         c: CSTII_downto),
+      (name: 'ELSE';           c: CSTII_else),
+      (name: 'END';            c: CSTII_end),
+      (name: 'EXCEPT';         c: CSTII_except),
+      (name: 'EXIT';           c: CSTII_exit),
+      (name: 'EXPORT';         c: CSTII_Export),
+      (name: 'EXTERNAL';       c: CSTII_External),
+      (Name: 'FINALIZATION';   c : CSTII_finalization),//* Nvds
+      (name: 'FINALLY';        c: CSTII_finally),
+      (name: 'FOR';            c: CSTII_for),
+      (name: 'FORWARD';        c: CSTII_Forward),
+      (name: 'FUNCTION';       c: CSTII_function),
+      (name: 'GOTO';           c: CSTII_Goto),
+      (name: 'IF';             c: CSTII_if),
       (name: 'IMPLEMENTATION'; c: CSTII_Implementation),
-      (name: 'IN'; c: CSTII_in),
-      (name: 'INHERITED'; c: CSTII_inherited),
+      (name: 'IN';             c: CSTII_in),
+      (name: 'INHERITED';      c: CSTII_inherited),
       (Name: 'INITIALIZATION'; c: CSTII_initialization), //* Nvds
-      (name: 'INTERFACE'; c: CSTII_Interface),
-      (name: 'IS'; c: CSTII_is),
-      (name: 'LABEL'; c: CSTII_Label),
-      (name: 'MOD'; c: CSTII_mod),
-      (name: 'NIL'; c: CSTII_nil),
-      (name: 'NOT'; c: CSTII_not),
-      (name: 'OF'; c: CSTII_of),
-      (name: 'OR'; c: CSTII_or),
-      (name: 'ORD'; c: CSTII_ord),
-      (name: 'OUT'; c: CSTII_Out),
-      (name: 'OVERRIDE'; c: CSTII_override),
-      //(name: 'DEFAULT'; c: CSTII_default), //Birb (if added, don't forget to increase KEYWORD_COUNT)
-      (name: 'PRIVATE'; c: CSTII_private),
-      (name: 'PROCEDURE'; c: CSTII_procedure),
-      (name: 'PROGRAM'; c: CSTII_program),
-      (name: 'PROPERTY'; c: CSTII_property),
-      (name: 'PROTECTED'; c: CSTII_protected),
-      (name: 'PUBLIC'; c: CSTII_public),
-      (name: 'PUBLISHED'; c: CSTII_published),
-      (name: 'RECORD'; c: CSTII_record),
-      (name: 'REPEAT'; c: CSTII_repeat),
-      (name: 'SET'; c: CSTII_set),
-      (name: 'SHL'; c: CSTII_shl),
-      (name: 'SHR'; c: CSTII_shr),
-      (name: 'THEN'; c: CSTII_then),
-      (name: 'TO'; c: CSTII_to),
-      (name: 'TRY'; c: CSTII_try),
-      (name: 'TYPE'; c: CSTII_type),
-      (name: 'UNIT'; c: CSTII_Unit),
-      (name: 'UNTIL'; c: CSTII_until),
-      (name: 'USES'; c: CSTII_uses),
-      (name: 'VAR'; c: CSTII_var),
-      (name: 'VIRTUAL'; c: CSTII_virtual),
-      (name: 'WHILE'; c: CSTII_while),
-      (name: 'WITH'; c: CSTII_with),
-      (name: 'XOR'; c: CSTII_xor));
+      (name: 'INTERFACE';      c: CSTII_Interface),
+      (name: 'IS';             c: CSTII_is),
+      (name: 'LABEL';          c: CSTII_Label),
+      (name: 'MOD';            c: CSTII_mod),
+      (name: 'NIL';            c: CSTII_nil),
+      (name: 'NOT';            c: CSTII_not),
+      (name: 'OF';             c: CSTII_of),
+      (name: 'OR';             c: CSTII_or),
+      (name: 'ORD';            c: CSTII_ord),
+      (name: 'OUT';            c: CSTII_Out),
+      (name: 'OVERRIDE';       c: CSTII_override),
+    //(name: 'DEFAULT';        c: CSTII_default), //Birb (if added, don't forget to increase KEYWORD_COUNT)
+      (name: 'PRIVATE';        c: CSTII_private),
+      (name: 'PROCEDURE';      c: CSTII_procedure),
+      (name: 'PROGRAM';        c: CSTII_program),
+      (name: 'PROPERTY';       c: CSTII_property),
+      (name: 'PROTECTED';      c: CSTII_protected),
+      (name: 'PUBLIC';         c: CSTII_public),
+      (name: 'PUBLISHED';      c: CSTII_published),
+      (name: 'RECORD';         c: CSTII_record),
+      (name: 'REPEAT';         c: CSTII_repeat),
+      (name: 'SET';            c: CSTII_set),
+      (name: 'SHL';            c: CSTII_shl),
+      (name: 'SHR';            c: CSTII_shr),
+      (name: 'THEN';           c: CSTII_then),
+      (name: 'TO';             c: CSTII_to),
+      (name: 'TRY';            c: CSTII_try),
+      (name: 'TYPE';           c: CSTII_type),
+      (name: 'UNIT';           c: CSTII_Unit),
+      (name: 'UNTIL';          c: CSTII_until),
+      (name: 'USES';           c: CSTII_uses),
+      (name: 'VAR';            c: CSTII_var),
+      (name: 'VIRTUAL';        c: CSTII_virtual),
+      (name: 'WHILE';          c: CSTII_while),
+      (name: 'WITH';           c: CSTII_with),
+      (name: 'XOR';            c: CSTII_xor));
 
 function TPSPascalParser.GetCol: Cardinal;
 begin
@@ -1842,6 +1740,7 @@ procedure TPSPascalParser.Next;
 var
   Err: TPSParserErrorKind;
   FLastUpToken: TbtString;
+
   function CheckReserved(Const S: ShortString; var CurrTokenId: TPSPasToken): Boolean;
   var
     L, H, I: LongInt;
@@ -1875,7 +1774,6 @@ var
     end;
     CheckReserved := False;
   end;
-  //-------------------------------------------------------------------
 
   function _GetToken(CurrTokenPos, CurrTokenLen: Cardinal): TbtString;
   var
@@ -1891,7 +1789,7 @@ var
   var
     ct, ci: Cardinal;
     hs: Boolean;
-    p: {$IFDEF DELPHI4UP}PAnsiChar{$ELSE}PChar{$ENDIF};
+    p: PTbtChar;
   begin
     ParseToken := iNoError;
     ct := CurrTokenPos;
@@ -1910,11 +1808,11 @@ var
           CurrTokenLen := ci - ct;
 
           FLastUpToken := _GetToken(CurrTokenPos, CurrtokenLen);
-          p := {$IFDEF DELPHI4UP}PAnsiChar{$ELSE}pchar{$ENDIF}(FLastUpToken);
+          p := PTbtChar(FLastUpToken);
           while p^<>#0 do
           begin
             if p^ in [#97..#122] then
-              Dec(Byte(p^), 32);
+              p^ := TbtChar(Ord(p^) - 32); // //Dec(Byte(p^), 32);
             inc(p);
           end;
           if not CheckReserved(FLastUpToken, CurrTokenId) then
@@ -2228,9 +2126,9 @@ var
         CurrTokenLen := 1;
       end;
     end;
-  end;
-  //-------------------------------------------------------------------
-begin
+  end; // function ParseToken
+
+begin // procedure TPSPascalParser.Next
   if FText = nil then
   begin
     FTokenLength := 0;
@@ -2247,8 +2145,9 @@ begin
       FTokenId := CSTI_EOF;
       FToken := '';
       FOriginalToken := '';
-      if @FParserError <> nil then FParserError(Self, Err);
-      exit;
+      if @FParserError <> nil then
+        FParserError(Self, Err);
+      Exit;
     end;
 
     case FTokenID of
@@ -2292,7 +2191,7 @@ begin
     end;
     Break;
   until False;
-end;
+end; // procedure TPSPascalParser.Next
 
 procedure TPSPascalParser.SetText(const Data: TbtString);
 begin
@@ -2303,7 +2202,7 @@ begin
   FTokenId := CSTI_EOF;
   FLastEnterPos := 0;
   FRow := 1;
-  Next;
+  Next();
 end;
 
 function TPSList.IndexOf(P: Pointer): Longint;
@@ -2314,73 +2213,72 @@ begin
   begin
     if FData[i] = p then
     begin
-      result := i;
-      exit;
+      Result := i;
+      Exit;
     end;
   end;
-  result := -1;
+  Result := -1;
 end;
 
 { TPSUnitList }
 
 function TPSUnitList.Add: TPSUnit;
 begin
-  result:=TPSUnit.Create(Self);
-
-  fList.Add(result);
+  Result := TPSUnit.Create(Self);
+  fList.Add(Result);
 end;
 
 constructor TPSUnitList.Create;
 begin
-  fList:=TPSList.Create;
+  inherited Create;
+  fList := TPSList.Create;
 end;
 
 destructor TPSUnitList.Destroy;
 var
-  Dummy: Integer;
+  i: Integer;
 begin
-  for Dummy:=0 to fList.Count-1 do
-    TObject(fList[Dummy]).Free;
-
-  FreeAndNil(fList);
-
+  if Assigned(fList) then
+  begin
+    for i := fList.Count-1 downto 0 do
+      TObject(fList[i]).Free;
+    FreeAndNil(fList);
+  end;
   inherited;
 end;
 
 function TPSUnitList.GetUnit(UnitName: TbtString): TPSUnit;
 var
-  Dummy: Integer;
+  i: Integer;
 begin
-  UnitName:=FastUpperCase(UnitName);
-  for Dummy:=0 to fList.Count-1 do
+  UnitName := FastUpperCase(UnitName);
+  for i := 0 to fList.Count-1 do
   begin
-    if TPSUnit(fList[Dummy]).UnitName=UnitName then
+    if TPSUnit(fList[i]).UnitName = UnitName then
     begin
-      result:=TPSUnit(fList[Dummy]);
-      exit;
+      Result := TPSUnit(fList[i]);
+      Exit;
     end;
   end;
-
-  result:=Add;
-
-  result.UnitName:=UnitName;
+  Result := Add();
+  Result.UnitName := UnitName;
 end;
 
 { TPSUnit }
 
-procedure TPSUnit.AddUses(pUnitName: TbtString);
+procedure TPSUnit.AddUses(const pUnitName: TbtString);
 var
   UsesUnit: TPSUnit;
 begin
-  UsesUnit:=fList.GetUnit(pUnitName);
+  UsesUnit := fList.GetUnit(pUnitName);
   fUnits.Add(UsesUnit);
 end;
 
 constructor TPSUnit.Create(List: TPSUnitList);
 begin
-  fUnits:=TPSList.Create;
-
-  fList:=List;
+  inherited Create;
+  fUnits := TPSList.Create;
+  fList := List;
 end;
 
 destructor TPSUnit.Destroy;
@@ -2391,24 +2289,20 @@ end;
 
 function TPSUnit.HasUses(pUnitName: TbtString): Boolean;
 var
-  Dummy: Integer;
+  i: Integer;
 begin
-  pUnitName:=FastUpperCase(pUnitName);
-
-  if fUnitName=pUnitName then
+  pUnitName := FastUpperCase(pUnitName);
+  if fUnitName = pUnitName then
   begin
-    result:=true;
-    exit;
+    Result:=true;
+    Exit;
   end;
-
-  result:=false;
-
-  for Dummy:=0 to fUnits.Count-1 do
+  Result := False;
+  for i:=0 to fUnits.Count-1 do
   begin
-    result:=TPSUnit(fUnits[Dummy]).HasUses(pUnitName);
-
-    if result then
-      exit;
+    Result := TPSUnit(fUnits[i]).HasUses(pUnitName);
+    if Result then
+      Exit;
   end;
 end;
 

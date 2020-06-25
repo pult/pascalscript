@@ -2589,7 +2589,7 @@ begin
           btUnicodeString, btWideString, {$ENDIF}{$IFNDEF PS_NOINTERFACES}btInterface, {$ENDIF}btArray, btStaticArray,
           btRecord, btPointer, btVariant:
             begin
-              for i := 0 to l -1 do
+              for i := 0 to l-1 do
               begin
                 FinalizeVariant(darr, t);
                 {+}
@@ -12490,6 +12490,7 @@ begin
     Result := False;
     exit;
   end;
+  {+}
   h := FType.FExportNameHash; // == MakeHash(FType.ExportName);
   FSelf := nil;
   for i := TPSRuntimeClassImporter(p.Ext2).FClasses.Count-1 downto 0 do
@@ -12501,6 +12502,7 @@ begin
       Break;
     end;
   end;
+  {+.}
   if FSelf = nil then begin
     Result := False;
     exit;

@@ -1,3 +1,7 @@
+{ eDefines.inc } // version: 2020.0628.1520
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 {----------------------------------------------------------------------------}
 {file:      eDefines.inc                                                     }
 {type:      Delphi include file                                              }
@@ -1238,6 +1242,11 @@
   {$IFDEF DELPHI2UP}
     {$DEFINE DELPHI_32BIT}
   {$ENDIF}
+  //{$IFDEF DELPHI2009UP}
+  //   {$IFNDEF UNICODE}
+  //     {$DEFINE UNICODE}
+  //   {$ENDIF}
+  //{$ENDIF}
 {$ENDIF}
 
 {$IFDEF CBUILDER}
@@ -1357,9 +1366,17 @@
     {$DEFINE WIDESTRING_EQUAL_UNICODESTRING}
   {$ENDIF}
   {$DEFINE UNICODE_SUPPORT}
-{$ELSE}
+  {+}
+  {$IFDEF UNICODE_SUPPORT}
+    {$DEFINE UNICODE} { optional : recomended }
+  {$ENDIF}
+
+  {$ALIGN 8} // For packed record
+  {$MINENUMSIZE 1}
+   {+.}
+{$ELSE !FPC}
   {$DEFINE ENDIAN_LITTLE} // To have endianness symbol defined in Delphi too
-{$ENDIF}
+{$ENDIF !FPC}
 
 {$IFDEF DELPHI}
   {$DEFINE DELPHI_or_MSWINDOWS}
@@ -1371,7 +1388,7 @@
   {$IFDEF NEXTGEN}
     {$DEFINE WIDESTRING_EQUAL_UNICODESTRING}
   {$ENDIF}
-{$ENDIF}
+{$ENDIF DELPHI}
 
 {$IFDEF MSWINDOWS}
   {$DEFINE DELPHI_or_MSWINDOWS}
@@ -1405,7 +1422,7 @@
       {$DEFINE DELPHI_LINUX64}
     {$ENDIF}
   {$ENDIF}
-{$ENDIF}
+{$ENDIF DELPHI}
 
 {$IFDEF NEXTGEN}
   {$DEFINE NEXTGEN_or_DELPHILINUX}
@@ -1441,5 +1458,5 @@
   {$IFDEF DELPHI17UP} // DXE3_UP
     {$LEGACYIFEND ON} // Allow old style mixed $endif $ifend
   {$ENDIF}
-{$ENDIF}
+{$ENDIF !FPC}
 {+.}

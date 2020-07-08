@@ -1,16 +1,21 @@
+{ PascalScript.inc } // version: 2020.0628.1520
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {                                                                            }
-{ compiler: Delphi 2 and up, Kylix 3 and up                                  }
-{ platform: Win32, Linux                                                     }
+{ Compiler: Delphi 2 and up, Kylix 3 and up                                  }
+{ Platform: Win32, Linux                                                     }
 {                                                                            }
-{ (c)opyright RemObjects Software. all rights reserved.                      }
+{ (C)opyright RemObjects Software. All rights reserved.                      }
 {                                                                            }
 {----------------------------------------------------------------------------}
 
 {$INCLUDE eDefines.inc}
 
-{$IFDEF FPC}{$MODE DELPHI}{$H+}{$ENDIF}
+{$IFDEF FPC}
+  {$MODE DELPHI}{$H+}
+  //{$MODE DelphiUnicode}{$H+}
+  //{$MODE OBJFPC}{$H+}
+{$ENDIF FPC}
 
 {$IFDEF VER125}{C4}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
 {$IFDEF VER110}{C3}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
@@ -53,26 +58,32 @@ Defines:
   PS_DELPHIDIV
 }
 
-{$UNDEF DEBUG}
+{$UNDEF DEBUG} { optional }
 
 {$IFDEF CLX}
-{$DEFINE PS_NOIDISPATCH} // not implemented
+  {$DEFINE PS_NOIDISPATCH} // not implemented
 {$ENDIF}
 
 {+}
-{.$DEFINE PS_USESSUPPORT} // TODO: Need test it ...
+{.$DEFINE PS_USESSUPPORT} { optional } // TODO: Need test it ...
 {+.}
 
 {$IFDEF FPC}
   {$I PascalScriptFPC.inc}
 {$ENDIF}
-
 {+}
+{$IFDEF FPC}
+  {$DEFINE UNICODE_OR_FPC}
+{$ENDIF}
+
 {$D+} { optional }
 {$IFNDEF FPC}
   {$L+}
+  {$IFDEF UNICODE}
+    {$DEFINE UNICODE_OR_FPC}
+  {$ENDIF}
   {$IFDEF DELPHI18UP} // DELPHIXE4 UP
     {$ZEROBASEDSTRINGS OFF}
   {$ENDIF}
-{$ENDIF}
+{$ENDIF !FPC}
 {+.}

@@ -1,4 +1,8 @@
-{ implementation of x86         abi }
+{ x86.inc } // version: 2020.0628.1040
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
+{ implementation of x86 abi }
 {$ifdef FPC}
 {$define PS_ARRAY_ON_STACK}
 {$endif}
@@ -264,10 +268,10 @@ var
   RegUsage: Byte;
   CallData: TPSList;
   pp: ^Byte;
-{$IFDEF FPC}
-  IsConstructor,IsVirtualCons: Boolean;
+  {$IFDEF FPC}
+  IsConstructor, {%H-}IsVirtualCons: Boolean;
   MethodData: TMethod;
-{$ENDIF}
+  {$ENDIF}
 
   EAX, EDX, ECX: Longint;
 
@@ -290,242 +294,298 @@ var
   var
     varPtr: Pointer;
     UseReg: Boolean;
-    tempstr: tbtstring;
+    TempStr: tbtstring;
     p: Pointer;
   begin
     Result := False;
-    if FVar = nil then exit;
+    if FVar = nil then
+      Exit;
+    TempStr := '';
     if fVar.VarParam then
     begin
       case fvar.aType.BaseType of
-        btArray:
-          begin
-            if Copy(fvar.aType.ExportName, 1, 10) = '!OPENARRAY' then
-            begin
-              p := CreateOpenArray(True, Self, FVar);
-              if p = nil then exit;
-              {+} // [#velter#]: https://github.com/remobjects/pascalscript/pull/107
-              //                 https://github.com/velter/pascalscript/commit/406ae70bd5ce46aa36c1c3e00911e761ce1e5660
-              //                 https://github.com/remobjects/pascalscript/pull/107/files#diff-1
-              if CallData = nil then
-                CallData := TPSList.Create();
-              {+.}
-              CallData.Add(p);
-              case RegUsage of
-                0: begin EAX := Longint(POpenArray(p)^.Data); Inc(RegUsage); end;
-                1: begin EDX := Longint(POpenArray(p)^.Data); Inc(RegUsage); end;
-                2: begin ECX := Longint(POpenArray(p)^.Data); Inc(RegUsage); end;
-                else begin
-                  Stack := StringOfChar(AnsiChar(#0),4) + Stack;
-                  Pointer((@Stack[1])^) := POpenArray(p)^.Data;
-                end;
-              end;
-              case RegUsage of
-                0: begin EAX := Longint(POpenArray(p)^.ItemCount - 1); Inc(RegUsage); end;
-                1: begin EDX := Longint(POpenArray(p)^.ItemCount -1); Inc(RegUsage); end;
-                2: begin ECX := Longint(POpenArray(p)^.ItemCount -1); Inc(RegUsage); end;
-                else begin
-                  Stack := StringOfChar(AnsiChar(#0),4) + Stack;
-                  Longint((@Stack[1])^) := POpenArray(p)^.ItemCount -1;
-                end;
-              end;
-              Result := True;
+        btArray: begin
+          if Copy(fvar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
+            p := CreateOpenArray(True, Self, FVar);
+            if p = nil then
               Exit;
-            end else begin
-            {$IFDEF PS_DYNARRAY}
-              varptr := fvar.Dta;
-            {$ELSE}
-              Exit;
-            {$ENDIF}
+            {+} // [#velter#]: https://github.com/remobjects/pascalscript/pull/107
+            //                 https://github.com/velter/pascalscript/commit/406ae70bd5ce46aa36c1c3e00911e761ce1e5660
+            //                 https://github.com/remobjects/pascalscript/pull/107/files#diff-1
+            if CallData = nil then
+              CallData := TPSList.Create();
+            {+.}
+            CallData.Add(p);
+            case RegUsage of
+              0: begin
+                EAX := Longint(POpenArray(p)^.Data);
+                Inc(RegUsage);
+              end;
+              1: begin
+                EDX := Longint(POpenArray(p)^.Data);
+                Inc(RegUsage);
+              end;
+              2: begin
+                ECX := Longint(POpenArray(p)^.Data);
+                Inc(RegUsage);
+              end;
+              else begin
+                Stack := StringOfChar(AnsiChar(#0),4) + Stack;
+                Pointer((@Stack[1])^) := POpenArray(p)^.Data;
+              end;
             end;
+            case RegUsage of
+              0: begin
+                EAX := Longint(POpenArray(p)^.ItemCount-1);
+                Inc(RegUsage);
+              end;
+              1: begin
+                EDX := Longint(POpenArray(p)^.ItemCount-1);
+                Inc(RegUsage);
+              end;
+              2: begin
+                ECX := Longint(POpenArray(p)^.ItemCount-1);
+                Inc(RegUsage);
+              end;
+              else begin
+                Stack := StringOfChar(AnsiChar(#0),4) + Stack;
+                Longint((@Stack[1])^) := POpenArray(p)^.ItemCount-1;
+              end;
+            end;
+            Result := True;
+            Exit;
+          end else begin
+            {$IFDEF PS_DYNARRAY}
+            VarPtr := fvar.Dta;
+            {$ELSE}
+            Exit;
+            {$ENDIF}
           end;
+        end; // btArray
         btVariant,
         btSet,
         btStaticArray,
         btRecord,
         btInterface,
         btClass,
-        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}{$ENDIF} btU8, btS8, btU16,
-        btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
-        {$IFNDEF PS_NOINT64}, bts64{$ENDIF}:
-          begin
-            Varptr := fvar.Dta;
-          end;
-      else begin
-          exit; //invalid type
+        {$IFNDEF PS_NOWIDESTRING}
+        btUnicodeString, btWideString, btWideChar,
+        {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}
+        {$ENDIF !PS_NOWIDESTRING}
+        {$IFNDEF PS_NOINT64}btS64,{$ENDIF}
+        btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar,
+        btCurrency: begin
+          VarPtr := fvar.Dta;
         end;
-      end; {case}
+        else begin
+          Exit; //invalid type
+        end;
+      end; // case fvar.aType.BaseType
       case RegUsage of
-        0: begin EAX := Longint(VarPtr); Inc(RegUsage); end;
-        1: begin EDX := Longint(VarPtr); Inc(RegUsage); end;
-        2: begin ECX := Longint(VarPtr); Inc(RegUsage); end;
+        0: begin
+          EAX := Longint(VarPtr);
+          Inc(RegUsage);
+        end;
+        1: begin
+          EDX := Longint(VarPtr);
+          Inc(RegUsage);
+        end;
+        2: begin
+          ECX := Longint(VarPtr);
+          Inc(RegUsage);
+        end;
         else begin
           Stack := StringOfChar(AnsiChar(#0),4) + Stack;
           Pointer((@Stack[1])^) := VarPtr;
         end;
-      end;
+      end; // case RegUsage
     end else begin
       UseReg := True;
       case fVar^.aType.BaseType of
-        btSet:
-          begin
-            tempstr := StringOfChar(AnsiChar(#0),4);
+        btSet: begin
+            tempStr := StringOfChar(AnsiChar(#0),4);
             case TPSTypeRec_Set(fvar.aType).aByteSize of
-              1: Byte((@tempstr[1])^) := byte(fvar.dta^);
-              2: word((@tempstr[1])^) := word(fvar.dta^);
-              3, 4: cardinal((@tempstr[1])^) := cardinal(fvar.dta^);
+              1:
+                Byte((@tempStr[1])^) := Byte(fvar.dta^);
+              2:
+                Word((@tempStr[1])^) := Word(fvar.dta^);
+              3, 4:
+                Cardinal((@tempStr[1])^) := Cardinal(fvar.dta^);
               else
-                pointer((@tempstr[1])^) := fvar.dta;
-            end;
-          end;
-        btArray:
-          begin
-            if Copy(fvar^.aType.ExportName, 1, 10) = '!OPENARRAY' then
-            begin
-              p := CreateOpenArray(False, SElf, FVar);
-              if p =nil then exit;
-              {+} // [#velter#]
-              if CallData = nil then
-                CallData := TPSList.Create();
-              {+.}
-              CallData.Add(p);
-              case RegUsage of
-                0: begin EAX := Longint(POpenArray(p)^.Data); Inc(RegUsage); end;
-                1: begin EDX := Longint(POpenArray(p)^.Data); Inc(RegUsage); end;
-                2: begin ECX := Longint(POpenArray(p)^.Data); Inc(RegUsage); end;
-                else begin
-                  Stack := StringOfChar(AnsiChar(#0),4) + Stack;
-                  Pointer((@Stack[1])^) := POpenArray(p)^.Data;
-                end;
+                Pointer((@tempStr[1])^) := fvar.dta;
+            end; // Ccase
+        end;
+
+        btArray: begin
+          if Copy(fvar^.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
+            p := CreateOpenArray(False, Self, FVar);
+            if p = nil then
+              Exit;
+            {+} // [#velter#]
+            if CallData = nil then
+              CallData := TPSList.Create();
+            {+.}
+            CallData.Add(p);
+            case RegUsage of
+              0: begin
+                EAX := Longint(POpenArray(p)^.Data);
+                Inc(RegUsage);
               end;
-              case RegUsage of
-                0: begin EAX := Longint(POpenArray(p)^.ItemCount -1); Inc(RegUsage); end;
-                1: begin EDX := Longint(POpenArray(p)^.ItemCount -1); Inc(RegUsage); end;
-                2: begin ECX := Longint(POpenArray(p)^.ItemCount -1); Inc(RegUsage); end;
-                else begin
-                  Stack := StringOfChar(AnsiChar(#0),4) + Stack;
-                  Longint((@Stack[1])^) := POpenArray(p)^.ItemCount -1;
-                end;
+              1: begin
+                EDX := Longint(POpenArray(p)^.Data);
+                Inc(RegUsage);
               end;
-              Result := True;
-              exit;
-            end else begin
+              2: begin
+                ECX := Longint(POpenArray(p)^.Data);
+                Inc(RegUsage);
+              end;
+              else begin
+                Stack := StringOfChar(AnsiChar(#0),4) + Stack;
+                Pointer((@Stack[1])^) := POpenArray(p)^.Data;
+              end;
+            end; // case RegUsage
+            case RegUsage of
+              0: begin
+                EAX := Longint(POpenArray(p)^.ItemCount-1);
+                Inc(RegUsage);
+              end;
+              1: begin
+                EDX := Longint(POpenArray(p)^.ItemCount-1);
+                Inc(RegUsage);
+              end;
+              2: begin
+                ECX := Longint(POpenArray(p)^.ItemCount-1);
+                Inc(RegUsage);
+              end;
+              else begin
+                Stack := StringOfChar(AnsiChar(#0),4) + Stack;
+                Longint((@Stack[1])^) := POpenArray(p)^.ItemCount-1;
+              end;
+            end; // case RegUsage
+            Result := True;
+            Exit;
+          end else begin
             {$IFDEF PS_DYNARRAY}
-              TempStr := StringOfChar(AnsiChar(#0),4);
-              Pointer((@TempStr[1])^) := Pointer(fvar.Dta^);
+            TempStr := StringOfChar(AnsiChar(#0),4);
+            Pointer((@TempStr[1])^) := Pointer(fvar.Dta^);
             {$IFDEF PS_ARRAY_ON_STACK}
             UseReg := false;
             {$ENDIF}
-            {$ELSE}
-              Exit;
-            {$ENDIF}
-            end;
+            {$ELSE !PS_DYNARRAY}
+            Exit;
+            {$ENDIF !PS_DYNARRAY}
           end;
-        btVariant
-        , btStaticArray, btRecord:
-          begin
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            Pointer((@TempStr[1])^) := Pointer(fvar.Dta);
-          end;
-        btDouble: {8 bytes} begin
-            TempStr := StringOfChar(AnsiChar(#0),8);
-            UseReg := False;
-            double((@TempStr[1])^) := double(fvar.dta^);
-          end;
-        btCurrency: {8 bytes} begin
-            TempStr := StringOfChar(AnsiChar(#0),8);
-            UseReg := False;
-            currency((@TempStr[1])^) := currency(fvar.dta^);
-          end;
-        btSingle: {4 bytes} begin
-            TempStr := StringOfChar(AnsiChar(#0),4);;
-            UseReg := False;
-            Single((@TempStr[1])^) := single(fvar.dta^);
-          end;
+        end; // btArray
 
-        btExtended: {10 bytes} begin
-            UseReg := False;
-            TempStr:= StringOfChar(AnsiChar(#0),12);
-            Extended((@TempStr[1])^) := extended(fvar.dta^);
-          end;
-        btChar,
-        btU8,
-        btS8: begin
-            TempStr := tbtchar(fVar^.dta^) + tbtstring(StringOfChar(AnsiChar(#0),3));
-          end;
-        {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}
+        btVariant, btStaticArray, btRecord: begin
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          Pointer((@TempStr[1])^) := Pointer(fvar.Dta);
+        end;
+
+        btDouble: {8 bytes} begin
+          TempStr := StringOfChar(AnsiChar(#0),8);
+          UseReg := False;
+          Double((@TempStr[1])^) := Double(fvar.dta^);
+        end;
+
+        btCurrency{8 bytes}: begin
+          TempStr := StringOfChar(AnsiChar(#0),8);
+          UseReg := False;
+          Currency((@TempStr[1])^) := Currency(fvar.dta^);
+        end;
+
+        btSingle{4 bytes}: begin
+          TempStr := StringOfChar(AnsiChar(#0),4);;
+          UseReg := False;
+          Single((@TempStr[1])^) := single(fvar.dta^);
+        end;
+
+        btExtended{10 bytes}: begin
+          UseReg := False;
+          TempStr:= StringOfChar(AnsiChar(#0),12);
+          Extended((@TempStr[1])^) := extended(fvar.dta^);
+        end;
+
+        btChar, btU8, btS8: begin
+          TempStr := TbtChar(fVar^.dta^) + TbtString(StringOfChar(AnsiChar(#0),3));
+        end;
+
+        {$IFNDEF PS_NOWIDESTRING}btWideChar,{$ENDIF}
         btu16, btS16: begin
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            Word((@TempStr[1])^) := word(fVar^.dta^);
-          end;
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          Word((@TempStr[1])^) := word(fVar^.dta^);
+        end;
+
         btu32, bts32: begin
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            Longint((@TempStr[1])^) := Longint(fVar^.dta^);
-          end;
-        btPchar:
-          begin
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            if pointer(fvar^.dta^) = nil then
-              Pointer((@TempStr[1])^) := @EmptyPChar
-            else
-              Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
-          end;
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          Longint((@TempStr[1])^) := Longint(fVar^.dta^);
+        end;
+
+        btPChar: begin
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          if Pointer(fvar^.dta^) = nil then
+            Pointer((@TempStr[1])^) := @EmptyPChar
+          else
+            Pointer((@TempStr[1])^) := Pointer(fvar^.dta^);
+        end;
+
         {+}
         {$IFNDEF PS_NOWIDESTRING}
           {$if declared(btPWideChar)}
-        btPWideChar:
-          begin
-            TempStr := StringOfChar(tbtChar(#0),4);
-            if pointer(fvar^.dta^) = nil then
-              Pointer((@TempStr[1])^) := @EmptyPChar
-            else
-              Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
-          end;
+        btPWideChar: begin
+          TempStr := StringOfChar(tbtChar(#0),4);
+          if Pointer(fvar^.dta^) = nil then
+            Pointer((@TempStr[1])^) := @EmptyPChar
+          else
+            Pointer((@TempStr[1])^) := Pointer(fvar^.dta^);
+        end;
           {$ifend}
-        {$ENDIF}
+        {$ENDIF !PS_NOWIDESTRING}
         {+.}
-        btclass, btinterface, btString:
-          begin
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
-          end;
-          {$IFNDEF PS_NOWIDESTRING}
+
+        btclass, btinterface, btString: begin
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
+        end;
+
+        {$IFNDEF PS_NOWIDESTRING}
         btWideString: begin
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
-          end;
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
+        end;
         btUnicodeString: begin
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
-          end;
-          {$ENDIF}
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          Pointer((@TempStr[1])^) := pointer(fvar^.dta^);
+        end;
+        {$ENDIF !PS_NOWIDESTRING}
 
-        btProcPtr:
-          begin
-{$IFDEF FPC}
-            MethodData := MKMethod(Self, Longint(FVar.Dta^));
-            TempStr := StringOfChar(AnsiChar(#0),4);
-            Pointer((@TempStr[1])^) := @MethodData;
-{$ELSE}
-            TempStr := StringOfChar(AnsiChar(#0),8);
-            TMethod((@TempStr[1])^) := MKMethod(Self, Longint(FVar.Dta^));
-            UseReg := false;
-{$ENDIF}
-          end;
+        btProcPtr: begin
+          {$IFDEF FPC}
+          MethodData := MKMethod(Self, Longint(FVar.Dta^));
+          TempStr := StringOfChar(AnsiChar(#0),4);
+          Pointer((@TempStr[1])^) := @MethodData;
+          {$ELSE !FPC}
+          TempStr := StringOfChar(AnsiChar(#0),8);
+          TMethod((@TempStr[1])^) := MKMethod(Self, Longint(FVar.Dta^));
+          UseReg := false;
+          {$ENDIF !FPC}
+        end;
 
-        {$IFNDEF PS_NOINT64}bts64:
-          begin
-            TempStr:= StringOfChar(AnsiChar(#0),8);
-            Int64((@TempStr[1])^) := int64(fvar^.dta^);
-            UseReg := False;
-        end;{$ENDIF}
+        {$IFNDEF PS_NOINT64}
+        bts64: begin
+          TempStr:= StringOfChar(AnsiChar(#0),8);
+          Int64((@TempStr[1])^) := int64(fvar^.dta^);
+          UseReg := False;
+        end;
+        {$ENDIF !PS_NOINT64}
+
       end; {case}
       if UseReg then
       begin
         case RegUsage of
-          0: begin EAX := Longint((@Tempstr[1])^); Inc(RegUsage); end;
-          1: begin EDX := Longint((@Tempstr[1])^); Inc(RegUsage); end;
-          2: begin ECX := Longint((@Tempstr[1])^); Inc(RegUsage); end;
+          0: begin EAX := Longint((@TempStr[1])^); Inc(RegUsage); end;
+          1: begin EDX := Longint((@TempStr[1])^); Inc(RegUsage); end;
+          2: begin ECX := Longint((@TempStr[1])^); Inc(RegUsage); end;
           else begin
           {$IFDEF FPC_OLD_FIX}
             if CallingConv = cdRegister then
@@ -534,7 +594,7 @@ var
           {$ENDIF}
             Stack := TempStr + Stack;
           end;
-        end;
+        end; // case
       end else begin
         {$IFDEF FPC_OLD_FIX}
             if CallingConv = cdRegister then
@@ -558,10 +618,10 @@ begin
     CAllingConv := TPSCallingConvention(Integer(CallingConv) and not 64);
   end else
     IsConstructor := false;
-  {$ENDIF}
+  {$ENDIF FPC}
   InnerfuseCall := False;
   if Address = nil then
-    exit; // need address
+    Exit; // need address
   Stack := '';
   {+} // [#velter#]
   {
@@ -571,279 +631,330 @@ begin
   {+.}
   res := rp(res);
   if res <> nil then
-    res.VarParam := true;
+    res.VarParam := True;
   try //try
     case CallingConv of
       cdRegister: begin
-          EAX := 0;
-          EDX := 0;
-          ECX := 0;
-          RegUsage := 0;
+        EAX := 0;
+        EDX := 0;
+        ECX := 0;
+        RegUsage := 0;
 
-{$IFDEF FPC} // FIX FOR FPC constructor calls
-          if IsConstructor then begin
-            if not GetPtr(rp(Params[0])) then exit; // this goes first
-            RegUsage := 2;
-            EDX := Longint(_Self);
-            DisposePPSVariantIFC(Params[0]);
-            Params.Delete(0);
-          end else
-{$ENDIF}
-          if assigned(_Self) then begin
-            RegUsage := 1;
-            EAX := Longint(_Self);
-          end;
+        {$IFDEF FPC} // FIX FOR FPC constructor calls
+        if IsConstructor then begin
+          if not GetPtr(rp(Params[0])) then
+            exit; // this goes first
+          RegUsage := 2;
+          EDX := Longint(_Self);
+          DisposePPSVariantIFC(Params[0]);
+          Params.Delete(0);
+        end else
+        {$ENDIF FPC}
 
-          for I := 0 to Params.Count - 1 do
-          begin
-            if not GetPtr(rp(Params[I])) then Exit;
-          end;
+        if Assigned(_Self) then begin // @dbg: TClass(_Self).ClassName
+          RegUsage := 1;
+          EAX := Longint(_Self);
+        end;
 
-          if assigned(res) then begin
-            case res^.aType.BaseType of
-              {$IFNDEF PS_NOWIDESTRING}btWideString, btUnicodeString, {$ENDIF}
-              btInterface, {$IFNDEF FPC} btArray, {$ENDIF}btrecord, {$IFNDEF PS_FPCSTRINGWORKAROUND}btstring, {$ENDIF}btVariant, btStaticArray: GetPtr(res);
-              btSet:
-                begin
-                  if TPSTypeRec_Set(res.aType).aByteSize >4 then GetPtr(res);
-                end;
+        for I := 0 to Params.Count - 1 do begin
+          if not GetPtr(rp(Params[I])) then
+            Exit;
+        end;
+
+        if Assigned(res) then begin
+          case res^.aType.BaseType of
+            {$IFNDEF PS_NOWIDESTRING}btWideString, btUnicodeString,{$ENDIF}
+            {$IFNDEF PS_FPCSTRINGWORKAROUND}btString,{$ENDIF}
+            {$IFNDEF FPC}btArray,{$ENDIF}
+            btInterface, btRecord, btVariant, btStaticArray:
+              GetPtr(res);
+            btSet: begin
+              if TPSTypeRec_Set(res.aType).aByteSize > 4 then
+                GetPtr(res);
             end;
-            {$IFDEF DARWIN}
-            if (length(Stack) mod 16) <> 0 then begin
-              Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
-            end;
-            {$ENDIF}
-            case res^.aType.BaseType of
-              btSet:
-                begin
-                  case TPSTypeRec_Set(res.aType).aByteSize  of
-                    1: byte(res.Dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
-                    2: word(res.Dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
-                    3,
-                    4: Longint(res.Dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-                    else RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil)
-                  end;
-                end;
-              btSingle:      tbtsingle(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btDouble:      tbtdouble(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btExtended:    tbtextended(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btchar,btU8, btS8:    tbtu8(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
-              {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
-              btClass:
-              begin
-              {+}
-              {$warnings off}
-              {$IF DEFINED (fpc) and (fpc_version < 3)}
-              {$warnings on}
-              {+.}
-                if IsConstructor or IsVirtualCons then
-                  tbtu32(res.dta^) := RealCall_Register(Address, EDX, EAX, ECX,
-                  @Stack[Length(Stack) - 3], Length(Stack) div 4, 4, nil)
+          end; // case
+          {$IFDEF DARWIN}
+          if (length(Stack) mod 16) <> 0 then begin
+            Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
+          end;
+          {$ENDIF}
+          case res^.aType.BaseType of
+            btSet: begin
+              case TPSTypeRec_Set(res.aType).aByteSize  of
+                1:
+                  Byte(res.Dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
+                2:
+                  Word(res.Dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
+                3, 4:
+                  Longint(res.Dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
                 else
+                  RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil)
+              end;
+            end;
+            btSingle:
+              TbtSingle(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btDouble:
+              TbtDouble(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btExtended:
+              TbtExtended(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btchar,btU8, btS8:
+              TbtU8(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
+            {$IFNDEF PS_NOWIDESTRING}btWideChar,{$ENDIF}
+            btu16, bts16:
+              TbtU16(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
+            btClass: begin
+              {$IFDEF DELPHI}{$warnings off}{$ENDIF} // for delphi compiler reaction on fpc...
+              {$IF DEFINED (fpc) and (fpc_version < 3)}
+              {$IFDEF DELPHI}{$warnings on}{$ENDIF}
+              if IsConstructor or IsVirtualCons then
+                tbtu32(res.dta^) := RealCall_Register(Address, EDX, EAX, ECX,
+                @Stack[Length(Stack) - 3], Length(Stack) div 4, 4, nil)
+              else
               {$IFEND}
-                  tbtu32(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX,
-                  @Stack[Length(Stack) - 3], Length(Stack) div 4, 4, nil);
+              TbtU32(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX,
+              @Stack[Length(Stack) - 3], Length(Stack) div 4, 4, nil);
+            end;
+            {$IFDEF FPC}btArray,{$ENDIF}
+            btu32,bts32:
+              TbtU32(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
+            btPChar: begin
+              PAnsiChar(res.dta^) := PAnsiChar(RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+              {$if declared(btPWideChar)}
+            btPWideChar: begin
+              PWideChar(res.dta^) := PWideChar(RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+              {$ifend}
+            {$ENDIF !PS_NOWIDESTRING}
+            {+.}
+            {$IFNDEF PS_NOINT64}bts64:
+              begin
+                EAX := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
+                tbts64(res.dta^) := Int64(Cardinal(EDX)) shl 32 or Cardinal(EAX);
               end;
+            {$ENDIF !PS_NOINT64}
+            btCurrency:
+              TbtCurrency(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4) / 10000;
+            btInterface,
+            btVariant,
+            {$IFNDEF PS_NOWIDESTRING}btWidestring, btUnicodestring,{$ENDIF}
+            {$IFNDEF FPC}btArray,{$ENDIF}
+            {$IFNDEF PS_FPCSTRINGWORKAROUND}btString,{$ENDIF}
+            btStaticArray, btRecord:
+              RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
+            {$IFDEF PS_FPCSTRINGWORKAROUND}
+            btString: begin
+               eax := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
+               Longint(res.dta^) := eax;
+            end;
+            {$ENDIF PS_FPCSTRINGWORKAROUND}
+            else
+              Exit;
+          end; // case res^.aType.BaseType
+        end else begin
+          {$IFDEF DARWIN}
+          if (length(Stack) mod 16) <> 0 then begin
+            Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
+          end;
+          {$ENDIF}
+          RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
+        end; //if
+        Result := True;
+      end; // cdRegister
 
-              btu32,bts32{$IFDEF FPC},btArray{$ENDIF}:   tbtu32(res.dta^) := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-              btPChar:       pansichar(res.dta^) := PAnsiChar(RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-              {+}
-              {$IFNDEF PS_NOWIDESTRING}
-                {$if declared(btPWideChar)}
-              btPWideChar:       pwidechar(res.dta^) := PWideChar(RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-                {$ifend}
-              {$ENDIF}
-              {+.}
-              {$IFNDEF PS_NOINT64}bts64:
-                begin
-                  EAX := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
-                  tbts64(res.dta^) := Int64(Cardinal(EDX)) shl 32 or Cardinal(EAX);
-                end;
-              {$ENDIF}
-              btCurrency:    tbtCurrency(res.Dta^) := RealFloatCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4) / 10000;
-              btInterface,
-              btVariant,
-              {$IFNDEF PS_NOWIDESTRING}btWidestring,btUnicodestring, {$ENDIF}
-              btStaticArray, {$IFNDEF FPC} btArray,{$ENDIF} btrecord{$IFNDEF PS_FPCSTRINGWORKAROUND}, btstring {$ENDIF}: RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
-              {$IFDEF PS_FPCSTRINGWORKAROUND}
-              btstring: begin
-                 eax := RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-                 Longint(res.dta^) := eax;
-              end;
-              {$ENDIF}
-            else
-              exit;
-            end;
-          end else begin
-            {$IFDEF DARWIN}
-            if (length(Stack) mod 16) <> 0 then begin
-              Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
-            end;
-            {$ENDIF}
-            RealCall_Register(Address, EAX, EDX, ECX, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
-          end;
-          Result := True;
-        end;
       cdPascal: begin
-          RegUsage := 3;
-          for I :=  0 to Params.Count - 1 do begin
-            if not GetPtr(Params[i]) then Exit;
-          end;
-          if assigned(res) then begin
-            case res^.aType.BaseType of
-              {$IFNDEF PS_NOWIDESTRING}btWideString, btUnicodeString, {$ENDIF}btInterface, btArray, btrecord, btstring, btVariant: GetPtr(res);
-            end;
-          end;
-          if assigned(_Self) then begin
-            Stack := StringOfChar(AnsiChar(#0),4) +Stack;
-            Pointer((@Stack[1])^) := _Self;
-          end;
-          {$IFDEF DARWIN}
-          if (length(Stack) mod 16) <> 0 then begin
-            Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
-          end;
-          {$ENDIF}
-          if assigned(res) then begin
-            case res^.aType.BaseType of
-              btSingle:      tbtsingle(res^.Dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btDouble:      tbtdouble(res^.Dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btExtended:    tbtextended(res^.Dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btChar, btU8, btS8:    tbtu8(res^.Dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
-              {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.Dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
-              btClass, btu32, bts32:  tbtu32(res^.Dta^):= RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-              btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-              {+}
-              {$IFNDEF PS_NOWIDESTRING}
-                {$if declared(btPWideChar)}
-              btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-                {$ifend}
-              {$ENDIF}
-              {+.}
-              {$IFNDEF PS_NOINT64}bts64:
-                begin
-                  EAX := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
-                  tbts64(res^.dta^) := Int64(EAX) shl 32 or EDX;
-                end;
-              {$ENDIF}
-              btVariant,
-              btInterface, btrecord, btstring: RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
-            else
-              exit;
-            end;
-          end else
-            RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
-          Result := True;
+        RegUsage := 3;
+        for I :=  0 to Params.Count - 1 do begin
+          if not GetPtr(Params[i]) then Exit;
         end;
+        if assigned(res) then begin
+          case res^.aType.BaseType of
+            {$IFNDEF PS_NOWIDESTRING}btWideString, btUnicodeString, {$ENDIF}btInterface, btArray, btrecord, btstring, btVariant: GetPtr(res);
+          end;
+        end;
+        if assigned(_Self) then begin
+          Stack := StringOfChar(AnsiChar(#0),4) +Stack;
+          Pointer((@Stack[1])^) := _Self;
+        end;
+        {$IFDEF DARWIN}
+        if (length(Stack) mod 16) <> 0 then begin
+          Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
+        end;
+        {$ENDIF}
+        if assigned(res) then begin
+          case res^.aType.BaseType of
+            btSingle:
+              tbtsingle(res^.Dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btDouble:
+              tbtdouble(res^.Dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btExtended:
+              tbtextended(res^.Dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btChar, btU8, btS8:
+              tbtu8(res^.Dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
+            {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:
+              tbtu16(res^.Dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
+            btClass, btu32, bts32:
+              tbtu32(res^.Dta^):= RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
+            btPChar: begin
+              PAnsiChar(res^.dta^) := PAnsiChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+              {$if declared(btPWideChar)}
+            btPWideChar: begin
+              PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+              {$ifend}
+            {$ENDIF !PS_NOWIDESTRING}
+            {+.}
+            {$IFNDEF PS_NOINT64}
+            bts64: begin
+              EAX := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
+              TbtS64(res^.dta^) := Int64(EAX) shl 32 or EDX;
+            end;
+            {$ENDIF !PS_NOINT64}
+            btVariant,
+            btInterface, btRecord, btString:
+              RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
+          else
+            Exit;
+          end;
+        end else
+          RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
+        Result := True;
+      end; // cdPascal
+
       cdSafeCall: begin
-          RegUsage := 3;
-          if assigned(res) then begin
-            GetPtr(res);
-          end;
-          for I :=  Params.Count - 1 downto 0 do begin
-            if not GetPtr(Params[i]) then Exit;
-          end;
-          if assigned(_Self) then begin
-            Stack := StringOfChar(AnsiChar(#0),4) +Stack;
-            Pointer((@Stack[1])^) := _Self;
-          end;
-          {$IFDEF DARWIN}
-          if (length(Stack) mod 16) <> 0 then begin
-            Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
-          end;
-          {$ENDIF}
-          OleCheck(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-          Result := True;
+        RegUsage := 3;
+        if assigned(res) then begin
+          GetPtr(res);
         end;
+        for I :=  Params.Count - 1 downto 0 do begin
+          if not GetPtr(Params[i]) then Exit;
+        end;
+        if assigned(_Self) then begin
+          Stack := StringOfChar(AnsiChar(#0),4) +Stack;
+          Pointer((@Stack[1])^) := _Self;
+        end;
+        {$IFDEF DARWIN}
+        if (length(Stack) mod 16) <> 0 then begin
+          Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
+        end;
+        {$ENDIF}
+        OleCheck(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+        Result := True;
+      end; // cdSafeCall
 
       cdCDecl: begin
-          RegUsage := 3;
-          if assigned(_Self) then begin
-            Stack := StringOfChar(AnsiChar(#0),4);
-            Pointer((@Stack[1])^) := _Self;
-          end;
-          for I := Params.Count - 1 downto 0 do begin
-            if not GetPtr(Params[I]) then Exit;
-          end;
-          {$IFDEF DARWIN}
-          if (length(Stack) mod 16) <> 0 then begin
-            Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
-          end;
-          {$ENDIF}
-          if assigned(res) then begin
-            case res^.aType.BaseType of
-              btSingle:      tbtsingle(res^.dta^) := RealFloatCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btDouble:      tbtdouble(res^.dta^) := RealFloatCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btExtended:    tbtextended(res^.dta^) := RealFloatCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btCHar, btU8, btS8:    tbtu8(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
-              {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
-              btClass, btu32, bts32:  tbtu32(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-              btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-              {+}
-              {$IFNDEF PS_NOWIDESTRING}
-                {$if declared(btPWideChar)}
-              btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-                {$ifend}
-              {$ENDIF}
-              {+.}
-              {$IFNDEF PS_NOINT64}bts64:
-                begin
-                  EAX := RealCall_CDecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
-                  tbts64(res^.Dta^) := Int64(EAX) shl 32 or EDX;
-                end;
-              {$ENDIF}
-              btVariant, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString, {$ENDIF}
-              btInterface,
-              btArray, btrecord, btstring:      begin GetPtr(res); RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil); end;
-            else
-              exit;
-            end;
-          end else begin
-            RealCall_CDecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
-          end;
-          Result := True;
+        RegUsage := 3;
+        if assigned(_Self) then begin
+          Stack := StringOfChar(AnsiChar(#0),4);
+          Pointer((@Stack[1])^) := _Self;
         end;
+        for I := Params.Count - 1 downto 0 do begin
+          if not GetPtr(Params[I]) then Exit;
+        end;
+        {$IFDEF DARWIN}
+        if (length(Stack) mod 16) <> 0 then begin
+          Stack := Stack + StringOfChar(ansichar(#32), 16 - (Length(Stack) mod 16)) ;
+        end;
+        {$ENDIF}
+        if assigned(res) then begin
+          case res^.aType.BaseType of
+            btSingle:      tbtsingle(res^.dta^) := RealFloatCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btDouble:      tbtdouble(res^.dta^) := RealFloatCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btExtended:    tbtextended(res^.dta^) := RealFloatCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btCHar, btU8, btS8:    tbtu8(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
+            {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
+            btClass, btu32, bts32:  tbtu32(res^.dta^) := RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
+            btPChar: begin
+              PAnsiChar(res^.dta^) := PAnsiChar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+              {$if declared(btPWideChar)}
+            btPWideChar: begin
+              PWideChar(res^.dta^) := PWideChar(RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+              {$ifend}
+            {$ENDIF !PS_NOWIDESTRING}
+            {+.}
+            {$IFNDEF PS_NOINT64}bts64:
+              begin
+                EAX := RealCall_CDecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
+                tbts64(res^.Dta^) := Int64(EAX) shl 32 or EDX;
+              end;
+            {$ENDIF !PS_NOINT64}
+            btVariant, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString, {$ENDIF}
+            btInterface,
+            btArray, btrecord, btstring:      begin GetPtr(res); RealCall_Cdecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil); end;
+          else
+            exit;
+          end;
+        end else begin
+          RealCall_CDecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
+        end;
+        Result := True;
+      end; // cdCDecl
+
       cdStdCall: begin
-          RegUsage := 3;
-          for I := Params.Count - 1 downto 0 do begin
-            if not GetPtr(Params[I]) then exit;
-          end;
-          if assigned(_Self) then begin
-            Stack := StringOfChar(AnsiChar(#0),4) + Stack;
-            Pointer((@Stack[1])^) := _Self;
-          end;
-          if assigned(res) then begin
-            case res^.aType.BaseType of
-              btSingle:  tbtsingle(res^.dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btDouble:      tbtdouble(res^.dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btExtended:    tbtextended(res^.dta^):= RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
-              btChar, btU8, btS8:    tbtu8(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
-              {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}btu16, bts16:  tbtu16(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
-              btClass, btu32, bts32:  tbtu32(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
-              btPChar:       pansichar(res^.dta^) := Pansichar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-              {+}
-              {$IFNDEF PS_NOWIDESTRING}
-                {$if declared(btPWideChar)}
-              btPWideChar:   PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
-                {$ifend}
-              {$ENDIF}
-              {+.}
-              {$IFNDEF PS_NOINT64}bts64:
-                begin
-                  EAX := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
-                  tbts64(res^.dta^) := Int64(EAX) shl 32 or EDX;
-                end;
-              {$ENDIF}
-              btVariant, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString, {$ENDIF}
-              btInterface, btArray, btrecord, btstring: begin GetPtr(res); RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil); end;
-            else
-              exit;
-            end;
-          end else begin
-            RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
-          end;
-          Result := True;
+        RegUsage := 3;
+        for I := Params.Count - 1 downto 0 do begin
+          if not GetPtr(Params[I]) then exit;
         end;
-    end;
+        if assigned(_Self) then begin
+          Stack := StringOfChar(AnsiChar(#0),4) + Stack;
+          Pointer((@Stack[1])^) := _Self;
+        end;
+        if Assigned(res) then begin
+          case res^.aType.BaseType of
+            btSingle:
+              TbtSingle(res^.dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btDouble:
+              TbtDouble(res^.dta^) := RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btExtended:
+              TbtExtended(res^.dta^):= RealFloatCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4);
+            btChar, btU8, btS8:
+              TbtU8(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 1, nil);
+            {$IFNDEF PS_NOWIDESTRING}btWideChar, {$ENDIF}
+            btu16, bts16:
+              TbtU16(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 2, nil);
+            btClass, btu32, bts32:
+              TbtU32(res^.dta^) := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil);
+            btPChar: begin
+              PAnsiChar(res^.dta^) := PAnsiChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+            {+}
+            {$IFNDEF PS_NOWIDESTRING}
+              {$if declared(btPWideChar)}
+            btPWideChar: begin
+              PWideChar(res^.dta^) := PWideChar(RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, nil));
+            end;
+              {$ifend}
+            {$ENDIF !PS_NOWIDESTRING}
+            {+.}
+            {$IFNDEF PS_NOINT64}
+            bts64: begin
+              EAX := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
+              TbtS64(res^.dta^) := Int64(EAX) shl 32 or EDX;
+            end;
+            {$ENDIF !PS_NOINT64}
+            btVariant, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString,{$ENDIF}
+            btInterface, btArray, btrecord, btstring: begin
+              GetPtr(res); RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
+            end;
+            else
+              Exit;
+          end; // case res^.aType.BaseType
+        end else begin
+          RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 0, nil);
+        end; // if
+        Result := True;
+      end; // cdStdCall
+
+    end; // case CallingConv
   {except
     //--on e: Exception do
     begin
@@ -854,7 +965,7 @@ begin
     {+} // [#velter#]
     if CallData<>nil then
     begin
-      for i := CallData.Count -1 downto 0 do
+      for i := CallData.Count-1 downto 0 do
       begin
         pp := CallData[i];
         case pp^ of
@@ -865,4 +976,4 @@ begin
     end;
     {+.}
   end;
-end;
+end; // function TPSExec.InnerfuseCall

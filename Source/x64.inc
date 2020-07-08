@@ -1,4 +1,7 @@
-{ x64.inc }
+{ x64.inc } // version: 2020.0628.1040
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 
 {.$O-,D+,L+} // for debug
 
@@ -203,7 +206,6 @@ type
     p41,p42,p43,p44,p45,p46,p47,p48,p49,p50,p51,p52,p53,p54,p55,p56,p57,p58,p59,p60,p61,p62,p63,p64,p65,p66: IPointer);
 
   {$IFDEF FPC}
-    {$mode delphi}
     {$ASMMODE INTEL}
   {$ENDIF}
 
@@ -214,9 +216,11 @@ procedure x64call({RCX}Address: Pointer;out {RDX}_RAX: IPointer;var {R8}_XMM0: D
     //-mov Result, rax // !Not necessarily!
   end;
   function get_xmm0: Double; assembler; {$ifdef FPC}nostackframe;{$endif}
+  {$IFDEF FPC}{$warnings off}{$ENDIF} // TODO: FPC: Need test
   asm
-    movsd Result, xmm0
+    movsd Result, xmm0 // FPC: Warning: Check size of memory operand "movsd: memory-operand-size is 64 bits, but expected [128 bits]"
   end;
+  {$IFDEF FPC}{$warnings on}{$ENDIF}
 
   procedure set_rax(var _RAX: Double); assembler; {$ifdef FPC}nostackframe;{$endif}
   asm
@@ -1050,7 +1054,7 @@ var
   RegUsageFloat: Byte;
   {$ENDIF}
 {$IFDEF FPC}
-  IsConstructor,IsVirtualCons: Boolean;
+  IsConstructor, IsVirtualCons: Boolean;
 {$ENDIF}
   RegUsage: Byte;
   CallData: TPSList;
@@ -1221,7 +1225,7 @@ var
               {+.}
               CallData.Add(p);
               StoreReg(IPointer(POpenArray(p)^.Data));
-              StoreReg(IPointer(POpenArray(p)^.ItemCount -1));
+              StoreReg(IPointer(POpenArray(p)^.ItemCount-1));
               Result := True;
               Exit;
             end else begin
@@ -1248,85 +1252,87 @@ var
     end else begin { #else : (not fVar.VarParam) }
       case fVar.aType.BaseType of
         btSet: begin
-            case TPSTypeRec_Set(fVar.aType).aByteSize of
-              1: StoreReg(IPointer(byte(fVar.Dta^)));
-              2: StoreReg(IPointer(word(fVar.Dta^)));
-              3, 4: StoreReg(IPointer(cardinal(fVar.Dta^)));
-              5,6,7,8: StoreReg(IPointer(fVar.Dta^));
-              else
-                StoreReg(IPointer(fVar.Dta));
-            end;
-          end;
-        btArray: begin
-            if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
-              p := CreateOpenArray(False, Self, fVar);
-              if p =nil then exit;
-              {+} // [#velter#]
-              if CallData = nil then // [#velter#]
-                CallData := TPSList.Create;
-              {+.}
-              CallData.Add(p);
-              StoreReg(IPointer(POpenArray(p)^.Data));
-              StoreReg(IPointer(POpenArray(p)^.ItemCount -1));
-              Result := True;
-              exit;
-            end else begin
-              StoreReg(IPointer(fVar.Dta{$IFNDEF FPC}^{$ENDIF}));
-            end;
-          end;
-        btRecord: begin
-            if fVar.aType.RealSize <= sizeof(IPointer) then
-              StoreReg(IPointer(fVar.Dta^))
+          case TPSTypeRec_Set(fVar.aType).aByteSize of
+            1:
+              StoreReg(IPointer(byte(fVar.Dta^)));
+            2:
+              StoreReg(IPointer(word(fVar.Dta^)));
+            3, 4:
+              StoreReg(IPointer(cardinal(fVar.Dta^)));
+            5,6,7,8:
+              StoreReg(IPointer(fVar.Dta^));
             else
               StoreReg(IPointer(fVar.Dta));
+          end; // case
+        end;
+        btArray: begin
+          if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
+            p := CreateOpenArray(False, Self, fVar);
+            if p =nil then exit;
+            {+} // [#velter#]
+            if CallData = nil then // [#velter#]
+              CallData := TPSList.Create;
+            {+.}
+            CallData.Add(p);
+            StoreReg(IPointer(POpenArray(p)^.Data));
+            StoreReg(IPointer(POpenArray(p)^.ItemCount-1));
+            Result := True;
+            Exit;
+          end else begin
+            StoreReg(IPointer(fVar.Dta{$IFNDEF FPC}^{$ENDIF}));
           end;
-        btVariant, btStaticArray: begin
+        end;
+        btRecord: begin
+          if fVar.aType.RealSize <= sizeof(IPointer) then
+            StoreReg(IPointer(fVar.Dta^))
+          else
             StoreReg(IPointer(fVar.Dta));
-          end;
+        end;
+        btVariant, btStaticArray: begin
+          StoreReg(IPointer(fVar.Dta));
+        end;
         btExtended, btDouble: {8 bytes} begin
-            StoreReg(double(fVar.Dta^)); // @dbg: TDateTime(fVar.Dta^)
-          end;
+          StoreReg(double(fVar.Dta^)); // @dbg: TDateTime(fVar.Dta^)
+        end;
         btCurrency: {8 bytes} begin
-            StoreReg(IPointer(fVar.Dta^));
-          end;
+          StoreReg(IPointer(fVar.Dta^));
+        end;
         btSingle: {4 bytes} begin
-            StoreReg(single(fVar.Dta^));
-          end;
+          StoreReg(single(fVar.Dta^));
+        end;
         btChar, btU8, btS8: begin
-            StoreReg(IPointer(byte(fVar.Dta^)));
-          end;
-        btWideChar,
-        btU16, btS16: begin
-            StoreReg(IPointer(word(fVar.Dta^)));
-          end;
+          StoreReg(IPointer(Byte(fVar.Dta^)));
+        end;
+        btWideChar, btU16, btS16: begin
+          StoreReg(IPointer(Word(fVar.Dta^)));
+        end;
         btU32, btS32: begin
-            StoreReg(IPointer(cardinal(fVar.Dta^)));
-          end;
+          StoreReg(IPointer(Cardinal(fVar.Dta^)));
+        end;
         btPChar: begin
-            if Pointer(fVar.Dta^) = nil then
-              StoreReg(IPointer(@EmptyPChar))
-            else
-              StoreReg(IPointer(fVar.Dta^));
-          end;
+          if Pointer(fVar.Dta^) = nil then
+            StoreReg(IPointer(@EmptyPChar))
+          else
+            StoreReg(IPointer(fVar.Dta^));
+        end;
         {+}
         {$IFNDEF PS_NOWIDESTRING}
         {$if declared(btPWideChar)}
-        btPWideChar:
-          begin
-            if pointer(fVar^.Dta^) = nil then
-              StoreReg(IPointer(@EmptyPchar))
-            else
-              StoreReg(IPointer(fVar^.Dta^));
-          end;
+        btPWideChar: begin
+          if Pointer(fVar^.Dta^) = nil then
+            StoreReg(IPointer(@EmptyPchar))
+          else
+            StoreReg(IPointer(fVar^.Dta^));
+        end;
         {$ifend}
         {$ENDIF}
         {+.}
         btClass, btInterface, btString: begin
-            StoreReg(IPointer(fVar.Dta^));
-          end;
+          StoreReg(IPointer(fVar.Dta^));
+        end;
         btWideString: begin
-            StoreReg(IPointer(fVar.Dta^));
-          end;
+          StoreReg(IPointer(fVar.Dta^));
+        end;
         btUnicodeString: begin
             StoreReg(IPointer(fVar.Dta^)); // @dbg: UnicodeString(fVar.Dta^)
           end;
@@ -1362,15 +1368,18 @@ var
 begin // function TPSExec.InnerfuseCall
   {$IFDEF FPC}
   if (Integer(CallingConv) and 128) <> 0 then begin
-    IsVirtualCons := true;
+    IsVirtualCons := True;
     CAllingConv := TPSCallingConvention(Integer(CallingConv) and not 128);
-  end else
-    IsVirtualCons:= false;
+  end else begin
+    IsVirtualCons := False;
+  end;
+  if IsVirtualCons then ;
   if (Integer(CallingConv) and 64) <> 0 then begin
-    IsConstructor := true;
+    IsConstructor := True;
     CAllingConv := TPSCallingConvention(Integer(CallingConv) and not 64);
-  end else
-    IsConstructor := false;
+  end else begin
+    IsConstructor := False;
+  end;
   {$ENDIF}
   // TODO: FPC: OpenArray fail (AV). Sample script: "begin format('%s; %s',['2','2']); end."
   InnerfuseCall := False;
@@ -1397,23 +1406,23 @@ begin // function TPSExec.InnerfuseCall
     FillChar(Registers, Sizeof(Registers), 0);
     _RAX := 0;
     RegUsage := 0;
-    {$warnings off}
+    {$IFDEF DELPHI}{$warnings off}{$ENDIF} // for delphi compiler reaction on fpc...
     {$IF DEFINED (fpc) and (fpc_version >= 3)} // FIX FOR FPC constructor calls
-    {$warnings on}
+    {$IFDEF DELPHI}{$warnings on}{$ENDIF}
     if IsConstructor then begin
       if not GetPtr(rp(Params[0])) then exit; // this goes first
       DisposePPSVariantIFC(Params[0]);
       Params.Delete(0);
     end;
     {$IFEND}
-    if assigned(_Self) then begin
+    if Assigned(_Self) then begin
       StoreReg(IPointer(_Self));
     end;
-    if assigned(res) and (res^.atype.basetype = btSingle) then begin
+    if Assigned(res) and (res^.atype.basetype = btSingle) then begin
       Registers.Singlebits  := Registers.Singlebits or 256;
     end;
     {$IFDEF PS_RESBEFOREPARAMETERS}
-    if assigned(res) then begin
+    if Assigned(res) then begin
       case res^.aType.BaseType of
         {$IFDEF x64_string_result_as_varparameter}
         {$IFNDEF PS_NOWIDESTRING}
@@ -1441,7 +1450,7 @@ begin // function TPSExec.InnerfuseCall
       if not GetPtr(rp(Params[I])) then
         Exit;
     end;
-    if assigned(res) then begin
+    if Assigned(res) then begin
       {$IFNDEF PS_RESBEFOREPARAMETERS}
       case res^.aType.BaseType of
         {$IFDEF x64_string_result_as_varparameter}
@@ -1503,8 +1512,9 @@ begin // function TPSExec.InnerfuseCall
           IPointer(res.dta^) := _RAX; // @dbg: TObject(_RAX).ClassName  ;  TMBCSEncoding(_RAX),r
         btu32, bts32:
           tbtu32(res.dta^) := _RAX;
-        btPChar:
-          pansichar(res.dta^) := Pansichar(_RAX);
+        btPChar: begin
+          PAnsiChar(res.dta^) := PAnsiChar(_RAX);
+        end;
         bts64:
           tbts64(res.dta^) := Int64(_RAX);
         btCurrency:

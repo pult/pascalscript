@@ -1,13 +1,24 @@
+{ uPSUtils.pas } // version: 2020.0628.1520
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSUtils;
 {$I PascalScript.inc}
 
 interface
+
 uses
-  Classes, SysUtils {$IFDEF VER130}, Windows {$ENDIF};
+  Classes, SysUtils
+  {$IFNDEF FPC}
+  {$IFDEF MSWINDOWS}
+  ,Windows
+  {$ENDIF MSWINDOWS}
+  {$ENDIF !FPC}
+  ;
 
 {+}
 const
-  uPSVersion = 202006250950; // format: yyyymmddhhnn
+  uPSVersion = 202006281040; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -15,7 +26,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202006250950)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202006281040)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -57,7 +68,7 @@ type
   //
   TbtChar = AnsiChar;
   PTbtChar = PAnsiChar;
-  TbtString = AnsiString; //TbtString = {$IFDEF UNICODE}AnsiString{$ELSE}string{$ENDIF}; // UNICODE or DELPHI2009UP
+  TbtString = {$IFDEF UNICODE_OR_FPC}type {$ENDIF} AnsiString;
   PTbtString = PAnsiString;
   //
   TPSBaseType = Byte;
@@ -317,13 +328,13 @@ type
 {$IFNDEF PS_NOWIDESTRING}
   TbtWideString = WideString;
   {$if not declared(UnicodeString)}
-  {-IFNDEF DELPHI2009UP}
+  {-IFNDEF UNICODE}
   UnicodeString = WideString;
   {-ENDIF}
   {$ifend}
   TbtUnicodeString = UnicodeString;
   TbtWideChar = WideChar;
-  TbtNativeString = {$IFDEF DELPHI2009UP}tbtUnicodeString{$ELSE}tbtString{$ENDIF};
+  TbtNativeString = {$IFDEF UNICODE}tbtUnicodeString{$ELSE}tbtString{$ENDIF};
 {$ENDIF !PS_NOWIDESTRING}
 {+}
 {$IFDEF FPC}
@@ -348,7 +359,7 @@ type
   PNativeInt = ^NativeInt;
   PNativeUInt = ^NativeUInt;
 {+.}
-  TPSCallingConvention = (cdRegister, cdPascal, cdCdecl, cdStdCall, cdSafeCall);
+  TPSCallingConvention = (cdRegister, cdPascal, cdCDecl, cdStdCall, cdSafeCall);
 
 const
   PointerSize = IPointer({$IFDEF CPU64}8{$ELSE}4{$ENDIF});
@@ -387,7 +398,7 @@ type
     procedure DeleteLast;
     procedure Clear; virtual;
     {+}
-    procedure ClearAsObjects();
+    procedure ClearAsObjects(bDestroying: Boolean = False);
     {+.}
 
     property Data: PPointerList read FData;
@@ -616,11 +627,20 @@ function GRFW(var s: TbtString): TbtString;
 function GRLW(var s: TbtString): TbtString;
 
 {+}
-function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer; {$ifdef INLINE_SUPPORT} inline; {$endif}
+function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer;
+  {$ifdef INLINE_SUPPORT} inline; {$endif}
+  overload;
+function PointerShift(Ptr: Pointer; Offset: Pointer): Pointer;
+  {$ifdef INLINE_SUPPORT} inline; {$endif}
+  overload;
 
-function string_starts_with(const S, Look: tbtString): Boolean; {-ifdef INLINE_SUPPORT}{ inline; {$endif} overload;
+function string_starts_with(const S, Look: tbtString): Boolean;
+  //{$ifdef INLINE_SUPPORT} inline; {$endif}
+  overload;
 {$IFDEF UNICODE}
-function string_starts_with(const S, Look: string): Boolean; {-ifdef INLINE_SUPPORT}{ inline; {$endif} overload;
+function string_starts_with(const S, Look: string): Boolean;
+  //{$ifdef INLINE_SUPPORT} inline; {$endif}
+  overload;
 {$ENDIF UNICODE}//*)
 {+.}
 
@@ -686,6 +706,17 @@ function TrimRightLenW(const S: WideString): Integer;
 function TrimLenU(const S: UnicodeString): Integer;
 function TrimLeftLenU(const S: UnicodeString): Integer;
 function TrimRightLenU(const S: UnicodeString): Integer;
+{$ENDIF UNICODE}
+
+function SameTextW(const s1,s2: WideString): Boolean;
+  {$ifdef INLINE_SUPPORT} inline; {$endif}
+function AnsiSameTextW(const s1,s2: WideString): Boolean;
+  {$ifdef INLINE_SUPPORT} inline; {$endif}
+{$IFDEF UNICODE}
+function SameTextU(const s1,s2: UnicodeString): Boolean;
+  {$ifdef INLINE_SUPPORT} inline; {$endif}
+function AnsiSameTextU(const s1,s2: UnicodeString): Boolean;
+  {$ifdef INLINE_SUPPORT} inline; {$endif}
 {$ENDIF UNICODE}
 
 implementation
@@ -1114,54 +1145,82 @@ begin
   // POS:
   //
 
-  PosS := PosS_;
+  PosS := @PosS_;
 
-  //-PosA := PosA_;
+  //-PosA := @PosA_;
        // or:
   {$IFDEF _ANSISTRINGS_}
-  PosA := AnsiStrings.AnsiPos;
+  PosA := @AnsiStrings.AnsiPos;
   {$ELSE}
   //{$IFNDEF UNICODE}
-  //PosA := Pos;
+  //PosA := {$IFDEF FPC}@{$ENDIF}Pos; // XE3 FOR "@": Fatal: F2084 Internal Error: AV00000000-R00000000-0
   //{$ELSE}
-  PosA := PosA_;
+  PosA := @PosA_;
   //{$ENDIF}
   {$ENDIF}
 
-  PosW := PosW_;
+  PosW := @PosW_;
 
   {$IFDEF UNICODE}
-  PosU := PosU_;
+  PosU := @PosU_;
   {$ELSE}
-  PosU := PosW_;
+  PosU := @PosW_;
   {$ENDIF}
 
   //
   // POSEX:
   //
 
-  //-PosExS := PosExS_;
+  //-PosExS := @PosExS_;
          // or:
-  PosExS := PosEx;
+  PosExS := {$IFDEF FPC}@{$ENDIF}PosEx; // XE3 FOR "@": Fatal: F2084 Internal Error: AV00000000-R00000000-0
 
   {$IFDEF _ANSISTRINGS_}
-  PosExA := AnsiStrings.PosEx;
+  PosExA := @AnsiStrings.PosEx;
   {$ELSE}
-  PosExA := PosExA_;
+  PosExA := @PosExA_;
   {$ENDIF}
 
   {$IFDEF UNICODE}
-  PosExW := PosExW_;
+  PosExW := @PosExW_;
   {$ELSE}
-  PosExW := PosExW_;
+  PosExW := @PosExW_;
   {$ENDIF}
 
   {$IFDEF UNICODE}
-  PosExU := PosExU_;
+  PosExU := @PosExU_;
   {$ELSE}
-  PosExU := PosExW_;
+  PosExU := @PosExW_;
   {$ENDIF}
 end;
+
+function SameTextW(const s1,s2: WideString): Boolean;
+{$IFDEF FPC}{$push} // FPC: https://wiki.freepascal.org/Turn_warnings_and_hints_on_or_off
+  {$warn 4105 off}  // FPC: Warning: Implicit string type conversion with potential data loss from "WideString" to "AnsiString"
+{$ENDIF}
+begin
+  Result := SameText(s1, s2);
+end;{$IFDEF FPC}{$pop}{$ENDIF}
+
+function AnsiSameTextW(const s1,s2: WideString): Boolean;
+{$IFDEF FPC}{$push} {$warn 4105 off} {$ENDIF}
+begin
+  Result := AnsiSameText(s1, s2);
+end;{$IFDEF FPC}{$pop}{$ENDIF}
+
+{$IFDEF UNICODE}
+function SameTextU(const s1,s2: UnicodeString): Boolean;
+{$IFDEF FPC}{$push} {$warn 4105 off} {$ENDIF}
+begin
+  Result := SameText(s1, s2);
+end;{$IFDEF FPC}{$pop}{$ENDIF}
+
+function AnsiSameTextU(const s1,s2: UnicodeString): Boolean;
+{$IFDEF FPC}{$push} {$warn 4105 off} {$ENDIF}
+begin
+  Result := AnsiSameText(s1, s2);
+end;{$IFDEF FPC}{$pop}{$ENDIF}
+{$ENDIF UNICODE}
 
 function MakeHash(const s: TbtString): Longint;
 {small hash maker}
@@ -1174,17 +1233,14 @@ begin
 end;
 
 function GRFW(var s: TbtString): TbtString;
-var
-  l: Longint;
+var l: Longint;
 begin
   l := 1;
-  while l <= Length(s) do
-  begin
-    if s[l] = ' ' then
-    begin
+  while l <= Length(s) do begin
+    if s[l] = ' ' then begin
       Result := copy(s, 1, l - 1);
       Delete(s, 1, l);
-      exit;
+      Exit;
     end;
     l := l + 1;
   end;
@@ -1193,17 +1249,14 @@ begin
 end;
 
 function GRLW(var s: TbtString): TbtString;
-var
-  l: Longint;
+var l: Longint;
 begin
   l := Length(s);
-  while l >= 1 do
-  begin
-    if s[l] = ' ' then
-    begin
+  while l >= 1 do begin
+    if s[l] = ' ' then begin
       Result := copy(s, l+1, MaxInt);
       Delete(s, l, MaxInt);
-      exit;
+      Exit;
     end;
     Dec(l);
   end;
@@ -1212,14 +1265,20 @@ begin
 end;
 
 {+}
-function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer;
+function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer; overload;
+{$IFDEF FPC}{$push} // FPC: https://wiki.freepascal.org/Turn_warnings_and_hints_on_or_off
+  {$warn 4055 off}  // FPC: Hint: Conversion between ordinals and pointers is not portable
+  {$warn 4082 off}  // FPC: Warning: Converting pointers to signed integers may result in wrong comparison results and range errors, use an unsigned type instead.
+{$ENDIF}
 begin
-  {$IFDEF FPC}
-  Result := Pointer(NativeUInt(NativeUInt(Ptr) + Offset));
-  {$ELSE}
   Result := Pointer(NativeUInt(NativeInt(Ptr) + Offset));
-  {$ENDIF}
-end;
+end; {$IFDEF FPC}{$pop}{$ENDIF}
+
+function PointerShift(Ptr: Pointer; Offset: Pointer): Pointer; overload;
+{$IFDEF FPC}{$push} {$warn 4055 off} {$warn 4082 off} {$ENDIF}
+begin
+  Result := Pointer(NativeUInt(NativeInt(Ptr) + NativeInt(Offset)));
+end; {$IFDEF FPC}{$pop}{$ENDIF}
 
 function string_starts_with(const S, Look: tbtString): Boolean; overload;
 var len: integer; p1,p2: PAnsiChar;
@@ -1300,12 +1359,11 @@ function FloatToStr(E: Extended): TbtString;
 begin
   Result := TbtString(SysUtils.FloatToStr(E));
 end;
-{var
-  s: tbtstring;
+{var s: TbtString;
 begin
   Str(e:0:12, s);
-  result := s;
-end;
+  Result := s;
+end;}
 {+.}
 
 function StrToInt(const S: TbtString): LongInt;
@@ -1362,7 +1420,7 @@ begin
   NewCapacity := mm(FCount, FCapacityInc);
   if NewCapacity < 64 then NewCapacity := 64;
   GetMem(NewData, NewCapacity * PointerSize);
-  for I := 0 to Longint(FCount) -1 do
+  for I := 0 to Longint(FCount)-1 do
     NewData^[i] := FData[I];
   FreeMem(FData, FCapacity * PointerSize);
   FData := NewData;
@@ -1393,7 +1451,9 @@ var
 begin
   if Longint(FCount) + Count > Longint(FCapacity) then
   begin
+    {$hints off}
     Inc(FCapacity, mm(Count, FCapacityInc));
+    {$hints off}
     ReAllocMem(FData, FCapacity *PointerSize);
   end;
   for L := 0 to Count-1 do
@@ -1463,14 +1523,12 @@ begin
 end;
 
 {+}
-procedure TPSList.ClearAsObjects();
+procedure TPSList.ClearAsObjects(bDestroying: Boolean);
 var
   O: TObject;
 begin
-  if FCount > 0 then
-  begin
-    while FCount > 0 do
-    begin
+  if FCount > 0 then begin
+    while FCount > 0 do begin
       Dec(FCount);
       O := TObject(FData[FCount]);
       FData[FCount] := nil;
@@ -1478,7 +1536,8 @@ begin
     end;
   end;
   {$IFNDEF PS_NOSMARTLIST}
-  Recreate;
+  if not bDestroying then
+    Recreate;
   {$ENDIF}
 end;
 {+.}
@@ -1794,7 +1853,9 @@ var
   var
     s: tbtString;
   begin
+    {$hints off}
     SetLength(s, CurrTokenLen);
+    {$hints on}
     Move(FText[CurrTokenPos], S[1], CurrtokenLen);
     Result := s;
   end;
@@ -1809,353 +1870,320 @@ var
     ParseToken := iNoError;
     ct := CurrTokenPos;
     case FText[ct] of
-      #0:
-        begin
-          CurrTokenId := CSTI_EOF;
-          CurrTokenLen := 0;
+      #0: begin
+        CurrTokenId := CSTI_EOF;
+        CurrTokenLen := 0;
+      end;
+
+      'A'..'Z', 'a'..'z', '_': begin
+        ci := ct + 1;
+        while (FText[ci] in ['_', '0'..'9', 'a'..'z', 'A'..'Z']) do begin
+          Inc(ci);
         end;
-      'A'..'Z', 'a'..'z', '_':
-        begin
-          ci := ct + 1;
-          while (FText[ci] in ['_', '0'..'9', 'a'..'z', 'A'..'Z']) do begin
-            Inc(ci);
-          end;
-          CurrTokenLen := ci - ct;
+        CurrTokenLen := ci - ct;
 
-          FLastUpToken := _GetToken(CurrTokenPos, CurrtokenLen);
-          p := PTbtChar(FLastUpToken);
-          while p^<>#0 do
-          begin
-            if p^ in [#97..#122] then
-              p^ := TbtChar(Ord(p^) - 32); // //Dec(Byte(p^), 32);
-            inc(p);
-          end;
-          if not CheckReserved(FLastUpToken, CurrTokenId) then
-          begin
-            CurrTokenId := CSTI_Identifier;
-          end;
+        FLastUpToken := _GetToken(CurrTokenPos, CurrtokenLen);
+        p := PTbtChar(FLastUpToken);
+        while p^ <> #0 do begin
+          if p^ in [#97..#122] then
+            p^ := TbtChar(Ord(p^) - 32); // //Dec(Byte(p^), 32);
+          Inc(p);
         end;
-      '$':
-        begin
-          ci := ct + 1;
-
-          while (FText[ci] in ['0'..'9', 'a'..'f', 'A'..'F'])
-            do Inc(ci);
-
-          CurrTokenId := CSTI_HexInt;
-          CurrTokenLen := ci - ct;
+        if not CheckReserved(FLastUpToken, CurrTokenId) then begin
+          CurrTokenId := CSTI_Identifier;
         end;
+      end;
 
-      '0'..'9':
-        begin
-          hs := False;
-          ci := ct;
-          while (FText[ci] in ['0'..'9']) do
-          begin
-            Inc(ci);
-            if (FText[ci] = '.') and (not hs) then
-            begin
-              if FText[ci+1] = '.' then break;
-              hs := True;
-              Inc(ci);
-            end;
-          end;
-          if (FText[ci] in ['E','e']) and ((FText[ci+1] in ['0'..'9'])
-            or ((FText[ci+1] in ['+','-']) and (FText[ci+2] in ['0'..'9']))) then
-          begin
+      '$': begin
+        ci := ct + 1;
+
+        while (FText[ci] in ['0'..'9', 'a'..'f', 'A'..'F']) do
+          Inc(ci);
+
+        CurrTokenId := CSTI_HexInt;
+        CurrTokenLen := ci - ct;
+      end;
+
+      '0'..'9': begin
+        hs := False;
+        ci := ct;
+        while (FText[ci] in ['0'..'9']) do begin
+          Inc(ci);
+          if (FText[ci] = '.') and (not hs) then begin
+            if FText[ci+1] = '.' then
+              Break;
             hs := True;
             Inc(ci);
-            if FText[ci] in ['+','-'] then
-              Inc(ci);
-            repeat
-              Inc(ci);
-            until not (FText[ci] in ['0'..'9']);
           end;
-
-          if hs
-            then CurrTokenId := CSTI_Real
-          else CurrTokenId := CSTI_Integer;
-
-          CurrTokenLen := ci - ct;
         end;
-
-      #39:
+        if (FText[ci] in ['E','e']) and ((FText[ci+1] in ['0'..'9'])
+          or ((FText[ci+1] in ['+','-']) and (FText[ci+2] in ['0'..'9']))) then
         begin
-          ci := ct + 1;
-          while true do
-          begin
-            if (FText[ci] = #0) or (FText[ci] = #13) or (FText[ci] = #10) then Break;
-            if (FText[ci] = #39) then
-            begin
-              if FText[ci+1] = #39 then
-                Inc(ci)
-              else
-                Break;
-            end;
+          hs := True;
+          Inc(ci);
+          if FText[ci] in ['+','-'] then
             Inc(ci);
-          end;
-          if FText[ci] = #39 then
-            CurrTokenId := CSTI_String
-          else
-          begin
-            CurrTokenId := CSTI_String;
-            ParseToken := iStringError;
-          end;
-          CurrTokenLen := ci - ct + 1;
+          repeat
+            Inc(ci);
+          until not (FText[ci] in ['0'..'9']);
         end;
-      '#':
-        begin
-          ci := ct + 1;
-          if FText[ci] = '$' then
-          begin
-            inc(ci);
-            while (FText[ci] in ['A'..'F', 'a'..'f', '0'..'9']) do begin
-              Inc(ci);
-            end;
-            CurrTokenId := CSTI_Char;
-            CurrTokenLen := ci - ct;
-          end else
-          begin
-            while (FText[ci] in ['0'..'9']) do begin
-              Inc(ci);
-            end;
-            if FText[ci] in ['A'..'Z', 'a'..'z', '_'] then
-            begin
-              ParseToken := iCharError;
-              CurrTokenId := CSTI_Char;
-            end else
-              CurrTokenId := CSTI_Char;
-            CurrTokenLen := ci - ct;
-          end;
-        end;
-      '=':
-        begin
-          CurrTokenId := CSTI_Equal;
-          CurrTokenLen := 1;
-        end;
-      '>':
-        begin
-          if FText[ct + 1] = '=' then
-          begin
-            CurrTokenid := CSTI_GreaterEqual;
-            CurrTokenLen := 2;
-          end else
-          begin
-            CurrTokenid := CSTI_Greater;
-            CurrTokenLen := 1;
-          end;
-        end;
-      '<':
-        begin
-          if FText[ct + 1] = '=' then
-          begin
-            CurrTokenId := CSTI_LessEqual;
-            CurrTokenLen := 2;
-          end else
-            if FText[ct + 1] = '>' then
-            begin
-              CurrTokenId := CSTI_NotEqual;
-              CurrTokenLen := 2;
-            end else
-            begin
-              CurrTokenId := CSTI_Less;
-              CurrTokenLen := 1;
-            end;
-        end;
-      ')':
-        begin
-          CurrTokenId := CSTI_CloseRound;
-          CurrTokenLen := 1;
-        end;
-      '(':
-        begin
-          if FText[ct + 1] = '*' then
-          begin
-            ci := ct + 1;
-            while (FText[ci] <> #0) do begin
-              if (FText[ci] = '*') and (FText[ci + 1] = ')') then
-                Break;
-              if FText[ci] = #13 then
-              begin
-                inc(FRow);
-                if FText[ci+1] = #10 then
-                  inc(ci);
-                FLastEnterPos := ci +1;
-              end else if FText[ci] = #10 then
-              begin
-                inc(FRow);
-                FLastEnterPos := ci +1;
-              end;
-              Inc(ci);
-            end;
-            CurrTokenId := CSTIINT_Comment;
-            if (FText[ci] = #0) then
-              ParseToken := iCommentError
+
+        if hs then
+          CurrTokenId := CSTI_Real
+        else
+          CurrTokenId := CSTI_Integer;
+
+        CurrTokenLen := ci - ct;
+      end;
+
+      #39: begin
+        ci := ct + 1;
+        while True do begin
+          if (FText[ci] = #0) or (FText[ci] = #13) or (FText[ci] = #10) then
+            Break;
+          if (FText[ci] = #39) then begin
+            if FText[ci+1] = #39 then
+              Inc(ci)
             else
-              Inc(ci, 2);
-            CurrTokenLen := ci - ct;
-          end
-          else
-          begin
-            CurrTokenId := CSTI_OpenRound;
-            CurrTokenLen := 1;
+              Break;
           end;
+          Inc(ci);
         end;
-      '[':
-        begin
-          CurrTokenId := CSTI_OpenBlock;
-          CurrTokenLen := 1;
+        if FText[ci] = #39 then
+          CurrTokenId := CSTI_String
+        else begin
+          CurrTokenId := CSTI_String;
+          ParseToken := iStringError;
         end;
-      ']':
-        begin
-          CurrTokenId := CSTI_CloseBlock;
-          CurrTokenLen := 1;
-        end;
-      ',':
-        begin
-          CurrTokenId := CSTI_Comma;
-          CurrTokenLen := 1;
-        end;
-      '.':
-        begin
-          if FText[ct + 1] = '.' then
-          begin
-            CurrTokenLen := 2;
-            CurrTokenId := CSTI_TwoDots;
-          end else
-          begin
-            CurrTokenId := CSTI_Period;
-            CurrTokenLen := 1;
-          end;
-        end;
-      '@':
-        begin
-          CurrTokenId := CSTI_AddressOf;
-          CurrTokenLen := 1;
-        end;
-      '^':
-        begin
-          CurrTokenId := CSTI_Dereference;
-          CurrTokenLen := 1;
-        end;
-      ';':
-        begin
-          CurrTokenId := CSTI_Semicolon;
-          CurrTokenLen := 1;
-        end;
-      ':':
-        begin
-          if FText[ct + 1] = '=' then
-          begin
-            CurrTokenId := CSTI_Assignment;
-            CurrTokenLen := 2;
-          end else
-          begin
-            CurrTokenId := CSTI_Colon;
-            CurrTokenLen := 1;
-          end;
-        end;
-      '+':
-        begin
-          CurrTokenId := CSTI_Plus;
-          CurrTokenLen := 1;
-        end;
-      '-':
-        begin
-          CurrTokenId := CSTI_Minus;
-          CurrTokenLen := 1;
-        end;
-      '*':
-        begin
-          CurrTokenId := CSTI_Multiply;
-          CurrTokenLen := 1;
-        end;
-      '/':
-        begin
-          if FText[ct + 1] = '/' then
-          begin
-            ci := ct + 1;
-            while (FText[ci] <> #0) and (FText[ci] <> #13) and
-              (FText[ci] <> #10) do begin
-              Inc(ci);
-            end;
-            CurrTokenId := CSTIINT_Comment;
-            //if (FText[ci] = #0) then
-            //  ?
-            //else
-            //  ?
-            CurrTokenLen := ci - ct;
-          end else
-          begin
-            CurrTokenId := CSTI_Divide;
-            CurrTokenLen := 1;
-          end;
-        end;
-      #32, #9, #13, #10:
-        begin
-          ci := ct;
-          while (FText[ci] in [#32, #9, #13, #10]) do
-          begin
-            if FText[ci] = #13 then
-            begin
-              inc(FRow);
-              if FText[ci+1] = #10 then
-                inc(ci);
-              FLastEnterPos := ci +1;
-            end else if FText[ci] = #10 then
-            begin
-              inc(FRow);
-              FLastEnterPos := ci +1;
-            end;
+        CurrTokenLen := ci - ct + 1;
+      end;
+
+      '#': begin
+        ci := ct + 1;
+        if FText[ci] = '$' then begin
+          inc(ci);
+          while (FText[ci] in ['A'..'F', 'a'..'f', '0'..'9']) do begin
             Inc(ci);
           end;
-          CurrTokenId := CSTIINT_WhiteSpace;
+          CurrTokenId := CSTI_Char;
+          CurrTokenLen := ci - ct;
+        end else begin
+          while (FText[ci] in ['0'..'9']) do begin
+            Inc(ci);
+          end;
+          if FText[ci] in ['A'..'Z', 'a'..'z', '_'] then begin
+            ParseToken := iCharError;
+            CurrTokenId := CSTI_Char;
+          end else
+            CurrTokenId := CSTI_Char;
           CurrTokenLen := ci - ct;
         end;
-      '{':
-        begin
+      end;
+
+      '=': begin
+        CurrTokenId := CSTI_Equal;
+        CurrTokenLen := 1;
+      end;
+
+      '>': begin
+        if FText[ct + 1] = '=' then begin
+          CurrTokenid := CSTI_GreaterEqual;
+          CurrTokenLen := 2;
+        end else begin
+          CurrTokenid := CSTI_Greater;
+          CurrTokenLen := 1;
+        end;
+      end;
+
+      '<': begin
+        if FText[ct + 1] = '=' then begin
+          CurrTokenId := CSTI_LessEqual;
+          CurrTokenLen := 2;
+        end else begin
+          if FText[ct + 1] = '>' then begin
+            CurrTokenId := CSTI_NotEqual;
+            CurrTokenLen := 2;
+          end else begin
+            CurrTokenId := CSTI_Less;
+            CurrTokenLen := 1;
+          end;
+        end;
+      end;
+
+      ')': begin
+        CurrTokenId := CSTI_CloseRound;
+        CurrTokenLen := 1;
+      end;
+
+      '(': begin
+        if FText[ct + 1] = '*' then begin
           ci := ct + 1;
-          while (FText[ci] <> #0) and (FText[ci] <> '}') do begin
-            if FText[ci] = #13 then
-            begin
+          while (FText[ci] <> #0) do begin
+            if (FText[ci] = '*') and (FText[ci + 1] = ')') then
+              Break;
+            if FText[ci] = #13 then begin
               inc(FRow);
               if FText[ci+1] = #10 then
-                inc(ci);
+                Inc(ci);
               FLastEnterPos := ci + 1;
-            end else if FText[ci] = #10 then
-            begin
-              inc(FRow);
+            end else if FText[ci] = #10 then begin
+              Inc(FRow);
               FLastEnterPos := ci + 1;
             end;
             Inc(ci);
           end;
           CurrTokenId := CSTIINT_Comment;
           if (FText[ci] = #0) then
-            ParseToken := iCommentError;
-          CurrTokenLen := ci - ct + 1;
+            ParseToken := iCommentError
+          else
+            Inc(ci, 2);
+          CurrTokenLen := ci - ct;
+        end else begin
+          CurrTokenId := CSTI_OpenRound;
+          CurrTokenLen := 1;
         end;
-    else
-      begin
+      end;
+
+      '[': begin
+        CurrTokenId := CSTI_OpenBlock;
+        CurrTokenLen := 1;
+      end;
+
+      ']': begin
+        CurrTokenId := CSTI_CloseBlock;
+        CurrTokenLen := 1;
+      end;
+
+      ',': begin
+        CurrTokenId := CSTI_Comma;
+        CurrTokenLen := 1;
+      end;
+
+      '.': begin
+        if FText[ct + 1] = '.' then begin
+          CurrTokenLen := 2;
+          CurrTokenId := CSTI_TwoDots;
+        end else begin
+          CurrTokenId := CSTI_Period;
+          CurrTokenLen := 1;
+        end;
+      end;
+
+      '@': begin
+        CurrTokenId := CSTI_AddressOf;
+        CurrTokenLen := 1;
+      end;
+
+      '^': begin
+        CurrTokenId := CSTI_Dereference;
+        CurrTokenLen := 1;
+      end;
+
+      ';': begin
+        CurrTokenId := CSTI_Semicolon;
+        CurrTokenLen := 1;
+      end;
+
+      ':': begin
+        if FText[ct + 1] = '=' then begin
+          CurrTokenId := CSTI_Assignment;
+          CurrTokenLen := 2;
+        end else begin
+          CurrTokenId := CSTI_Colon;
+          CurrTokenLen := 1;
+        end;
+      end;
+
+      '+': begin
+        CurrTokenId := CSTI_Plus;
+        CurrTokenLen := 1;
+      end;
+
+      '-': begin
+        CurrTokenId := CSTI_Minus;
+        CurrTokenLen := 1;
+      end;
+
+      '*': begin
+        CurrTokenId := CSTI_Multiply;
+        CurrTokenLen := 1;
+      end;
+
+      '/': begin
+        if FText[ct + 1] = '/' then begin
+          ci := ct + 1;
+          while (FText[ci] <> #0) and (FText[ci] <> #13) and (FText[ci] <> #10) do begin
+            Inc(ci);
+          end;
+          CurrTokenId := CSTIINT_Comment;
+          //if (FText[ci] = #0) then
+          //  ?
+          //else
+          //  ?
+          CurrTokenLen := ci - ct;
+        end else begin
+          CurrTokenId := CSTI_Divide;
+          CurrTokenLen := 1;
+        end;
+      end;
+
+      #32, #9, #13, #10: begin
+        ci := ct;
+        while (FText[ci] in [#32, #9, #13, #10]) do begin
+          if FText[ci] = #13 then begin
+            inc(FRow);
+            if FText[ci+1] = #10 then
+              inc(ci);
+            FLastEnterPos := ci +1;
+          end else if FText[ci] = #10 then begin
+            inc(FRow);
+            FLastEnterPos := ci +1;
+          end;
+          Inc(ci);
+        end;
+        CurrTokenId := CSTIINT_WhiteSpace;
+        CurrTokenLen := ci - ct;
+      end;
+
+      '{': begin
+        ci := ct + 1;
+        while (FText[ci] <> #0) and (FText[ci] <> '}') do begin
+          if FText[ci] = #13 then begin
+            inc(FRow);
+            if FText[ci+1] = #10 then
+              Inc(ci);
+            FLastEnterPos := ci + 1;
+          end else if FText[ci] = #10 then begin
+            Inc(FRow);
+            FLastEnterPos := ci + 1;
+          end;
+          Inc(ci);
+        end;
+        CurrTokenId := CSTIINT_Comment;
+        if (FText[ci] = #0) then
+          ParseToken := iCommentError;
+        CurrTokenLen := ci - ct + 1;
+      end;
+      else begin
         ParseToken := iSyntaxError;
         CurrTokenId := CSTIINT_Comment;
         CurrTokenLen := 1;
       end;
-    end;
+    end; // case
   end; // function ParseToken
 
 begin // procedure TPSPascalParser.Next
-  if FText = nil then
-  begin
+  if FText = nil then begin
     FTokenLength := 0;
     FRealPosition := 0;
     FTokenId := CSTI_EOF;
     Exit;
   end;
+  FLastUpToken := '';
   repeat
     FRealPosition := FRealPosition + Cardinal(FTokenLength);
     Err := ParseToken(FRealPosition, Cardinal(FTokenLength), FTokenID);
-    if Err <> iNoError then
-    begin
+    if Err <> iNoError then begin
       FTokenLength := 0;
       FTokenId := CSTI_EOF;
       FToken := '';
@@ -2166,32 +2194,38 @@ begin // procedure TPSPascalParser.Next
     end;
 
     case FTokenID of
-      CSTIINT_Comment: if not FEnableComments then Continue else
-        begin
+      CSTIINT_Comment: begin
+        if not FEnableComments then
+         Continue
+        else begin
           SetLength(FOriginalToken, FTokenLength);
           Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
           FToken := FOriginalToken;
         end;
-      CSTIINT_WhiteSpace: if not FEnableWhitespaces then Continue else
-        begin
+      end;
+
+      CSTIINT_WhiteSpace: begin
+        if not FEnableWhitespaces then
+          Continue
+        else begin
           SetLength(FOriginalToken, FTokenLength);
           Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
           FToken := FOriginalToken;
         end;
-      CSTI_Integer, CSTI_Real, CSTI_String, CSTI_Char, CSTI_HexInt:
-        begin
-          SetLength(FOriginalToken, FTokenLength);
-          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
-          FToken := FOriginalToken;
-        end;
-      CSTI_Identifier:
-        begin
-          SetLength(FOriginalToken, FTokenLength);
-          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
-          FToken := FLastUpToken;
-        end;
-    else
-      begin
+      end;
+
+      CSTI_Integer, CSTI_Real, CSTI_String, CSTI_Char, CSTI_HexInt: begin
+        SetLength(FOriginalToken, FTokenLength);
+        Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+        FToken := FOriginalToken;
+      end;
+
+      CSTI_Identifier: begin
+        SetLength(FOriginalToken, FTokenLength);
+        Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+        FToken := FLastUpToken;
+      end;
+      else begin
         {+}
         if FTokenID >= CSTII_and then begin // NEW: allow variant/interface call like: vOutlook.Class or vOutlook.Type
           SetLength(FOriginalToken, FTokenLength);
@@ -2203,7 +2237,7 @@ begin // procedure TPSPascalParser.Next
         {+.}
         FToken := '';
       end;
-    end;
+    end; // case FTokenID
     Break;
   until False;
 end; // procedure TPSPascalParser.Next
@@ -2221,13 +2255,10 @@ begin
 end;
 
 function TPSList.IndexOf(P: Pointer): Longint;
-var
-  i: Integer;
+var i: Integer;
 begin
-  for i := FCount -1 downto 0 do
-  begin
-    if FData[i] = p then
-    begin
+  for i := FCount-1 downto 0 do begin
+    if FData[i] = p then begin
       Result := i;
       Exit;
     end;
@@ -2250,14 +2281,10 @@ begin
 end;
 
 destructor TPSUnitList.Destroy;
-var
-  i: Integer;
-  O: TObject;
+var i: Integer; O: TObject;
 begin
-  if Assigned(fList) then
-  begin
-    for i := fList.Count-1 downto 0 do
-    begin
+  if Assigned(fList) then begin
+    for i := fList.Count-1 downto 0 do begin
       O := TObject(fList.FData[i]);
       fList.FData[i] := nil;
       O.Free;
@@ -2268,14 +2295,11 @@ begin
 end;
 
 function TPSUnitList.GetUnit(UnitName: TbtString): TPSUnit;
-var
-  i: Integer;
+var i: Integer;
 begin
   UnitName := FastUpperCase(UnitName);
-  for i := 0 to fList.Count-1 do
-  begin
-    if TPSUnit(fList[i]).UnitName = UnitName then
-    begin
+  for i := 0 to fList.Count-1 do begin
+    if TPSUnit(fList[i]).UnitName = UnitName then begin
       Result := TPSUnit(fList[i]);
       Exit;
     end;
@@ -2287,8 +2311,7 @@ end;
 { TPSUnit }
 
 procedure TPSUnit.AddUses(const pUnitName: TbtString);
-var
-  UsesUnit: TPSUnit;
+var UsesUnit: TPSUnit;
 begin
   UsesUnit := fList.GetUnit(pUnitName);
   fUnits.Add(UsesUnit);
@@ -2308,15 +2331,13 @@ begin
 end;
 
 function TPSUnit.HasUses(pUnitName: TbtString): Boolean;
-var
-  i: Integer;
+var i: Integer;
 begin
   pUnitName := FastUpperCase(pUnitName);
   Result := fUnitName = pUnitName;
   if Result then
     Exit;
-  for i := 0 to fUnits.Count-1 do
-  begin
+  for i := 0 to fUnits.Count-1 do begin
     Result := TPSUnit(fUnits[i]).HasUses(pUnitName);
     if Result then
       Exit;

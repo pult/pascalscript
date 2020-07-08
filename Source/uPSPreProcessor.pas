@@ -1,87 +1,82 @@
+{ uPSPreProcessor.pas } // version: 2020.0628.1520
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSPreProcessor;
 {$I PascalScript.inc}
 
 interface
+{$IFDEF FPC}        // FPC: {%H-} https://wiki.freepascal.org/Turn_warnings_and_hints_on_or_off
+  {-warn 4015 off}  // FPC: Hint: Use DIV instead to get an integer result
+{$ENDIF}
+
 uses
   Classes, SysUtils, uPSCompiler, uPSUtils;
 
 type
   EPSPreProcessor = class(Exception); //- jgv
   //TODO: ?EPSPreProcessor = class({+}EPSError{+.}); //- jgv
+
   TPSPreProcessor = class;
   TPSPascalPreProcessorParser = class;
 
-  TPSOnNeedFile = function (Sender: TPSPreProcessor; const callingfilename: tbtstring; var FileName, Output: tbtstring): Boolean;
-  TPSOnProcessDirective = procedure (
-                            Sender: TPSPreProcessor;
-                            Parser: TPSPascalPreProcessorParser;
-                            const Active: Boolean;
-                            const DirectiveName, DirectiveParam: tbtString;
-                            Var Continue: Boolean); //- jgv - application set continue to false to stop the normal directive processing
+  TPSOnNeedFile = function (Sender: TPSPreProcessor;
+    const callingFilename: TbtString; var FileName, Output: TbtString): Boolean;
 
-  TPSLineInfo = class(TObject)
+  //jgv - TPSOnProcessDirective - application set continue to false to stop the normal directive processing
+  TPSOnProcessDirective = procedure (Sender: TPSPreProcessor;
+    Parser: TPSPascalPreProcessorParser; const Active: Boolean;
+    const DirectiveName, DirectiveParam: TbtString;
+    var Continue: Boolean);
+
+  TPSLineInfo = class
   private
     function GetLineOffset(I: Integer): Cardinal;
     function GetLineOffsetCount: Longint;
   protected
     FEndPos: Cardinal;
     FStartPos: Cardinal;
-    FFileName: tbtstring;
+    FFileName: TbtString;
     FLineOffsets: TIfList;
   public
-
-    property FileName: tbtstring read FFileName;
-
-    property StartPos: Cardinal read FStartPos;
-
-    property EndPos: Cardinal read FEndPos;
-
-    property LineOffsetCount: Longint read GetLineOffsetCount;
-
-    property LineOffset[I: Longint]: Cardinal read GetLineOffset;
-
     constructor Create;
-
     destructor Destroy; override;
+
+    property FileName: TbtString read FFileName;
+    property StartPos: Cardinal read FStartPos;
+    property EndPos: Cardinal read FEndPos;
+    property LineOffsetCount: Longint read GetLineOffsetCount;
+    property LineOffset[I: Longint]: Cardinal read GetLineOffset;
   end;
 
   TPSLineInfoResults = record
-
-    Row,
-    Col,
-    Pos: Cardinal;
-
-    Name: tbtstring;
+    Row, Col, Pos: Cardinal;
+    Name: TbtString;
   end;
 
-  TPSLineInfoList = class(TObject)
+  TPSLineInfoList = class
   private
     FItems: TIfList;
     FCurrent: Longint;
     function GetCount: Longint;
     function GetItem(I: Integer): TPSLineInfo;
   protected
-
     function Add: TPSLineInfo;
   public
-
-    property Count: Longint read GetCount;
-
-    property Items[I: Longint]: TPSLineInfo read GetItem; default;
+    constructor Create;
+    destructor Destroy; override;
 
     procedure Clear;
+    function GetLineInfo(const ModuleName: TbtString; Pos: Cardinal; var Res: TPSLineInfoResults): Boolean;
 
-    function GetLineInfo(const ModuleName: tbtstring; Pos: Cardinal; var Res: TPSLineInfoResults): Boolean;
-
+    property Count: Longint read GetCount;
+    property Items[I: Longint]: TPSLineInfo read GetItem; default;
     property Current: Longint read FCurrent write FCurrent;
-
-    constructor Create;
-
-    destructor Destroy; override;
   end;
+
   TPSDefineStates = class;
 
-  TPSPreProcessor = class(TObject)
+  TPSPreProcessor = class
   private
     FID: Pointer;
     FCurrentDefines, FDefines: TStringList;
@@ -94,45 +89,39 @@ type
     FMainFile: tbtstring;
     FOnProcessDirective: TPSOnProcessDirective;
     FOnProcessUnknowDirective: TPSOnProcessDirective;
-    procedure ParserNewLine(Sender: TPSPascalPreProcessorParser; Row, Col, Pos: Cardinal);
-    procedure IntPreProcess(Level: Integer; const OrgFileName: tbtstring; FileName: tbtstring; Dest: TStream);
+
+    procedure ParserNewLine(Sender: TPSPascalPreProcessorParser; {%H-}Row, {%H-}Col, Pos: Cardinal);
+    procedure IntPreProcess(Level: Integer; const OrgFileName: TbtString; FileName: TbtString; Dest: TStream);
   protected
     procedure doAddStdPredefines; virtual; // jgv
   public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure AdjustMessages(Comp: TPSPascalCompiler);
+    procedure AdjustMessage(Msg: TPSPascalCompilerMessage); //-jgv
+    procedure PreProcess(const Filename: tbtstring; var Output: tbtstring);
+    procedure Clear;
+
     {The maximum number of levels deep the parser will go, defaults to 20}
     property MaxLevel: Longint read FMaxLevel write FMaxLevel;
     property CurrentLineInfo: TPSLineInfoList read FCurrentLineInfo;
 
-    property OnNeedFile: TPSOnNeedFile read FOnNeedFile write FOnNeedFile;
-
     property Defines: TStringList read FDefines write FDefines;
-
-    property MainFile: tbtstring read FMainFile write FMainFile;
-
-    property MainFileName: tbtstring read FMainFileName write FMainFileName;
-
+    property MainFile: TbtString read FMainFile write FMainFile;
+    property MainFileName: TbtString read FMainFileName write FMainFileName;
     property ID: Pointer read FID write FID;
 
-    procedure AdjustMessages(Comp: TPSPascalCompiler);
-    procedure AdjustMessage(Msg: TPSPascalCompilerMessage); //-jgv
-
-    procedure PreProcess(const Filename: tbtstring; var Output: tbtstring);
-
-    procedure Clear;
-
-    constructor Create;
-
-    destructor Destroy; override;
-
+    property OnNeedFile: TPSOnNeedFile read FOnNeedFile write FOnNeedFile;
     property OnProcessDirective: TPSOnProcessDirective read fOnProcessDirective write fOnProcessDirective;
     property OnProcessUnknowDirective: TPSOnProcessDirective read fOnProcessUnknowDirective write fOnProcessUnknowDirective;
   end;
 
   TPSPascalPreProcessorType = (ptEOF, ptOther, ptDefine);
 
-  TPSOnNewLine = procedure (Sender: TPSPascalPreProcessorParser; Row, Col, Pos: Cardinal) of object;
+  TPSOnNewLine = procedure(Sender: TPSPascalPreProcessorParser; Row, Col, Pos: Cardinal) of object;
 
-  TPSPascalPreProcessorParser = class(TObject)
+  TPSPascalPreProcessorParser = class
   private
     FData: tbtstring;
     FText: PAnsichar;
@@ -141,36 +130,27 @@ type
     FLastEnterPos, FLen, FRow, FCol, FPos: Cardinal;
     FOnNewLine: TPSOnNewLine;
   public
-
-    procedure SetText(const dta: tbtstring);
-
+    procedure SetText(const dta: TbtString);
     procedure Next;
 
-    property Token: tbtstring read FToken;
-
+    property Token: TbtString read FToken;
     property TokenId: TPSPascalPreProcessorType read FTokenId;
-
     property Row: Cardinal read FRow;
-
     property Col: Cardinal read FCol;
-
     property Pos: Cardinal read FPos;
-
     property OnNewLine: TPSOnNewLine read FOnNewLine write FOnNewLine;
   end;
 
-  TPSDefineState = class(TObject)
+  TPSDefineState = class
   private
     FInElse: Boolean;
     FDoWrite: Boolean;
   public
-
     property InElse: Boolean read FInElse write FInElse;
-
     property DoWrite: Boolean read FDoWrite write FDoWrite;
   end;
 
-  TPSDefineStates = class(TObject)
+  TPSDefineStates = class
   private
     FItems: TIfList;
     function GetCount: Longint;
@@ -178,21 +158,15 @@ type
     function GetWrite: Boolean;
     function GetPrevWrite: Boolean; //JeromeWelsh - nesting fix
   public
-
-    property Count: Longint read GetCount;
-
-    property Item[I: Longint]: TPSDefineState read GetItem; default;
-
-    function Add: TPSDefineState;
-
-    procedure Delete(I: Longint);
-
     constructor Create;
-
     destructor Destroy; override;
 
+    function Add: TPSDefineState;
+    procedure Delete(I: Longint);
     procedure Clear;
 
+    property Count: Longint read GetCount;
+    property Item[I: Longint]: TPSDefineState read GetItem; default;
     property DoWrite: Boolean read GetWrite;
     property DoPrevWrite: Boolean read GetPrevWrite; //JeromeWelsh - nesting fix
   end;
@@ -206,7 +180,7 @@ uses
 {$ENDIF}
 {+.}
 
-{$if (defined(DELPHI3UP) or defined(FPC))} // {+} TODO: check "resourcestring" for modern FPC {+.}
+{$if (defined(DELPHI3UP) or defined(FPC))}
 resourcestring
 {$else}
 const
@@ -232,12 +206,8 @@ begin
 end;
 
 procedure TPSLineInfoList.Clear;
-var
-  i: Longint;
 begin
-  for i := FItems.count -1 downto 0 do
-    TPSLineInfo(FItems[i]).Free;
-  FItems.Clear;
+  FItems.ClearAsObjects();
 end;
 
 constructor TPSLineInfoList.Create;
@@ -248,8 +218,10 @@ end;
 
 destructor TPSLineInfoList.Destroy;
 begin
-  Clear;
-  FItems.Free;
+  if Assigned(FItems) then begin
+    FItems.ClearAsObjects({Destroying:}True);
+    FreeAndNil(FItems);
+  end;
   inherited Destroy;
 end;
 
@@ -263,20 +235,20 @@ begin
   Result := TPSLineInfo(FItems[i]);
 end;
 
-function TPSLineInfoList.GetLineInfo(const ModuleName: tbtstring; Pos: Cardinal; var Res: TPSLineInfoResults): Boolean;
+function TPSLineInfoList.GetLineInfo(const ModuleName: TbtString; Pos: Cardinal; var Res: TPSLineInfoResults): Boolean;
 var
+  OK: Boolean;
   i,j: Longint;
   linepos: Cardinal;
   Item: TPSLineInfo;
   lModuleName: tbtstring;
 begin
   lModuleName := FastUpperCase(ModuleName);
-
-  for i := FItems.Count-1 downto 0 do
-  begin
+  for i := FItems.Count-1 downto 0 do begin
     Item := FItems[i];
-    if (Pos >= Item.StartPos) and (Pos < Item.EndPos) and
-      (lModuleName = '') or (lModuleName = Item.FileName) then
+    OK := (Pos >= Item.StartPos) and (Pos < Item.EndPos) and
+      (lModuleName = '') or (lModuleName = Item.FileName);
+    if OK then
     begin
       Res.Name := Item.FileName;
       Pos := Pos - Item.StartPos;
@@ -284,10 +256,8 @@ begin
       Res.Col := 1;
       Res.Row := 1;
       LinePos := 0; // DCC64: Hint: H2077 Value assigned to 'linepos' never used
-      for j := 0 to Item.LineOffsetCount -1 do
-      begin
-        if Pos >= Item.LineOffset[j] then
-        begin
+      for j := 0 to Item.LineOffsetCount-1 do begin
+        if Pos >= Item.LineOffset[j] then begin
           linepos := Item.LineOffset[j];
         end else
         begin
@@ -303,16 +273,16 @@ begin
         //[+]
       end; // for j
       {+}
-      {$IFDEF CPU64}
+      {$IFNDEF FPC}{$IFDEF CPU64}
       if LinePos = 0 then ; // DCC64: Hint: H2077 Value assigned to 'linepos' never used
-      {$ENDIF}
+      {$ENDIF}{$ENDIF}
       {+.}
       Result := True;
-      exit;
+      Exit;
     end;
-  end;
+  end; // for
   Result := False;
-end;
+end; // function TPSLineInfoList.GetLineInfo
 
 { TPSLineInfo }
 
@@ -324,26 +294,24 @@ end;
 
 destructor TPSLineInfo.Destroy;
 begin
-  FLineOffsets.Free;
+  FreeAndNil(FLineOffsets);
   inherited Destroy;
 end;
 
 function TPSLineInfo.GetLineOffset(I: Integer): Cardinal;
 begin
-  Result := Longint(FLineOffsets[I]);
+  Result := {%H-}Longint(FLineOffsets[I]);
 end;
 
 function TPSLineInfo.GetLineOffsetCount: Longint;
 begin
-  result := FLineOffsets.Count;
+  Result := FLineOffsets.Count;
 end;
 
 { TPSPascalPreProcessorParser }
 
 procedure TPSPascalPreProcessorParser.Next;
-var
-  ci: Cardinal;
-
+var ci: Cardinal;
 begin
   FPos := FPos + FLen;
   case FText[FPos] of
@@ -355,30 +323,30 @@ begin
     '''':
       begin
         ci := FPos;
-        while (FText[ci] <> #0) do
-        begin
+        while (FText[ci] <> #0) do begin
           Inc(ci);
-          while FText[ci] = '''' do
-          begin
-            if FText[ci+1] <> '''' then Break;
-            inc(ci);
-            inc(ci);
+          while FText[ci] = '''' do begin
+            if FText[ci+1] <> '''' then
+              Break;
+            Inc(ci);
+            Inc(ci);
           end;
-          if FText[ci] = '''' then Break;
-          if FText[ci] = #13 then
-          begin
+          if FText[ci] = '''' then
+            Break;
+          if FText[ci] = #13 then begin
             inc(FRow);
             if FText[ci] = #10 then
-              inc(ci);
+              Inc(ci);
             FLastEnterPos := ci -1;
-            if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
-            break;
-          end else if FText[ci] = #10 then
-          begin
-            inc(FRow);
+            if @FOnNewLine <> nil then
+              FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+            Break;
+          end else if FText[ci] = #10 then begin
+            Inc(FRow);
             FLastEnterPos := ci -1;
-            if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
-            break;
+            if @FOnNewLine <> nil then
+              FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+            Break;
           end;
         end;
         FLen := ci - FPos + 1;
@@ -386,24 +354,23 @@ begin
       end;
     '(':
       begin
-        if FText[FPos + 1] = '*' then
-        begin
+        if FText[FPos + 1] = '*' then begin
           ci := FPos + 1;
           while (FText[ci] <> #0) do begin
             if (FText[ci] = '*') and (FText[ci + 1] = ')') then
               Break;
-            if FText[ci] = #13 then
-            begin
-              inc(FRow);
+            if FText[ci] = #13 then begin
+              Inc(FRow);
               if FText[ci+1] = #10 then
-                inc(ci);
+                Inc(ci);
               FLastEnterPos := ci -1;
-              if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
-            end else if FText[ci] = #10 then
-            begin
+              if @FOnNewLine <> nil then
+                FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+            end else if FText[ci] = #10 then begin
               inc(FRow);
               FLastEnterPos := ci -1;
-              if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+              if @FOnNewLine <> nil then
+                FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
             end;
             Inc(ci);
           end;
@@ -411,26 +378,23 @@ begin
           if (FText[ci] <> #0) then
             Inc(ci, 2);
           FLen := ci - FPos;
-        end
-        else
-        begin
+        end else begin
           FTokenId := ptOther;
           FLen := 1;
         end;
       end;
       '/':
         begin
-          if FText[FPos + 1] = '/' then
-          begin
+          if FText[FPos + 1] = '/' then begin
             ci := FPos + 1;
             while (FText[ci] <> #0) and (FText[ci] <> #13) and
-              (FText[ci] <> #10) do begin
+              (FText[ci] <> #10) do
+            begin
               Inc(ci);
             end;
             FTokenId := ptOther;
             FLen := ci - FPos;
-          end else
-          begin
+          end else begin
             FTokenId := ptOther;
             FLen := 1;
           end;
@@ -439,18 +403,18 @@ begin
         begin
           ci := FPos + 1;
           while (FText[ci] <> #0) and (FText[ci] <> '}') do begin
-            if FText[ci] = #13 then
-            begin
-              inc(FRow);
+            if FText[ci] = #13 then begin
+              Inc(FRow);
               if FText[ci+1] = #10 then
-                inc(ci);
+                Inc(ci);
               FLastEnterPos := ci - 1;
-              if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
-            end else if FText[ci] = #10 then
-            begin
-              inc(FRow);
+              if @FOnNewLine <> nil then
+                FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+            end else if FText[ci] = #10 then begin
+              Inc(FRow);
               FLastEnterPos := ci - 1;
-              if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+              if @FOnNewLine <> nil then
+                FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
             end;
             Inc(ci);
           end;
@@ -458,66 +422,61 @@ begin
             FTokenId := ptDefine
           else
             FTokenId := ptOther;
-
           FLen := ci - FPos + 1;
         end;
-      else
-      begin
+      else begin
         ci := FPos + 1;
-        while not (FText[ci] in [#0,'{', '(', '''', '/']) do
-        begin
-          if FText[ci] = #13 then
-          begin
-            inc(FRow);
+        while not (FText[ci] in [#0,'{', '(', '''', '/']) do begin
+          if FText[ci] = #13 then begin
+            Inc(FRow);
             if FText[ci+1] = #10 then
-              inc(ci);
+              Inc(ci);
             FLastEnterPos := ci - 1;
-            if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
-          end else if FText[ci] = #10 then
-          begin
-            inc(FRow);
+            if @FOnNewLine <> nil then
+              FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+          end else if FText[ci] = #10 then begin
+            Inc(FRow);
             FLastEnterPos := ci -1 ;
-            if @FOnNewLine <> nil then FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
+            if @FOnNewLine <> nil then
+              FOnNewLine(Self, FRow, FPos - FLastEnterPos + 1, ci+1);
           end;
           Inc(Ci);
         end;
         FTokenId := ptOther;
         FLen := ci - FPos;
       end;
-  end;
+  end; // case
   FCol := FPos - FLastEnterPos + 1;
   FToken := Copy(FData, FPos +1, FLen);
-end;
+end; // procedure TPSPascalPreProcessorParser.Next
 
-procedure TPSPascalPreProcessorParser.SetText(const dta: tbtstring);
+procedure TPSPascalPreProcessorParser.SetText(const dta: TbtString);
 begin
   FData := dta;
-  FText := pAnsichar(FData);
+  FText := PAnsiChar(FData);
   FLen := 0;
   FPos := 0;
   FCol := 1;
   FLastEnterPos := 0;
   FRow := 1;
-  if @FOnNewLine <> nil then FOnNewLine(Self, 1, 1, 0);
+  if @FOnNewLine <> nil then
+    FOnNewLine(Self, 1, 1, 0);
   Next;
 end;
 
 { TPSPreProcessor }
 
 procedure TPSPreProcessor.AdjustMessage(Msg: TPSPascalCompilerMessage);
-var
-  Res: TPSLineInfoResults;
+var Res: TPSLineInfoResults;
 begin
-  if CurrentLineInfo.GetLineInfo(Msg.ModuleName, Msg.Pos, Res) then
-  begin
+  if CurrentLineInfo.GetLineInfo(Msg.ModuleName, Msg.Pos, {%H-}Res) then begin
     Msg.SetCustomPos(res.Pos, Res.Row, Res.Col);
     Msg.ModuleName := Res.Name;
   end;
 end;
 
 procedure TPSPreProcessor.AdjustMessages(Comp: TPSPascalCompiler);
-var
-  i: Longint;
+var i: Longint;
 begin
   for i := 0 to Comp.MsgCount -1 do
     AdjustMessage(Comp.Msg[i]);
@@ -548,10 +507,10 @@ end;
 
 destructor TPSPreProcessor.Destroy;
 begin
-  FDefineState.Free;
-  FCurrentDefines.Free;
-  FDefines.Free;
-  FCurrentLineInfo.Free;
+  FreeAndNil(FDefineState);
+  FreeAndNil(FCurrentDefines);
+  FreeAndNil(FDefines);
+  FreeAndNil(FCurrentLineInfo);
   inherited Destroy;
 end;
 
@@ -571,12 +530,13 @@ begin
   {$ENDIF }
 end;
 
-procedure TPSPreProcessor.IntPreProcess(Level: Integer; const OrgFileName: tbtstring; FileName: tbtstring; Dest: TStream);
+procedure TPSPreProcessor.IntPreProcess(Level: Integer; const OrgFileName: TbtString; FileName: TbtString;
+  Dest: TStream);
 var
   Parser: TPSPascalPreProcessorParser;
-  dta: tbtstring;
+  dta: TbtString;
   item: TPSLineInfo;
-  s, name: tbtstring;
+  s, name: TbtString;
   current, i: Longint;
   ds: TPSDefineState;
   AppContinue: Boolean;
@@ -586,11 +546,10 @@ begin
   Parser := TPSPascalPreProcessorParser.Create;
   try
     Parser.OnNewLine := ParserNewLine;
-    if FileName = MainFileName then
-    begin
+    if FileName = MainFileName then begin
       dta := MainFile;
-    end else
-    if (@OnNeedFile = nil) or (not OnNeedFile(Self, OrgFileName, FileName, dta)) then
+    end else if (@OnNeedFile = nil)
+      or (not OnNeedFile(Self, OrgFileName, FileName, dta)) then
     {+}
     begin
       if OrgFileName <> '' then
@@ -600,95 +559,85 @@ begin
     end;
     {+.}
     Item := FCurrentLineInfo.Add;
-    current := FCurrentLineInfo.Count -1;
+    current := FCurrentLineInfo.Count-1;
     FCurrentLineInfo.Current := current;
     Item.FStartPos := Dest.Position;
     Item.FFileName := FileName;
     Parser.SetText(dta);
-    while Parser.TokenId <> ptEOF do
-    begin
+    while Parser.TokenId <> ptEOF do begin
       s := Parser.Token;
-      if Parser.TokenId = ptDefine then
-      begin
+      if Parser.TokenId = ptDefine then begin
         Delete(s,1,2);  // delete the {$
-        Delete(s,length(s), 1); // delete the }
+        Delete(s,Length(s), 1); // delete the }
 
         //-- 20050707_jgv trim right
-        i := length (s);
+        i := Length(s);
         while (i > 0) and (s[i] = ' ') do begin
           Delete (s, i, 1);
           Dec (i);
         end;
         //-- end_jgv
 
-        if pos(tbtChar(' '), s) = 0 then
-        begin
+        if Pos(TbtChar(' '), s) = 0 then begin
           name := {+}tbtstring(uppercase(s)){+.};
           s := '';
-        end else
-        begin
-          Name := {+}tbtstring(uppercase(copy(s,1,Pos(tbtstring(' '), s)-1))){+.};
-          Delete(s, 1, Pos({+}tbtstring(' '){+.}, s));
+        end else begin
+          Name := {+}TbtString(UpperCase(Copy(s,1,Pos(TbtString(' '), s)-1))){+.};
+          Delete(s, 1, Pos({+}TbtString(' '){+.}, s));
         end;
 
         //-- 20050707_jgv - ask the application
         AppContinue := True;
-        If @OnProcessDirective <> Nil then OnProcessDirective (Self, Parser, FDefineState.DoWrite, name, {+}tbtstring(s){+.}, AppContinue);
+        If @OnProcessDirective <> nil then
+           OnProcessDirective (Self, Parser, FDefineState.DoWrite, name, {+}TbtString(s){+.}, AppContinue);
 
-        If AppContinue then
+        if AppContinue then begin
         //-- end jgv
-
-          if (Name = 'I') or (Name = 'INCLUDE') then
-          begin
-            if FDefineState.DoWrite then
-            begin
+            if (Name = 'I') or (Name = 'INCLUDE') then begin
+            if FDefineState.DoWrite then begin
               FAddedPosition := 0;
               IntPreProcess(Level +1, FileName, {+}tbtstring(s){+.}, Dest);
               FCurrentLineInfo.Current := current;
               FAddedPosition := Cardinal(Dest.Position) - Item.StartPos - Parser.Pos;
             end;
-          end else if (Name = 'DEFINE') then
-          begin
-            if FDefineState.DoWrite then
-            begin
-              if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
+          end else if (Name = 'DEFINE') then begin
+            if FDefineState.DoWrite then begin
+              if pos(' ', {+}string(S){+.}) <> 0 then
+                raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
               FCurrentDefines.Add(Uppercase({+}string(S){+.}));
             end;
-          end else if (Name = 'UNDEF') then
-          begin
-            if FDefineState.DoWrite then
-            begin
-              if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
+          end else if (Name = 'UNDEF') then begin
+            if FDefineState.DoWrite then begin
+              if pos(' ', {+}string(S){+.}) <> 0 then
+                raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
               i := FCurrentDefines.IndexOf(Uppercase({+}string(S){+.}));
               if i <> -1 then
                 FCurrentDefines.Delete(i);
             end;
-          end else if (Name = 'IFDEF') then
-          begin
-            if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
+          end else if (Name = 'IFDEF') then begin
+            if pos(' ', {+}string(S){+.}) <> 0 then
+              raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
             {+}
             //JeromeWelsh - nesting fix
             ADoWrite := (FCurrentDefines.IndexOf(UpperCase(string(s))) >= 0) and FDefineState.DoWrite;
             FDefineState.Add.DoWrite := ADoWrite;
             {+.}
-          end else if (Name = 'IFNDEF') then
-          begin
-            if pos(' ', {+}string(S){+.}) <> 0 then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
+          end else if (Name = 'IFNDEF') then begin
+            if pos(' ', {+}string(S){+.}) <> 0 then
+              raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
             //JeromeWelsh - nesting fix
             {+}
             //JeromeWelsh - nesting fix
             ADoWrite := (FCurrentDefines.IndexOf(UpperCase(string(s))) < 0) and FDefineState.DoWrite;
             FDefineState.Add.DoWrite := ADoWrite;
             {+.}
-          end else if (Name = 'ENDIF') then
-          begin
+          end else if (Name = 'ENDIF') then begin
             //- jgv remove - borland use it (sysutils.pas)
             //- if s <> '' then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
             if FDefineState.Count = 0 then
               raise EPSPreProcessor.CreateFmt(RPS_NoIfdefForEndif, [string(FileName), Parser.Row, Parser.Col]);
             FDefineState.Delete(FDefineState.Count -1); // remove define from list
-          end else if (Name = 'ELSE') then
-          begin
+          end else if (Name = 'ELSE') then begin
             if s<> '' then raise EPSPreProcessor.CreateFmt(RPS_DefineTooManyParameters, [string(FileName), Parser.Row, Parser.Col]);
             if FDefineState.Count = 0 then
               raise EPSPreProcessor.CreateFmt(RPS_NoIfdefForElse, [string(FileName), Parser.Row, Parser.Col]);
@@ -699,54 +648,51 @@ begin
             //JeromeWelsh - nesting fix
             ds.DoWrite := not ds.DoWrite and FDefineState.DoPrevWrite;
           end
-
           //-- 20050710_jgv custom application error process
           else begin
-            If @OnProcessUnknowDirective <> Nil then begin
+            If @OnProcessUnknowDirective <> nil then begin
               OnProcessUnknowDirective (Self, Parser, FDefineState.DoWrite, name, {+}tbtstring(s){+.}, AppContinue);
             end;
-            If AppContinue then
-            //-- end jgv
-
+            if AppContinue then
+          //-- end jgv
               raise EPSPreProcessor.CreateFmt(RPS_UnknownCompilerDirective, [string(FileName), Parser.Row, Parser.Col]);
           end;
-      end;
+        end; // if AppContinue
+      end; // if Parser.TokenId = ptDefine
 
-      if (not FDefineState.DoWrite) or (Parser.TokenId = ptDefine) then
-      begin
+      if (not FDefineState.DoWrite) or (Parser.TokenId = ptDefine) then begin
         SetLength(s, Length(Parser.Token));
         for i := length(s) downto 1 do
           s[i] := #32; // space
       end;
       Dest.Write(s[1], length(s));
       Parser.Next;
-    end;
+    end; // while
     Item.FEndPos := Dest.Position;
   finally
     Parser.Free;
   end;
-end;
+end; // procedure TPSPreProcessor.IntPreProcess
 
-procedure TPSPreProcessor.ParserNewLine(Sender: TPSPascalPreProcessorParser; Row, Col, Pos: Cardinal);
+procedure TPSPreProcessor.ParserNewLine(Sender: TPSPascalPreProcessorParser; {%H-}Row, {%H-}Col, Pos: Cardinal);
 begin
-  if FCurrentLineInfo.Current >= FCurrentLineInfo.Count then exit; //errr ???
-  with FCurrentLineInfo.Items[FCurrentLineInfo.Current] do
-  begin
+  if FCurrentLineInfo.Current >= FCurrentLineInfo.Count then
+    Exit; //errr ???
+  with FCurrentLineInfo.Items[FCurrentLineInfo.Current] do begin
     Pos := Pos + FAddedPosition;
-    FLineOffsets.Add(Pointer(Pos));
+    FLineOffsets.Add({%H-}Pointer(Pos));
   end;
 end;
 
-procedure TPSPreProcessor.PreProcess(const Filename: tbtstring; var Output: tbtstring);
-var
-  Stream: TMemoryStream;
+procedure TPSPreProcessor.PreProcess(const Filename: TbtString; var Output: TbtString);
+var Stream: TMemoryStream;
 begin
   FAddedPosition := 0;
   {$IFDEF FPC}
   FCurrentDefines.AddStrings(FDefines);
-  {$ELSE}
+  {$ELSE !FPC}
   FCurrentDefines.Assign(FDefines);
-  {$ENDIF}
+  {$ENDIF !FPC}
   Stream := TMemoryStream.Create;
   try
     IntPreProcess(0, '', FileName, Stream);
@@ -769,12 +715,8 @@ begin
 end;
 
 procedure TPSDefineStates.Clear;
-var
-  i: Longint;
 begin
-  for i := Longint(FItems.Count) -1 downto 0 do
-    TPSDefineState(FItems[i]).Free;
-  FItems.Clear;
+  FItems.ClearAsObjects();
 end;
 
 constructor TPSDefineStates.Create;
@@ -790,12 +732,11 @@ begin
 end;
 
 destructor TPSDefineStates.Destroy;
-var
-  i: Longint;
 begin
-  for i := Longint(FItems.Count) -1 downto 0 do
-    TPSDefineState(FItems[i]).Free;
-  FItems.Free;
+  if Assigned(FItems) then begin
+    FItems.ClearAsObjects({Destroying:}True);
+    FreeAndNil(FItems);
+  end;
   inherited Destroy;
 end;
 
@@ -812,16 +753,18 @@ end;
 function TPSDefineStates.GetWrite: Boolean;
 begin
   if FItems.Count = 0 then
-    result := true
-  else Result := TPSDefineState(FItems[FItems.Count -1]).DoWrite;
+    Result := True
+  else
+    Result := TPSDefineState(FItems[FItems.Count -1]).DoWrite;
 end;
 
 //JeromeWelsh - nesting fix
 function TPSDefineStates.GetPrevWrite: Boolean;
 begin
   if FItems.Count < 2 then
-    result := true
-  else Result := TPSDefineState(FItems[FItems.Count -2]).DoWrite;
+    Result := True
+  else
+    Result := TPSDefineState(FItems[FItems.Count -2]).DoWrite;
 end;
 
 end.

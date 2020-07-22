@@ -1,4 +1,4 @@
-{ uPSRuntime.pas } // version: 2020.0628.1520
+{ uPSRuntime.pas } // version: 2020.0722.0808
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -14343,7 +14343,7 @@ begin
           //CopyArrayContents(Pointer(Longint(Stack)-PointerSize2), @PPSVariantData(res)^.Data, 1, Res^.FType);
           {+}
           //CopyArrayContents(Pointer(Longint(Stack)-Longint(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
-          CopyArrayContents(PointerShift(Stack,-PointerSize2), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          CopyArrayContents(PointerShift(Stack,-NativeInt(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
           {+.}
         end;
       end;

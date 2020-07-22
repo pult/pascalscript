@@ -1,4 +1,4 @@
-{ uPSUtils.pas } // version: 2020.0628.1520
+{ uPSUtils.pas } // version: 2020.0722.0808
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -1273,6 +1273,9 @@ function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer; overload;
 begin
   Result := Pointer(NativeUInt(NativeInt(Ptr) + Offset));
 end; {$IFDEF FPC}{$pop}{$ENDIF}
+// OR:
+//var NPtr: NativeInt absolute Ptr; RPtr: NativeInt absolute Result;
+//begin RPtr := NPtr + Offset; end;
 
 function PointerShift(Ptr: Pointer; Offset: Pointer): Pointer; overload;
 {$IFDEF FPC}{$push} {$warn 4055 off} {$warn 4082 off} {$ENDIF}

@@ -1,4 +1,4 @@
-{ uPSCompiler.pas } // version: 2020.0628.1520
+{ uPSCompiler.pas } // version: 2020.0722.0808
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -12861,7 +12861,10 @@ var
 begin
   Result := nil;
   if FProcs = nil then
+  begin
+    if Result <> nil then;
     raise EPSCompilerException.Create(RPS_OnUseEventOnly);
+  end;
   Parser := TPSPascalParser.Create;
   try
     Parser.SetText(Decl);

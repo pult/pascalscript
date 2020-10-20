@@ -1,4 +1,4 @@
-{ uPSUtils.pas } // version: 2020.1010.1010
+{ uPSUtils.pas } // version: 2020.1020.2105
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -20,7 +20,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202010101010; // format: yyyymmddhhnn
+  uPSVersion = 202010202105; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -28,7 +28,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202010101010)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202010202105)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}

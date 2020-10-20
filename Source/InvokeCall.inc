@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1010.1020
+{ InvokeCall.inc } // version: 2020.1020.2105
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -51,7 +51,7 @@ var
   {%H-}RttiType : TRttiType;
   ResValue : TValue;
   S: string;
-  {%H-}poa: POpenArray; //??
+//{%H-}poa: POpenArray; //??
   {%H-}ATypeInfo: Pointer;
   {%H-}p: Pointer;
   {%H-}CallData: TPSList;
@@ -315,7 +315,7 @@ begin
       case res.aType.BaseType of { add result types here }
         {$if btCharIsWide}
         btString:              begin
-                                 ResValue := TbtString(res.Dta^) := Invoke(Address,Args,SysCalConv,
+                                 ResValue := Invoke(Address,Args,SysCalConv,
                                    TypeInfo(UnicodeString),False,IsConstr);
                                  {$IFDEF FPC}
                                  TbtString(res.Dta^) := TbtString( ResValue.AsUnicodeString );

@@ -1,3 +1,7 @@
+{ uPSC_std.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime TObject, TPersistent and TComponent definitions }
 unit uPSC_std;
 {$I PascalScript.inc}

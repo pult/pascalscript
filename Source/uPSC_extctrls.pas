@@ -1,3 +1,7 @@
+{ uPSC_extctrls.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime Extctrls support }
 unit uPSC_extctrls;
 

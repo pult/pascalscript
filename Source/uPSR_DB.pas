@@ -1,4 +1,7 @@
-{ uPSR_DB.pas } // version: 2020.0628.1500
+{ uPSR_DB.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 {runtime DB support}
 unit uPSR_DB;
 {$I PascalScript.inc}
@@ -589,13 +592,17 @@ procedure TBLOBFIELDTRANSLITERATE_R(Self: TBLOBFIELD; var T: BOOLEAN);
 begin T := Self.TRANSLITERATE; end;
 
 procedure TBLOBFIELDVALUE_W(Self: TBLOBFIELD; const T: {+}AnsiString{+.});
-{$IFDEF UNICODE_OR_FPC} // TODO: FPC test
+{$IFDEF UNICODE_OR_FPC}
 var
-  b: TBytes;
+  B: TBytes;
 begin
-  SetLength(b, Length(T));
-  Move(T[1], b[0], Length(T));
-  Self.Value := b;
+  SetLength({%H-}B, Length(T));
+  Move(T[1], B[0], Length(T));
+  {$IFDEF FPC}
+  Self.AsBytes := B;
+  {$ELSE}
+  Self.Value := B;
+  {$ENDIF}
 {$ELSE}
 begin
   Self.Value := T;
@@ -608,8 +615,12 @@ procedure TBLOBFIELDVALUE_R(Self: TBLOBFIELD; var T: {+}AnsiString{+.});
 var B: TBytes;
 {$ENDIF}
 begin
-{$IFDEF UNICODE_OR_FPC} // UNICODE; TBytes; TODO: FPC test
+{$IFDEF UNICODE_OR_FPC} // UNICODE; TBytes;
+  {$IFDEF FPC}
+  B := Self.AsBytes;
+  {$ELSE}
   B := Self.Value;
+  {$ENDIF}
   SetLength(T, Length(B));
   if Length(T) > 0 then
     Move(B[0], Pointer(T)^, Length(T));
@@ -1196,7 +1207,7 @@ begin Self.FIELDS := T; end;
 procedure TINDEXDEFFIELDS_R(Self: TINDEXDEF; var T: String);
 begin T := Self.FIELDS; end;
 
-procedure TINDEXDEFEXPRESSION_W(Self: TINDEXDEF; const T: String);
+procedure TINDEXDEFEXPRESSION_W({%H-}Self: TINDEXDEF; const {%H-}T: String);
 begin {$IFNDEF FPC}Self.EXPRESSION := T; {$ENDIF}end;
 
 procedure TINDEXDEFEXPRESSION_R(Self: TINDEXDEF; var T: String);

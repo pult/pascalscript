@@ -1,3 +1,4 @@
+{ Compiletime DLL importing support }
 unit uPSR_dll;
 
 {$I PascalScript.inc}
@@ -12,12 +13,12 @@ function ProcessDllImport(Caller: TPSExec; P: TPSExternalProcRec): Boolean;
 function ProcessDllImportEx(Caller: TPSExec; P: TPSExternalProcRec; ForceDelayLoad: Boolean): Boolean;
 function ProcessDllImportEx2(Caller: TPSExec; P: TPSExternalProcRec; ForceDelayLoad: Boolean; var DelayLoad: Boolean; var ErrorCode: LongInt): Boolean;
 procedure UnloadDLL(Caller: TPSExec; const sname: tbtstring);
-function UnloadProc(Caller: TPSExec; p: TPSExternalProcRec; Global, Stack: TPSStack): Boolean;
+function UnloadProc(Caller: TPSExec; {%H-}p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 
 implementation
 uses
   {$IFDEF UNIX}
-  Unix, baseunix, dynlibs, termio, sockets;
+  Unix, {%H-}baseunix, dynlibs, {%H-}termio, {%H-}sockets;
   {$ELSE}
   {$IFDEF KYLIX}SysUtils;{$ELSE}Windows;{$ENDIF}
   {$ENDIF}
@@ -25,75 +26,77 @@ uses
 {
 p^.Ext1 contains the pointer to the Proc function
 p^.ExportDecl:
-  'dll:'+DllName+#0+FunctionName+#0+chr(Cc)+Chr(DelayLoad)+Chr(AlternateSearchPath)+VarParams
+  'dll:'+dllName+#0+FunctionName+#0+chr(Cc)+Chr(DelayLoad)+Chr(AlternateSearchPath)+VarParams
 }
 
 type
-  PLoadedDll = ^TLoadedDll;
   TLoadedDll = record
-    dllnamehash: Longint;
-    dllname: tbtstring;
-    dllhandle: THandle;
+    dllNameHash : Longint;
+    dllName     : TbtString;
+    dllHandle   : THandle;
   end;
+  PLoadedDll = ^TLoadedDll;
+
   TMyExec = class(TPSExec);
   PInteger = ^Integer;
 
 procedure LAstErrorFree(Sender: TPSExec; P: PInteger);
 begin
-  dispose(p);
+  Dispose(P);
 end;
 
 procedure DLLSetLastError(Sender: TPSExec; P: Integer);
-var
-  pz: PInteger;
+var pz: PInteger;
 begin
   pz := Sender.FindProcResource(@LastErrorFree);
-  if pz = nil then
-  begin
-    new(pz);
-    Sender.AddResource(@LastErrorFree, PZ);
+  if pz = nil then begin
+    New(pz);
+    Sender.AddResource(@LastErrorFree, pz);
   end;
-  pz^ := p;
+  pz^ := P;
 end;
 
 function DLLGetLastError(Sender: TPSExec): Integer;
-var
-  pz: PInteger;
+var pz: PInteger;
 begin
   pz := Sender.FindProcResource(@LastErrorFree);
   if pz = nil then
-    result := 0
+    Result := 0
   else
-    result := pz^;
+    Result := pz^;
 end;
 
 procedure DllFree(Sender: TPSExec; P: PLoadedDll);
 begin
-  FreeLibrary(p^.dllhandle);
-  Dispose(p);
+  if Assigned(P) then begin
+    if P^.dllHandle <> 0 then
+      FreeLibrary(P^.dllHandle);
+    P^.dllHandle := 0;
+    Dispose(P);
+  end;
 end;
 
 function LoadDll(Caller: TPSExec; P: TPSExternalProcRec; var ErrorCode: LongInt): Boolean;
 var
-  s, s2, s3: tbtstring;
+  s, s2, s3: TbtString;
   h, i: Longint;
   ph: PLoadedDll;
-  dllhandle: THandle;
-  loadwithalteredsearchpath: Boolean;
+  dllHandle: THandle;
+  LoadWithAlteredSearchPath: Boolean;
   {$IFNDEF UNIX}
-  Filename: String;
+  Filename: string;
   {$ENDIF}
 begin
   s := p.Decl;
   Delete(s, 1, 4);
-  s2 := copy(s, 1, pos(tbtchar(#0), s)-1);
-  delete(s, 1, length(s2)+1);
-  h := makehash(s2);
-  s3 := copy(s, 1, pos(tbtchar(#0), s)-1);
-  delete(s, 1, length(s3)+1);
-  loadwithalteredsearchpath := bytebool(s[3]);
+  s2 := Copy(s, 1, Pos(TbtChar(#0), s)-1);
+  Delete(s, 1, Length(s2)+1);
+  h := MakeHash(s2);
+  s3 := copy(s, 1, Pos(TbtChar(#0), s)-1);
+  Delete(s, 1, Length(s3)+1);
+  LoadWithAlteredSearchPath := ByteBool(s[3]);
   i := 2147483647; // maxint
-  dllhandle := 0;
+  dllHandle := 0;
   repeat
     ph := Caller.FindProcResource2(@dllFree, i);
     if (ph = nil) then
@@ -104,7 +107,7 @@ begin
         p.Ext2 := Pointer(1);
         ErrorCode := ERROR_MOD_NOT_FOUND;
         Result := False;
-        exit;
+        Exit;
       end;
 
       {$IFDEF UNIX}
@@ -121,25 +124,25 @@ begin
       if Copy(s2, 1, 6) = '<utf8>' then
         Filename := UTF8ToUnicodeString(Copy(s2, 7, Maxint))
       else
-        Filename := String(s2);
+        Filename := string(s2);
       {$ELSE}
-      Filename := s2;
+      Filename := string(s2);
       {$ENDIF}
-      if loadwithalteredsearchpath then
+      if LoadWithAlteredSearchPath then
       {+}
       begin
         {$ifdef wince}
-        dllhandle := LoadLibraryEx(PWideChar(WideString(Filename)), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+        dllHandle := LoadLibraryEx(PWideChar(WideString(Filename)), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
         {$else}
-        dllhandle := LoadLibraryEx(PChar(Filename), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+        dllHandle := LoadLibraryEx(PChar(Filename), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
         {$endif}
       end
       else
       begin
         {$ifdef wince}
-        dllhandle := LoadLibrary(PWideChar(WideString(Filename)));
+        dllHandle := LoadLibrary(PWideChar(WideString(Filename)));
         {$else}
-        dllhandle := LoadLibrary(PChar(Filename));
+        dllHandle := LoadLibrary(PChar(Filename));
         {$endif}
       end;
       {+.}
@@ -149,24 +152,24 @@ begin
         p.Ext2 := Pointer(1);
         ErrorCode := GetLastError;
         Result := False;
-        exit;
+        Exit;
       end;
       new(ph);
-      ph^.dllnamehash := h;
-      ph^.dllname := s2;
-      ph^.dllhandle := dllhandle;
+      ph^.dllNameHash := h;
+      ph^.dllName := s2;
+      ph^.dllHandle := dllHandle;
       Caller.AddResource(@DllFree, ph);
     end;
-    if (ph^.dllnamehash = h) and (ph^.dllname = s2) then
+    if (ph^.dllNameHash = h) and (ph^.dllName = s2) then
     begin
-      dllhandle := ph^.dllhandle;
+      dllHandle := ph^.dllHandle;
     end;
-  until dllhandle <> 0;
+  until dllHandle <> 0;
   {+}
   {$ifdef wince}
-  p.Ext1 := GetProcAddress(dllhandle, pwidechar(widestring(s3)));
+  p.Ext1 := GetProcAddress(dllHandle, pwidechar(widestring(s3)));
   {$else}
-  p.Ext1 := GetProcAddress(dllhandle, pansichar(s3));
+  p.Ext1 := GetProcAddress(dllHandle, pansichar(s3));
   {$endif}
   {+.}
   if p.Ext1 = nil then
@@ -174,12 +177,12 @@ begin
     p.Ext2 := Pointer(1);
     ErrorCode := GetLastError;
     Result := false;
-    exit;
+    Exit;
   end;
   Result := True;
 end;
 
-function DllProc(Caller: TPSExec; p: TPSExternalProcRec; Global, Stack: TPSStack): Boolean;
+function DllProc(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 
 var
   i: Longint;
@@ -193,34 +196,34 @@ begin
   if p.Ext2 <> nil then // error
   begin
     Result := false;
-    exit;
+    Exit;
   end;
   if p.Ext1 = nil then
   begin
-    if not LoadDll(Caller, P, Dummy) then
+    if not LoadDll(Caller, P, {%H-}Dummy) then
     begin
       Result := false;
-      exit;
+      Exit;
     end;
   end;
   s := p.Decl;
   delete(S, 1, pos(tbtchar(#0), s));
   delete(S, 1, pos(tbtchar(#0), s));
-  if length(S) < 2 then
+  if Length(S) < 2 then
   begin
     Result := False;
-    exit;
+    Exit;
   end;
   cc := TPSCallingConvention(s[1]);
   delete(s, 1, 3); // cc + delayload + alternatesearchpath (delayload might also be forced!)
   CurrStack := Cardinal(Stack.Count) - Cardinal(length(s));
   if s[1] = #0 then inc(CurrStack);
   MyList := tIfList.Create;
-  for i := 2 to length(s) do
+  for i := 2 to Length(s) do
   begin
     MyList.Add(nil);
   end;
-  for i := length(s) downto 2 do
+  for i := Length(s) downto 2 do
   begin
     MyList[i - 2] := NewPPSVariantIFC(Stack[CurrStack], s[i] <> #0);
     inc(CurrStack);
@@ -238,7 +241,7 @@ begin
     DisposePPSvariantIFC(n);
     DisposePPSVariantIFCList(MyList);
   end;
-  result := true;
+  Result := True;
 end;
 
 function ProcessDllImport(Caller: TPSExec; P: TPSExternalProcRec): Boolean;
@@ -247,14 +250,13 @@ begin
 end;
 
 function ProcessDllImportEx(Caller: TPSExec; P: TPSExternalProcRec; ForceDelayLoad: Boolean): Boolean;
-var
-  Dummy1: Boolean;
-  Dummy2: LongInt;
+var DelayLoad: Boolean; var ErrorCode: LongInt;
 begin
-  Result := ProcessDllImportEx2(Caller, P, ForceDelayLoad, Dummy1, Dummy2);
+  Result := ProcessDllImportEx2(Caller, P, ForceDelayLoad, {%H-}DelayLoad, {%H-}ErrorCode);
 end;
 
-function ProcessDllImportEx2(Caller: TPSExec; P: TPSExternalProcRec; ForceDelayLoad: Boolean; var DelayLoad: Boolean; var ErrorCode: LongInt): Boolean;
+function ProcessDllImportEx2(Caller: TPSExec; P: TPSExternalProcRec; ForceDelayLoad: Boolean;
+  var DelayLoad: Boolean; var ErrorCode: LongInt): Boolean;
 var
   s: tbtstring;
 begin
@@ -275,7 +277,7 @@ begin
   end;
 end;
 
-function GetLastErrorProc(Caller: TPSExec; p: TPSExternalProcRec; Global, Stack: TPSStack): Boolean;
+function GetLastErrorProc(Caller: TPSExec; {%H-}p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 begin
   Stack.SetInt(-1, DLLGetLastError(Caller));
   Result := true;
@@ -305,9 +307,9 @@ begin
   repeat
     ph := Caller.FindProcResource2(@dllFree, i);
     if (ph = nil) then break;
-    if (ph.dllnamehash = h) and (ph.dllname = sname) then
+    if (ph.dllNameHash = h) and (ph.dllName = sname) then
     begin
-      FreeLibrary(ph^.dllhandle);
+      FreeLibrary(ph^.dllHandle);
       Caller.DeleteResource(ph);
       dispose(ph);
     end;
@@ -317,7 +319,7 @@ end;
 function UnloadProc(Caller: TPSExec; p: TPSExternalProcRec; Global, Stack: TPSStack): Boolean;
 begin
   UnloadDLL(Caller, Stack.GetAnsiString(-1));
-  result := true;
+  Result := True;
 end;
 
 procedure RegisterDLLRuntime(Caller: TPSExec);

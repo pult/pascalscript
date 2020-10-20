@@ -1,3 +1,7 @@
+{ uPSC_classes.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime Classes support }
 unit uPSC_classes;
 
@@ -34,7 +38,7 @@ procedure SIRegisterTRESOURCESTREAM(Cl: TPSPascalCompiler);
 procedure SIRegisterTPARSER(Cl: TPSPascalCompiler);
 procedure SIRegisterTCOLLECTIONITEM(CL: TPSPascalCompiler);
 procedure SIRegisterTCOLLECTION(CL: TPSPascalCompiler);
-{$IFDEF DELPHI3UP}
+{$IFDEF DELPHI3UP} // or FPC
 procedure SIRegisterTOWNEDCOLLECTION(CL: TPSPascalCompiler);
 {$ENDIF}
 {$ENDIF}

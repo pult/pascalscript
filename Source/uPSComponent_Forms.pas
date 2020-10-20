@@ -1,8 +1,12 @@
+{ uPSComponent_Forms.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSComponent_Forms;
 
 interface
 uses
-  SysUtils, Classes, uPSRuntime, uPSCompiler, uPSComponent;
+  SysUtils, Classes, {%H-}uPSRuntime, {%H-}uPSCompiler, uPSComponent;
 type
 
   TPSImport_Forms = class(TPSPlugin)

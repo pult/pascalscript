@@ -1,8 +1,12 @@
+{ uPSComponent_Default.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
  unit uPSComponent_Default;
 {$I PascalScript.inc}
 interface
 uses
-  SysUtils, Classes, uPSComponent, uPSCompiler, uPSRuntime;
+  SysUtils, Classes, uPSComponent, {%H-}uPSCompiler, uPSRuntime;
 
 type
 
@@ -18,7 +22,7 @@ type
     FEnableClasses: Boolean;
   public
     procedure CompileImport1(CompExec: TPSScript); override;
-    procedure ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
+    procedure ExecImport1({%H-}CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
   public
 
     constructor Create(AOwner: TComponent); override;

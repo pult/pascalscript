@@ -1,3 +1,7 @@
+{ uPSR_classes.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSR_classes;
 
 {$I PascalScript.inc}
@@ -19,7 +23,7 @@ procedure RIRegisterTCUSTOMMEMORYSTREAM(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTMEMORYSTREAM(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTRESOURCESTREAM(Cl: TPSRuntimeClassImporter);
 procedure RIRegisterTPARSER(Cl: TPSRuntimeClassImporter);
-{$IFDEF DELPHI3UP}
+{$IFDEF DELPHI3UP} // or FPC
 procedure RIRegisterTOWNEDCOLLECTION(Cl: TPSRuntimeClassImporter);
 {$ENDIF}
 procedure RIRegisterTCOLLECTION(Cl: TPSRuntimeClassImporter);
@@ -510,7 +514,11 @@ begin
   iPos := Self.Position;
   Self.Position := 0;
   try
+    {$IFDEF FPC}{$push}
+      {$warn 5093 off}  // FPC: Warning: Function result variable of a managed type does not seem to be initialized
+    {$ENDIF}
     SetLength(Result, iSize);
+    {$IFDEF FPC}{$pop}{$ENDIF}
     Self.ReadBuffer(Pointer(Result)^, iSize);
   finally
     Self.Position := iPos;
@@ -537,7 +545,7 @@ function TStream_CopyFromBuffer(Self: TStream; Source: TStream; Count: Int64; Bu
 function TStream_CopyFromBuffer(Self: TStream; Source: TStream; Count: Integer; BufferSize: Integer): LongInt;
 {$ENDIF}
 {$ELSE !DELPHI4UP}
-function TStream_CopyFromBuffer(Self: TStream; Source: TStream; Count: Integer; BufferSize: Integer): LongInt;
+function TStream_CopyFromBuffer(Self: TStream; Source: TStream; Count: Integer; {%H-}BufferSize: Integer): LongInt;
 {$ENDIF !DELPHI4UP}
 begin
   Result := Self.CopyFrom(Source, Count{$IFDEF DELPHI27UP},BufferSize{$ENDIF});

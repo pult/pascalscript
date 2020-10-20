@@ -1,3 +1,7 @@
+{ uPSC_forms.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime Forms support }
 unit uPSC_forms;
 {$I PascalScript.inc}

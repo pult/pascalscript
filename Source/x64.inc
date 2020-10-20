@@ -1,4 +1,4 @@
-{ x64.inc } // version: 2020.0628.1040
+{ x64.inc } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -27,52 +27,87 @@ type
 
 {$IFDEF MSWINDOWS}
   {$IFDEF CPUX64}
-
     {$IFDEF DELPHI}
       {$DEFINE X64CALL_ASM} { optional } // ! Successfully on exceptions !
-    {$ENDIF}
-
+    {$ENDIF DELPHI}
     {$IFDEF FPC}
-      {.$DEFINE X64CALL_ASM} { optional } // ! Not recomended : GPF on exception ! // TODO: need test ...
-    {$ENDIF}
-
-  {$ELSE}
-
-  {$ENDIF}
+      {.$IFDEF CPUX64}
+        {.$DEFINE X64CALL_ASM} { optional } // ! Not recomended : GPF on exception ! // TODO: need test ...
+      {.$ENDIF}
+    {$ENDIF FPC}
+  {$ELSE !CPUX64}
+  {$ENDIF !CPUX64}
 {$ELSE !MSWINDOWS}
-
-  {.$DEFINE X64CALL_ASM} { optional } // TODO: Check pas version (disable "X64CALL_ASM").
-
+  {.$IFDEF CPUX64}
+    {.$DEFINE X64CALL_ASM} { optional } // TODO: FPC +Linux +x86_64: fcp: Error: Unknown identifier "RBP"
+  {.$ENDIF}
 {$ENDIF !MSWINDOWS}
+
+{$IFDEF FPC}
+  {$IFDEF MSWINDOWS}
+    {$ASMMODE INTEL}
+  {$ELSE}
+    {$IFDEF CPU64}
+      {$IFNDEF X64CALL_ASM}
+        {$ASMMODE INTEL}
+      {$ELSE}
+        {.$ASMMODE ATT} // ???
+      {$ENDIF}
+    {$ENDIF}
+  {$ENDIF}
+{$ENDIF}
 
 {$IFNDEF X64CALL_ASM} // PURE PASCAL version. ! DELPHI/FPC: Successfully on exceptions !
 type
   {$IFDEF CPUX64}
-  t_pstask = array[0..61] of IPointer;
+  t_pstask = array[0..96] of IPointer;
   p_pstask = ^t_pstask;
-  TRegisters = packed record
-    _RCX,                  // 0
-    _RDX,                  // 8
-    _R8,                   // 16
-    _R9: IPointer;         // 24
-    _XMM1,                 // 32
-    _XMM2,                 // 40
-    _XMM3: Double;         // 48
-    case byte of
-    0:(
-      Stack: Pointer;      // 56
-      Items: {$IFDEF FPC}PtrUInt{$ELSE}IntPtr{$ENDIF}; // 64
-      SingleBits: Integer; // 72
+  TRegisters = packed record //           Linux x64
+    {$IFNDEF MSWINDOWS}      // Windows   |--------
+    _RDI,                    // |------   | 0
+    _RSI,                    // |         | 8
+    {$ENDIF}                 // |         |
+    _RCX,                    // 0         | 16
+    _RDX,                    // 8         | 24
+    _R8,                     // 16        | 32
+    _R9: IPointer;           // 24        | 40
+    _XMM1,                   // 32
+    _XMM2,                   // 40
+    _XMM3                    // 48
+    {$IFNDEF MSWINDOWS}      // |
+    ,_XMM4                   // |         | 72
+    ,_XMM5                   // |         | 80
+    ,_XMM6                   // |         | 88
+    ,_XMM7                   // |         | 96
+    {$ENDIF}: Double;        // |         |
+    case byte of             // |         |
+    0:(                      // |         |
+      {$IFDEF MSWINDOWS}     // |         |
+      Stack: Pointer;        // 56        |
+      Items:                 // 64        |
+      {$IFDEF FPC}PtrUInt    // |         |
+      {$ELSE}IntPtr          // |         |
+      {$ENDIF};              // |         |
+      {$ENDIF MSWINDOWS}     // |         |
+      SingleBits: Integer;   // 72        | 104
       );
     1:(S: p_pstask);
   end;
   {$ENDIF CPUX64}
   {$DEFINE REG_STACK_PTR_OFFSET0} { not change }
 type
+  {$IFNDEF MSWINDOWS}
+  t_pcall_04 = procedure(_rdi, _rsi, _rdx,_rcx: IPointer);
+  t_pcall_05 = procedure(_rdi, _rsi, _rdx,_rcx,_r8: IPointer);
+  t_pcall_06 = procedure(_rdi, _rsi, _rdx,_rcx,_r8,r9: IPointer);
+  t_pcall_07 = procedure(_rdi, _rsi, _rdx,_rcx,_r8,r9,p7: IPointer);
+  // ...
+  {$ELSE}
   t_pcall_04 = procedure(_rcx,_rdx,_r8,_r9: IPointer);
   t_pcall_05 = procedure(_rcx,_rdx,_r8,_r9,p5: IPointer);
   t_pcall_06 = procedure(_rcx,_rdx,_r8,_r9,p5,p6: IPointer);
   t_pcall_07 = procedure(_rcx,_rdx,_r8,_r9,p5,p6,p7: IPointer);
+  {$ENDIF !MSWINDOWS}
   t_pcall_08 = procedure(_rcx,_rdx,_r8,_r9,p5,p6,p7,p8: IPointer);
   t_pcall_09 = procedure(_rcx,_rdx,_r8,_r9,p5,p6,p7,p8,p9: IPointer);
   t_pcall_10 = procedure(_rcx,_rdx,_r8,_r9,p5,p6,p7,p8,p9,p10: IPointer);
@@ -205,320 +240,1048 @@ type
     p21,p22,p23,p24,p25,p26,p27,p28,p29,p30,p31,p32,p33,p34,p35,p36,p37,p38,p39,p40,
     p41,p42,p43,p44,p45,p46,p47,p48,p49,p50,p51,p52,p53,p54,p55,p56,p57,p58,p59,p60,p61,p62,p63,p64,p65,p66: IPointer);
 
-  {$IFDEF FPC}
-    {$ASMMODE INTEL}
+procedure x64call(
+  {$IFDEF MSWINDOWS}
+  {RCX}Address: Pointer;out {RDX}_RAX: IPointer;var {R8}_XMM0: Double; var {R9}R: TRegisters
+  {$ELSE} // TODO: !MSWINDOWS: Not tested!
+  {RDI}Address: Pointer;
+  {RSI}out _RAX: IPointer;
+  {RDX}var R: TRegisters;
+  {RCX}{%H-}Stack: Pointer; {R8}Items: Integer; var {R9}_XMM0: Double
   {$ENDIF}
-
-procedure x64call({RCX}Address: Pointer;out {RDX}_RAX: IPointer;var {R8}_XMM0: Double; var {R9}R: TRegisters);
-
-  function get_rax: IPointer; assembler; {$ifdef FPC}nostackframe;{$endif}
+); // TODO: Check !MSWINDOWS
+  //
+  {$IFNDEF MSWINDOWS}
+  function get_rsi: IPointer; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
   asm
-    //-mov Result, rax // !Not necessarily!
+   .NOFRAME
+  {$ENDIF}
+    mov Result, rsi
   end;
-  function get_xmm0: Double; assembler; {$ifdef FPC}nostackframe;{$endif}
-  {$IFDEF FPC}{$warnings off}{$ENDIF} // TODO: FPC: Need test
+  {$ELSE MSWINDOWS}
+  function get_rax: IPointer; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
   asm
+   .NOFRAME
+  {$ENDIF}
+    {$IFDEF MSWINDOWS}
+    mov Result, rax // !Not necessarily!
+    {$ELSE}
+    mov Result, rax
+    {$ENDIF}
+  end;
+  {$ENDIF MSWINDOWS}
+  //
+  function get_xmm0: Double; assembler;
+  {$IFDEF FPC}
+  nostackframe; {$warnings off} asm
+  {$ELSE}
+  asm
+   .NOFRAME
+  {$ENDIF}
     movsd Result, xmm0 // FPC: Warning: Check size of memory operand "movsd: memory-operand-size is 64 bits, but expected [128 bits]"
   end;
   {$IFDEF FPC}{$warnings on}{$ENDIF}
-
-  procedure set_rax(var _RAX: Double); assembler; {$ifdef FPC}nostackframe;{$endif}
+  //
+  {$IFNDEF MSWINDOWS}
+  procedure set_rsi(var _RSI: Double); assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
   asm
+   .NOFRAME
+  {$ENDIF}
+    mov rdi, _RSI
+  end;
+  {$ELSE MSWINDOWS}
+  procedure set_rax(var _RAX: Double); assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
+  asm
+   .NOFRAME
+  {$ENDIF}
     mov rax, _RAX
   end;
-  procedure set_xmm1; assembler; {$ifdef FPC}nostackframe;{$endif}
+  {$ENDIF MSWINDOWS}
+  //
+  procedure set_xmm1; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
   asm
+   .NOFRAME
+  {$ENDIF}
+    {$IFNDEF MSWINDOWS}
+    movsd xmm1, [rsi]
+    {$ELSE}
     movsd xmm1, [rax]
+    {$ENDIF MSWINDOWS}
   end;
-  procedure set_xmm2; assembler; {$ifdef FPC}nostackframe;{$endif}
+  procedure set_xmm2; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
   asm
+   .NOFRAME
+  {$ENDIF}
+    {$IFNDEF MSWINDOWS}
+    movsd xmm2, [rsi]
+    {$ELSE}
     movsd xmm2, [rax]
+    {$ENDIF MSWINDOWS}
   end;
-  procedure set_xmm3; assembler; {$ifdef FPC}nostackframe;{$endif}
+  procedure set_xmm3; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
   asm
+   .NOFRAME
+  {$ENDIF}
+    {$IFNDEF MSWINDOWS}
+    movsd xmm3, [rsi]
+    {$ELSE}
     movsd xmm3, [rax]
+    {$ENDIF MSWINDOWS}
   end;
-  procedure set_xmm0; assembler; {$ifdef FPC}nostackframe;{$endif}
+  {$IFNDEF MSWINDOWS}
+  procedure set_xmm4; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
   asm
-    movsd xmm0, [rax]
+   .NOFRAME
+  {$ENDIF}
+    movsd xmm4, [rsi]
+  end;
+  procedure set_xmm5; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
+  asm
+   .NOFRAME
+  {$ENDIF}
+    movsd xmm5, [rsi]
+  end;
+  procedure set_xmm6; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
+  asm
+   .NOFRAME
+  {$ENDIF}
+    movsd xmm6, [rsi]
+  end;
+  procedure set_xmm7; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
+  asm
+   .NOFRAME
+  {$ENDIF}
+    movsd xmm7, [rsi]
+  end;
+  {$ENDIF !MSWINDOWS}
+  procedure set_xmm0; assembler;
+  {$IFDEF FPC}
+  nostackframe; asm
+  {$ELSE}
+  asm
+   .NOFRAME
+  {$ENDIF}
+    {$IFNDEF MSWINDOWS}
+    movsd xmm0, [rsi]
+    {$ELSE}
+    movsd xmm0, [rax]  //- movq xmm0, [rax]
+    {$ENDIF MSWINDOWS}
   end;
 
-begin
-  // xmm1:
-  set_rax(R._XMM1);
-  set_xmm1();
+begin // procedure x64call
+  //TODO: if ?"param count"({$IFDEF MSWINDOWS}R.{$ENDIF}Items) > ?2 then
+  begin
+    // xmm1:
+    {$IFNDEF MSWINDOWS}
+    set_rsi(R._XMM1); // ???
+    {$ELSE}
+    set_rax(R._XMM1);
+    {$ENDIF MSWINDOWS}
+    set_xmm1();
 
-  // xmm2:
-  set_rax(R._XMM2);
-  set_xmm2();
+    // xmm2:
+    {$IFNDEF MSWINDOWS}
+    set_rsi(R._XMM2);
+    {$ELSE}
+    set_rax(R._XMM2);
+    {$ENDIF MSWINDOWS}
+    set_xmm2();
 
-  // xmm3:
-  set_rax(R._XMM3);
-  set_xmm3();
+    // xmm3:
+    {$IFNDEF MSWINDOWS}
+    set_rsi(R._XMM3);
+    {$ELSE}
+    set_rax(R._XMM3);
+    {$ENDIF MSWINDOWS}
+    set_xmm3();
+
+    {$IFNDEF MSWINDOWS}
+    // xmm4:
+    set_rsi(R._XMM4);
+    set_xmm4();
+
+    // xmm5:
+    set_rsi(R._XMM5);
+    set_xmm5();
+
+    // xmm6:
+    set_rsi(R._XMM6);
+    set_xmm6();
+
+    // xmm7:
+    set_rsi(R._XMM7);
+    set_xmm7();
+    {$ENDIF !MSWINDOWS}
+  end;
 
   // xmm0:
+  {$IFNDEF MSWINDOWS}
+  set_rsi(_XMM0);
+  {$ELSE}
   set_rax(_XMM0);
+  {$ENDIF MSWINDOWS}
   set_xmm0();
 
-  case R.Items of // stack items count
-    00: t_pcall_04(Address)(R._RCX,R._RDX,R._R8,R._R9);
-    01: t_pcall_05(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00]);
-    02: t_pcall_06(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01]);
-    03: t_pcall_07(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02]);
-    04: t_pcall_08(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03]);
-    05: t_pcall_09(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04]);
-    06: t_pcall_10(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05]);
-    07: t_pcall_11(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-          R.S[06]);
-    08: t_pcall_12(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07]);
-    09: t_pcall_13(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08]);
-    10: t_pcall_14(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09]);
-    11: t_pcall_15(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10]);
-    12: t_pcall_16(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11]);
-    13: t_pcall_17(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12]);
-    14: t_pcall_18(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13]);
-    15: t_pcall_19(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14]);
-    16: t_pcall_20(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15]);
-    17: t_pcall_21(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16]);
-    18: t_pcall_22(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17]);
-    19: t_pcall_23(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18]);
-    20: t_pcall_24(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19]);
-    21: t_pcall_25(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20]);
-    22: t_pcall_26(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21]);
-    23: t_pcall_27(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22]);
-    24: t_pcall_28(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23]);
-    25: t_pcall_29(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24]);
-    26: t_pcall_30(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25]);
-    27: t_pcall_31(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26]);
-    28: t_pcall_32(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27]);
-    29: t_pcall_33(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28]);
-    30: t_pcall_34(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29]);
-    31: t_pcall_35(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30]);
-    32: t_pcall_36(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31]);
-    33: t_pcall_37(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32]);
-    34: t_pcall_38(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33]);
-    35: t_pcall_39(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34]);
-    36: t_pcall_40(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35]);
-    37: t_pcall_41(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36]);
-    38: t_pcall_42(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37]);
-    39: t_pcall_43(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38]);
-    40: t_pcall_44(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39]);
-    41: t_pcall_45(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40]);
-    42: t_pcall_46(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41]);
-    43: t_pcall_47(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42]);
-    44: t_pcall_48(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43]);
-    45: t_pcall_49(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44]);
-    46: t_pcall_50(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45]);
-    47: t_pcall_51(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46]);
-    48: t_pcall_52(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47]);
-    49: t_pcall_53(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48]);
-    50: t_pcall_54(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49]);
-    51: t_pcall_55(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50]);
-    52: t_pcall_56(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51]);
-    53: t_pcall_57(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52]);
-    54: t_pcall_58(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53]);
-    55: t_pcall_59(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54]);
-    56: t_pcall_60(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55]);
-    57: t_pcall_61(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
-      R.S[56]);
-    58: t_pcall_62(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
-      R.S[56],R.S[57]);
-    59: t_pcall_63(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
-      R.S[56],R.S[57],R.S[58]);
-    60: t_pcall_64(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
-      R.S[56],R.S[57],R.S[58],R.S[59]);
-    61: t_pcall_65(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
-      R.S[56],R.S[57],R.S[58],R.S[59],R.S[60]);
-    62: t_pcall_66(Address)(R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
-      R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
-      R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
-      R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
-      R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
-      R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
-      R.S[56],R.S[57],R.S[58],R.S[59],R.S[60],R.S[61]);
+  case {$IFDEF MSWINDOWS}R.{$ENDIF}Items of // stack items/params count
+    00: t_pcall_04(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX
+          {$ENDIF !MSWINDOWS}
+        );
+    01: t_pcall_05(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8
+          {$ENDIF !MSWINDOWS}
+        );
+    02: t_pcall_06(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9
+          {$ENDIF !MSWINDOWS}
+        );
+    03: t_pcall_07(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00]
+          {$ENDIF !MSWINDOWS}
+        );
+    04: t_pcall_08(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01]
+          {$ENDIF !MSWINDOWS}
+        );
+    05: t_pcall_09(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02]
+          {$ENDIF !MSWINDOWS}
+        );
+    06: t_pcall_10(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03]
+          {$ENDIF !MSWINDOWS}
+        );
+    07: t_pcall_11(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04]
+          {$ENDIF !MSWINDOWS}
+        );
+    08: t_pcall_12(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05]
+          {$ENDIF !MSWINDOWS}
+        );
+    09: t_pcall_13(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06]
+          {$ENDIF !MSWINDOWS}
+        );
+    10: t_pcall_14(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07]
+          {$ENDIF !MSWINDOWS}
+        );
+    11: t_pcall_15(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08]
+          {$ENDIF !MSWINDOWS}
+        );
+    12: t_pcall_16(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09]
+          {$ENDIF !MSWINDOWS}
+        );
+    13: t_pcall_17(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10]
+          {$ENDIF !MSWINDOWS}
+        );
+    14: t_pcall_18(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11]
+          {$ENDIF !MSWINDOWS}
+        );
+    15: t_pcall_19(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12]
+          {$ENDIF !MSWINDOWS}
+        );
+    16: t_pcall_20(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13]
+          {$ENDIF !MSWINDOWS}
+        );
+    17: t_pcall_21(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14]
+          {$ENDIF !MSWINDOWS}
+        );
+    18: t_pcall_22(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15]
+          {$ENDIF !MSWINDOWS}
+        );
+    19: t_pcall_23(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16]
+          {$ENDIF !MSWINDOWS}
+        );
+    20: t_pcall_24(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17]
+          {$ENDIF !MSWINDOWS}
+        );
+    21: t_pcall_25(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18]
+          {$ENDIF !MSWINDOWS}
+        );
+    22: t_pcall_26(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19]
+          {$ENDIF !MSWINDOWS}
+        );
+    23: t_pcall_27(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20]
+          {$ENDIF !MSWINDOWS}
+        );
+    24: t_pcall_28(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21]
+          {$ENDIF !MSWINDOWS}
+        );
+    25: t_pcall_29(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22]
+          {$ENDIF !MSWINDOWS}
+        );
+    26: t_pcall_30(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23]
+          {$ENDIF !MSWINDOWS}
+        );
+    27: t_pcall_31(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24]
+          {$ENDIF !MSWINDOWS}
+        );
+    28: t_pcall_32(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25]
+          {$ENDIF !MSWINDOWS}
+        );
+    29: t_pcall_33(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26]
+          {$ENDIF !MSWINDOWS}
+        );
+    30: t_pcall_34(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27]
+          {$ENDIF !MSWINDOWS}
+        );
+    31: t_pcall_35(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28]
+          {$ENDIF !MSWINDOWS}
+        );
+    32: t_pcall_36(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29]
+          {$ENDIF !MSWINDOWS}
+        );
+    33: t_pcall_37(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30]
+          {$ENDIF !MSWINDOWS}
+        );
+    34: t_pcall_38(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31]
+          {$ENDIF !MSWINDOWS}
+        );
+    35: t_pcall_39(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32]
+          {$ENDIF !MSWINDOWS}
+        );
+    36: t_pcall_40(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33]
+          {$ENDIF !MSWINDOWS}
+        );
+    37: t_pcall_41(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34]
+          {$ENDIF !MSWINDOWS}
+        );
+    38: t_pcall_42(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35]
+          {$ENDIF !MSWINDOWS}
+        );
+    39: t_pcall_43(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36]
+          {$ENDIF !MSWINDOWS}
+        );
+    40: t_pcall_44(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37]
+          {$ENDIF !MSWINDOWS}
+        );
+    41: t_pcall_45(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38]
+          {$ENDIF !MSWINDOWS}
+        );
+    42: t_pcall_46(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39]
+          {$ENDIF !MSWINDOWS}
+        );
+    43: t_pcall_47(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40]
+          {$ENDIF !MSWINDOWS}
+        );
+    44: t_pcall_48(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41]
+          {$ENDIF !MSWINDOWS}
+        );
+    45: t_pcall_49(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42]
+          {$ENDIF !MSWINDOWS}
+        );
+    46: t_pcall_50(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43]
+          {$ENDIF !MSWINDOWS}
+        );
+    47: t_pcall_51(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44]
+          {$ENDIF !MSWINDOWS}
+        );
+    48: t_pcall_52(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45]
+          {$ENDIF !MSWINDOWS}
+        );
+    49: t_pcall_53(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46]
+          {$ENDIF !MSWINDOWS}
+        );
+    50: t_pcall_54(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47]
+          {$ENDIF !MSWINDOWS}
+        );
+    51: t_pcall_55(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48]
+          {$ENDIF !MSWINDOWS}
+        );
+    52: t_pcall_56(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49]
+          {$ENDIF !MSWINDOWS}
+        );
+    53: t_pcall_57(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50]
+          {$ENDIF !MSWINDOWS}
+        );
+    54: t_pcall_58(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51]
+          {$ENDIF !MSWINDOWS}
+        );
+    55: t_pcall_59(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52]
+          {$ENDIF !MSWINDOWS}
+        );
+    56: t_pcall_60(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53]
+          {$ENDIF !MSWINDOWS}
+        );
+    57: t_pcall_61(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
+          R.S[56]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],
+          R.S[54]
+          {$ENDIF !MSWINDOWS}
+        );
+    58: t_pcall_62(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
+          R.S[56],R.S[57]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],
+          R.S[54],R.S[55]
+          {$ENDIF !MSWINDOWS}
+        );
+    59: t_pcall_63(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
+          R.S[56],R.S[57],R.S[58]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],
+          R.S[54],R.S[55],R.S[56]
+          {$ENDIF !MSWINDOWS}
+        );
+    60: t_pcall_64(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
+          R.S[56],R.S[57],R.S[58],R.S[59]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],
+          R.S[54],R.S[55],R.S[56],R.S[57]
+          {$ENDIF !MSWINDOWS}
+        );
+    61: t_pcall_65(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
+          R.S[56],R.S[57],R.S[58],R.S[59],R.S[60]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],
+          R.S[54],R.S[55],R.S[56],R.S[57],R.S[58]
+          {$ENDIF !MSWINDOWS}
+        );
+    62: t_pcall_66(Address)(
+          {$IFDEF MSWINDOWS}
+          R._RCX,R._RDX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],R.S[04],R.S[05],
+          R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],R.S[14],R.S[15],
+          R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],R.S[24],R.S[25],
+          R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],R.S[34],R.S[35],
+          R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],R.S[44],R.S[45],
+          R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],R.S[54],R.S[55],
+          R.S[56],R.S[57],R.S[58],R.S[59],R.S[60],R.S[61]
+          {$ELSE !MSWINDOWS}
+          R._RDI,R._RSI,R._RDX,R._RCX,R._R8,R._R9,R.S[00],R.S[01],R.S[02],R.S[03],
+          R.S[04],R.S[05],R.S[06],R.S[07],R.S[08],R.S[09],R.S[10],R.S[11],R.S[12],R.S[13],
+          R.S[14],R.S[15],R.S[16],R.S[17],R.S[18],R.S[19],R.S[20],R.S[21],R.S[22],R.S[23],
+          R.S[24],R.S[25],R.S[26],R.S[27],R.S[28],R.S[29],R.S[30],R.S[31],R.S[32],R.S[33],
+          R.S[34],R.S[35],R.S[36],R.S[37],R.S[38],R.S[39],R.S[40],R.S[41],R.S[42],R.S[43],
+          R.S[44],R.S[45],R.S[46],R.S[47],R.S[48],R.S[49],R.S[50],R.S[51],R.S[52],R.S[53],
+          R.S[54],R.S[55],R.S[56],R.S[57],R.S[58],R.S[59]
+          {$ENDIF !MSWINDOWS}
+        );
     //}
     else
       raise EInvocationError.Create('Internal: Parameter count exceeded 64');
-  end; // case
+  end; // case Items
   //
+  {$IFNDEF MSWINDOWS}
+  _RAX := get_rsi();
+  {$ELSE MSWINDOWS}
   _RAX := get_rax();
+  {$ENDIF MSWINDOWS}
   _XMM0 := get_xmm0();
-end;
-{$ENDIF}
+end; // procedure x64call
+{$ENDIF !X64CALL_ASM}
 
 {$IFDEF X64CALL_ASM}
 
@@ -595,7 +1358,7 @@ asm
   .params c_params // There's actually room for c_loc_count, assembler is saving locals for "Address,_RAX,_XMM0,RegInfo"
 {$else} // TODO: FPC: GPF on exception
   push    rbp
-  sub     rsp, $210
+  sub     rsp, $210  // ? $268
   mov     rbp, rsp
 {$endif}
                                              //                         dbg: in:  TRegisters(pointer(R9)^),r
@@ -900,7 +1663,7 @@ asm
     rbp-24   _xmm0
     rbp-32   regs
 *)
-  push rbp
+  push rbp  // TODO: FPC +Linux +x86_64: fcp: Error: Unknown identifier "RBP"
   mov rbp,rsp
   push rdi  // address
   push rsi  // _rax
@@ -1064,10 +1827,10 @@ var
   function rp(p: PPSVariantIFC): PPSVariantIFC;
   begin
     if (p = nil) or (p.aType = nil) then begin
-      result := nil;
-      exit;
+      Result := nil;
+      Exit;
     end;
-    if p.aType.BaseType = btPointer then begin
+    if (p.aType.BaseType = btPointer) then begin
       p^.aType := Pointer(Pointer(IPointer(p^.Dta) + PointerSize)^);
       p^.Dta := Pointer(p^.Dta^);
     end;
@@ -1206,14 +1969,12 @@ var
     PMethodCallData=^TMethodCallData;
   {+.}
   function GetPtr(fVar: PPSVariantIFC): Boolean;
-  var
-    varPtr: Pointer;
-    p: Pointer;
+  var varPtr: Pointer; p: Pointer;
   begin
     Result := False;
-    if fVar = nil then exit;
-    if fVar.VarParam then
-    begin
+    if fVar = nil then
+      Exit;
+    if fVar.VarParam then begin
       case fVar.aType.BaseType of
         btArray: begin
             if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
@@ -1239,9 +2000,19 @@ var
         btRecord,
         btInterface,
         btClass,
-        {$IFNDEF PS_NOWIDESTRING} btUnicodeString, btWideString, btWideChar, {+}{$if declared(btPWideChar)}btPWideChar,{$ifend}{+.}{$ENDIF} btU8, btS8, btU16,
+        {$IFNDEF PS_NOWIDESTRING}
+        btUnicodeString, btWideString, btWideChar,
+        {+}
+        {$if declared(btPWideChar)}
+        btPWideChar,
+        {$ifend}
+        {+.}
+        {$ENDIF !PS_NOWIDESTRING}
+        btU8, btS8, btU16,
         btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
-        {$IFNDEF PS_NOINT64}, bts64{$ENDIF}: begin
+        {$IFNDEF PS_NOINT64}
+        ,bts64
+        {$ENDIF}: begin
             VarPtr := fVar.Dta;
           end;
         else begin
@@ -1268,7 +2039,8 @@ var
         btArray: begin
           if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
             p := CreateOpenArray(False, Self, fVar);
-            if p =nil then exit;
+            if p=nil then
+              Exit;
             {+} // [#velter#]
             if CallData = nil then // [#velter#]
               CallData := TPSList.Create;
@@ -1382,9 +2154,9 @@ begin // function TPSExec.InnerfuseCall
   end;
   {$ENDIF}
   // TODO: FPC: OpenArray fail (AV). Sample script: "begin format('%s; %s',['2','2']); end."
-  InnerfuseCall := False;
+  Result := False;
   if Address = nil then
-    exit; // need address
+    Exit; // need address
   SetLength(Stack, 0);
   {+} // [#velter#]
   CallData := nil;
@@ -1393,7 +2165,7 @@ begin // function TPSExec.InnerfuseCall
   if res <> nil then
     res.VarParam := true;
   try
-{$IFNDEF WINDOWS}
+    {$IFNDEF WINDOWS}
     (*_RSI := 0;
     _RDI := 0;
     _XMM4 := 0;
@@ -1401,7 +2173,7 @@ begin // function TPSExec.InnerfuseCall
     _XMM6 := 0;
     _XMM7 := 0;*)
     RegUsageFloat := 0;
-{$ENDIF}
+    {$ENDIF !WINDOWS}
    _XMM0 := 0;
     FillChar(Registers, Sizeof(Registers), 0);
     _RAX := 0;
@@ -1410,7 +2182,8 @@ begin // function TPSExec.InnerfuseCall
     {$IF DEFINED (fpc) and (fpc_version >= 3)} // FIX FOR FPC constructor calls
     {$IFDEF DELPHI}{$warnings on}{$ENDIF}
     if IsConstructor then begin
-      if not GetPtr(rp(Params[0])) then exit; // this goes first
+      if not GetPtr(rp(Params[0])) then
+        Exit; // this goes first
       DisposePPSVariantIFC(Params[0]);
       Params.Delete(0);
     end;
@@ -1418,7 +2191,7 @@ begin // function TPSExec.InnerfuseCall
     if Assigned(_Self) then begin
       StoreReg(IPointer(_Self));
     end;
-    if Assigned(res) and (res^.atype.basetype = btSingle) then begin
+    if Assigned(res) and (res^.aType.BaseType = btSingle) then begin
       Registers.Singlebits  := Registers.Singlebits or 256;
     end;
     {$IFDEF PS_RESBEFOREPARAMETERS}

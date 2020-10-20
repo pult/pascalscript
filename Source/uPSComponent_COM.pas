@@ -1,15 +1,19 @@
+{ uPSComponent_COM.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSComponent_COM;
 
 interface
 uses
-  SysUtils, Classes, uPSComponent, uPSCompiler, uPSRuntime;
+  SysUtils, Classes, uPSComponent, {%H-}uPSCompiler, uPSRuntime;
 type
 
   TPSImport_ComObj = class(TPSPlugin)
   private
   public
     procedure CompileImport1(CompExec: TPSScript); override;
-    procedure ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
+    procedure ExecImport1(CompExec: TPSScript; const {%H-}ri: TPSRuntimeClassImporter); override;
   end;
 
   TIFPS3CE_ComObj = class(TPSImport_ComObj);

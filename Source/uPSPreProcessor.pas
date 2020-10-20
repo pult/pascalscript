@@ -1,4 +1,4 @@
-{ uPSPreProcessor.pas } // version: 2020.0628.1520
+{ uPSPreProcessor.pas }
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -11,11 +11,12 @@ interface
 {$ENDIF}
 
 uses
+  {$IFDEF DELPHI7UP}Types,{$ENDIF}
+  //{$IFDEF DELPHI17UP}System.UITypes,{$ENDIF}
   Classes, SysUtils, uPSCompiler, uPSUtils;
 
 type
-  EPSPreProcessor = class(Exception); //- jgv
-  //TODO: ?EPSPreProcessor = class({+}EPSError{+.}); //- jgv
+  EPSPreProcessor = class(Exception{?--EPSError}); //- jgv
 
   TPSPreProcessor = class;
   TPSPascalPreProcessorParser = class;
@@ -123,8 +124,8 @@ type
 
   TPSPascalPreProcessorParser = class
   private
-    FData: tbtstring;
-    FText: PAnsichar;
+    FData: TbtString;
+    FText: PTbtChar;
     FToken: tbtstring;
     FTokenId: TPSPascalPreProcessorType;
     FLastEnterPos, FLen, FRow, FCol, FPos: Cardinal;
@@ -222,7 +223,7 @@ begin
     FItems.ClearAsObjects({Destroying:}True);
     FreeAndNil(FItems);
   end;
-  inherited Destroy;
+  inherited;
 end;
 
 function TPSLineInfoList.GetCount: Longint;
@@ -243,6 +244,9 @@ var
   Item: TPSLineInfo;
   lModuleName: tbtstring;
 begin
+  {+}
+  linepos := 0;
+  {+.}
   lModuleName := FastUpperCase(ModuleName);
   for i := FItems.Count-1 downto 0 do begin
     Item := FItems[i];
@@ -255,28 +259,15 @@ begin
       Res.Pos := Pos;
       Res.Col := 1;
       Res.Row := 1;
-      LinePos := 0; // DCC64: Hint: H2077 Value assigned to 'linepos' never used
       for j := 0 to Item.LineOffsetCount-1 do begin
         if Pos >= Item.LineOffset[j] then begin
           linepos := Item.LineOffset[j];
-        end else
-        begin
-          //[-] https://github.com/remobjects/pascalscript/pull/221
-          //Res.Row := j; // j -1, but line counting starts at 1
-          //Res.Col := pos - linepos + 1;
-          //[-]
+        end else begin
           Break;
         end;
-        //[+] https://github.com/remobjects/pascalscript/pull/221
         Res.Row := j + 1; // line counting starts at 1
         Res.Col := pos - linepos + 1;
-        //[+]
       end; // for j
-      {+}
-      {$IFNDEF FPC}{$IFDEF CPU64}
-      if LinePos = 0 then ; // DCC64: Hint: H2077 Value assigned to 'linepos' never used
-      {$ENDIF}{$ENDIF}
-      {+.}
       Result := True;
       Exit;
     end;
@@ -295,7 +286,7 @@ end;
 destructor TPSLineInfo.Destroy;
 begin
   FreeAndNil(FLineOffsets);
-  inherited Destroy;
+  inherited;
 end;
 
 function TPSLineInfo.GetLineOffset(I: Integer): Cardinal;
@@ -426,7 +417,14 @@ begin
         end;
       else begin
         ci := FPos + 1;
-        while not (FText[ci] in [#0,'{', '(', '''', '/']) do begin
+        while not
+          {$if declared(CharInSet)}
+          CharInSet(FText[ci],   [#0,'{', '(', '''', '/'])
+          {$else}
+          (         FText[ci] in [#0,'{', '(', '''', '/'])
+          {$ifend}
+          do
+        begin
           if FText[ci] = #13 then begin
             Inc(FRow);
             if FText[ci+1] = #10 then
@@ -453,7 +451,7 @@ end; // procedure TPSPascalPreProcessorParser.Next
 procedure TPSPascalPreProcessorParser.SetText(const dta: TbtString);
 begin
   FData := dta;
-  FText := PAnsiChar(FData);
+  FText := PTbtChar(FData);
   FLen := 0;
   FPos := 0;
   FCol := 1;
@@ -511,7 +509,7 @@ begin
   FreeAndNil(FCurrentDefines);
   FreeAndNil(FDefines);
   FreeAndNil(FCurrentLineInfo);
-  inherited Destroy;
+  inherited;
 end;
 
 procedure TPSPreProcessor.doAddStdPredefines;
@@ -737,7 +735,7 @@ begin
     FItems.ClearAsObjects({Destroying:}True);
     FreeAndNil(FItems);
   end;
-  inherited Destroy;
+  inherited;
 end;
 
 function TPSDefineStates.GetCount: Longint;

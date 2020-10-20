@@ -1,3 +1,7 @@
+{ uPSC_graphics.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime Graphics support }
 unit uPSC_graphics;
 
@@ -21,7 +25,7 @@ procedure SIRegister_Graphics(Cl: TPSPascalCompiler; Streams: Boolean);
 implementation
 {$IFNDEF PS_NOGRAPHCONST}
 uses
-  {$IFDEF CLX}QGraphics{$ELSE}Graphics{$ENDIF};
+  {$IFDEF CLX}QGraphics{$ELSE}Graphics{$ENDIF}; // FPC: required Lazarus "LCL" package!
 {$ELSE}
 {$IFNDEF CLX}
 {$IFNDEF FPC}

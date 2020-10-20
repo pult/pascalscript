@@ -1,3 +1,7 @@
+{ uPSК_std.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSR_std;
 {$I PascalScript.inc}
 interface
@@ -51,7 +55,9 @@ end;
 function TObject_ClassName(ASelf: TObject): string;
 begin
   if Assigned(ASelf) and (ASelf.ClassType <> nil) then
-    Result := ASelf.ClassName;
+    Result := ASelf.ClassName
+  else
+    Result := '';
 end;
 {+.}
 

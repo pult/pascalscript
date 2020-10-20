@@ -1,8 +1,12 @@
+{ uPSComponent_StdCtrls.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSComponent_StdCtrls;
 
 interface
 uses
-  SysUtils, Classes, uPSComponent, uPSCompiler, uPSRuntime;
+  SysUtils, Classes, uPSComponent, {%H-}uPSCompiler, uPSRuntime;
 type
 
   TPSImport_StdCtrls = class(TPSPlugin)
@@ -11,7 +15,7 @@ type
     FEnableExtCtrls: Boolean;
   public
     procedure CompileImport1(CompExec: TPSScript); override;
-    procedure ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
+    procedure ExecImport1({%H-}CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
   public
     constructor Create(AOwner: TComponent); override;
   published

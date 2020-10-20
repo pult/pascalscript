@@ -1,7 +1,15 @@
+{ uPSDebugger.pas }
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSDebugger;
 {$I PascalScript.inc}
+
 interface
+
 uses
+  {$IFDEF DELPHI7UP}Types,{$ENDIF}
+  //{$IFDEF DELPHI17UP}System.UITypes,{$ENDIF}
   SysUtils, uPSRuntime, uPSUtils;
 
 type
@@ -29,57 +37,38 @@ type
     {+.}
 
     function GetCurrentProcParams: TIfStringList;
-
     function GetCurrentProcVars: TIfStringList;
   protected
-
     procedure ClearDebug; virtual;
   public
+    constructor Create;
+    destructor Destroy; override;
 
     function GetCurrentProcNo: Cardinal;
-
     function GetCurrentPosition: Cardinal;
-
     {+}
     //-function TranslatePosition(Proc, Position: Cardinal): Cardinal; // moved to base class
     function TranslatePositionEx(Proc, Position: Cardinal; var Pos, Row, Col: Cardinal; var Fn: tbtstring): Boolean; override;
-    {+.}
-
-    {+}
     function LoadDebugData(const Data: tbtstring): Longint; //-override;
     {+.}
-
     procedure Clear; override;
+    function GetGlobalVar(I: Cardinal): PIfVariant;
+    function GetProcVar(I: Cardinal): PIfVariant;
+    function GetProcParam(I: Cardinal): PIfVariant;
+    function GetCallStack(var Count: Cardinal): tbtString; {+}override;{+.}
 
     {+}
     property DebugDataLoaded: Boolean read FDebugDataLoaded;
     {+.}
     property GlobalVarNames: TIfStringList read FGlobalVarNames;
-
     property ProcNames: TIfStringList read FProcNames;
-
     property CurrentProcVars: TIfStringList read GetCurrentProcVars;
-
     property CurrentProcParams: TIfStringList read GetCurrentProcParams;
-
-    function GetGlobalVar(I: Cardinal): PIfVariant;
-
-    function GetProcVar(I: Cardinal): PIfVariant;
-
-    function GetProcParam(I: Cardinal): PIfVariant;
-
-    function GetCallStack(var Count: Cardinal): tbtString; {+}override;{+.}
-
-    constructor Create;
-
-    destructor Destroy; override;
   end;
+
   TPSDebugExec = class;
-
   TOnSourceLine = procedure (Sender: TPSDebugExec; const Name: tbtstring; Position, Row, Col: Cardinal);
-
   TOnIdleCall = procedure (Sender: TPSDebugExec);
-
   {+}
   TLineDebugInfo = (ldiEmpty, ldiNone, ldiExist);
   {+.}
@@ -97,7 +86,6 @@ type
     fLineDebugInfo: TLineDebugInfo;
     {+.}
   protected
-
     procedure SourceChanged;
     procedure ClearDebug; override;
     procedure RunLine; override;
@@ -107,31 +95,23 @@ type
   public
     constructor Create;
 
-    function LoadData(const s: tbtstring): Boolean; override;
-
+    function LoadData(const S: TbtString): Boolean; override;
     procedure Pause; override;
-
     procedure Run;
-
     procedure StepInto;
-
     procedure StepOver;
-
     procedure Stop; override;
 
     property DebugMode: TDebugMode read FDebugMode;
-
     property OnSourceLine: TOnSourceLine read FOnSourceLine write FOnSourceLine;
-
     property OnIdleCall: TOnIdleCall read FOnIdleCall write FOnIdleCall;
-
     property DebugEnabled: Boolean read FDebugEnabled write FDebugEnabled;
   end;
   TIFPSDebugExec = TPSDebugExec;
 
 implementation
 
-{$if (defined(DELPHI3UP) or defined(FPC))} // {+} TODO: check "resourcestring" for modern FPC {+.}
+{$if (defined(DELPHI3UP) or defined(FPC))}
 resourcestring
 {$else}
 const
@@ -166,7 +146,8 @@ type
 procedure TPSCustomDebugExec.Clear;
 begin
   inherited Clear;
-  if FGlobalVarNames <> nil then ClearDebug;
+  if Assigned(FGlobalVarNames) then
+    ClearDebug;
 end;
 
 procedure TPSCustomDebugExec.ClearDebug;
@@ -253,17 +234,10 @@ end;
 destructor TPSCustomDebugExec.Destroy;
 begin
   Clear;
-  FDebugDataForProcs.Free;
-  {+}
-  FDebugDataForProcs := nil;
-  {+.}
-  FProcNames.Free;
-  {+}
-  FProcNames := nil;
-  {+.}
-  FGlobalVarNames.Free;
-  FGlobalVarNames := nil;
-  inherited Destroy;
+  FreeAndNil(FDebugDataForProcs);
+  FreeAndNil(FProcNames);
+  FreeAndNil(FGlobalVarNames);
+  inherited;
 end;
 
 function TPSCustomDebugExec.GetCurrentPosition: Cardinal;
@@ -546,7 +520,7 @@ var
   fi: PFunctionInfo;
   pt: TIfList;
   r: PPositionData;
-  lastfn: tbtstring;
+  LastFn: TbtString;
   LastPos, LastRow, LastCol: Cardinal;
   pp: TPSProcRec;
 begin
@@ -585,7 +559,7 @@ begin
           Fn := LastFn;
         end;
         Result := True;
-        exit;
+        Exit;
       end else begin
         LastPos := r^.SourcePosition;
         LastRow := r^.Row;
@@ -717,9 +691,9 @@ begin
   FDebugMode := dmRun;
 end;
 
-function TPSDebugExec.LoadData(const s: tbtstring): Boolean;
+function TPSDebugExec.LoadData(const S: TbtString): Boolean;
 begin
-  Result := inherited LoadData(s);
+  Result := inherited LoadData(S);
   FDebugMode := dmRun;
 end;
 
@@ -748,55 +722,44 @@ var
   pt: TIfList;
   r: PPositionData;
 begin
-  if (fLineDebugInfo <> ldiEmpty) then
-  begin
+  if (fLineDebugInfo <> ldiEmpty) then begin
     Result := (fLineDebugInfo = ldiExist);
     Exit;
   end;
 
-  if (not FDebugDataLoaded) then
-  begin
+  if (not FDebugDataLoaded) then begin
     FCurrentSourcePos := 0;
     FCurrentRow := 0;
     FCurrentCol := 0;
     FCurrentFile := '';
 
     Result := False;
-  end
-  else
-  begin
-    if (FCurrProc <> {FLastProc fLastProcDILoaded}fLastProcDILoaded) then
-    begin //@dbg: TPSInternalProcRec(FLastProc),r
+  end else begin
+    if (FCurrProc <> {FLastProc fLastProcDILoaded}fLastProcDILoaded) then begin //@dbg: TPSInternalProcRec(FLastProc),r
       FLastProc := FCurrProc;
       fLastProcDILoaded := FLastProc;
       FCurrentDebugProc := nil;
-      for i := 0 to FDebugDataForProcs.Count -1 do
-      begin
-        if PFunctionInfo(FDebugDataForProcs[i])^.Func = FLastProc then
-        begin
+      for i := 0 to FDebugDataForProcs.Count-1 do begin
+        if PFunctionInfo(FDebugDataForProcs[i])^.Func = FLastProc then begin
           FCurrentDebugProc := FDebugDataForProcs[i];
-          break;
+          Break;
         end;
       end;
     end;
-    if (FCurrentDebugProc <> nil) then
-    begin
+    if Assigned(FCurrentDebugProc) then begin
       pt := PFunctionInfo(FCurrentDebugProc)^.FPositionTable;
-      for i := 0 to pt.Count -1 do
-      begin
+      for i := 0 to pt.Count-1 do begin
         r := pt[i]; // @dbg: PPositionData(pt[0]).Position
-        if (r^.Position {+}{NEW: ??">=" ;OLD: "="} = {+.} FCurrentPosition) then
-        begin
+        if (r^.Position {+}{NEW: ??">=" ;OLD: "="} = {+.} FCurrentPosition) then begin
           FCurrentSourcePos := r^.SourcePosition;
           FCurrentRow := r^.Row;
           FCurrentCol := r^.Col;
           FCurrentFile := r^.FileName;
           SourceChanged;
-          break;
+          Break;
         end;
-      end;
-    end else
-    begin
+      end; // for i
+    end else begin
       FCurrentSourcePos := 0;
       FCurrentRow := 0;
       FCurrentCol := 0;
@@ -811,22 +774,18 @@ begin
   else
     fLineDebugInfo := ldiNone;
 
-  while FDebugMode = dmPaused do
-  begin
-    if @FOnIdleCall <> nil then
-    begin
-      FOnIdleCall(Self);
-    end else break; // endless loop
+  while FDebugMode = dmPaused do begin
+    if Assigned(FOnIdleCall) then
+      FOnIdleCall(Self)
+    else Break; // endless loop
   end;
-end;
+end; // function TPSDebugExec.LoadLineDebugInfo
 {+.}
 
 procedure TPSDebugExec.SourceChanged;
 
   function StepOverShouldPause: Boolean;
-  var
-    I: Cardinal;
-    V: PPSVariant;
+  var I: Cardinal; V: PPSVariant;
   begin
     if (FCurrProc <> FStepOverProc) or (FCurrStackBase <> FStepOverStackBase) then
     begin
@@ -854,18 +813,13 @@ procedure TPSDebugExec.SourceChanged;
 begin
   case FDebugMode of
     dmStepInto:
-      begin
-        FDebugMode := dmPaused;
-      end;
+      FDebugMode := dmPaused;
     dmStepOver:
-      begin
-        if StepOverShouldPause then
-        begin
-          FDebugMode := dmPaused;
-        end;
-      end;
+      if StepOverShouldPause then
+        FDebugMode := dmPaused;
+    else ;// dmPaused
   end;
-  if @FOnSourceLine <> nil then
+  if Assigned(FOnSourceLine) then
     FOnSourceLine(Self, FCurrentFile, FCurrentSourcePos, FCurrentRow, FCurrentCol);
 end;
 

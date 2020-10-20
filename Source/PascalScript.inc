@@ -17,14 +17,25 @@
   //{$MODE OBJFPC}{$H+}
 {$ENDIF FPC}
 
-{$IFDEF VER125}{C4}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
-{$IFDEF VER110}{C3}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
-{$IFDEF VER93}{C1}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
-
-{$IFDEF DELPHI4UP}
-  {$DEFINE PS_HAVEVARIANT}
-  {$DEFINE PS_DYNARRAY}
+{$IFDEF DEBUG}
+  {$IFDEF DEBUG_IDE}
+  {$ELSE}
+  {$ENDIF}
+  {$IFDEF DELPHI}
+  {$ELSE}
+  {$ENDIF}
 {$ENDIF}
+
+{$IFNDEF FPC}
+  {$IFDEF VER125}{C4}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
+  {$IFDEF VER110}{C3}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
+  {$IFDEF VER93}{C1}{$B-}{$X+}{$T-}{$H+}{$ENDIF}
+
+  {$IFDEF DELPHI4UP}
+    {$DEFINE PS_HAVEVARIANT}
+    {$DEFINE PS_DYNARRAY}
+  {$ENDIF}
+{$ENDIF !FPC}
 
 {$IFNDEF FPC}
   {$B-}{$X+}{$T-}{$H+}
@@ -33,19 +44,19 @@
 {$ENDIF}
 
 {$IFNDEF FPC}
-{$IFNDEF DELPHI4UP}
-{$IFNDEF LINUX}
-  {$DEFINE PS_NOINT64}
-{$ENDIF}
-{$ENDIF}
+  {$IFNDEF DELPHI4UP}
+  {$IFNDEF LINUX}
+    {$DEFINE PS_NOINT64}
+  {$ENDIF !LINUX}
+  {$ENDIF !DELPHI4UP}
 
-{$IFDEF DELPHI2}
-  {$DEFINE PS_NOINT64}
-  {$DEFINE PS_NOWIDESTRING}
-  {$B-}{$X+}{$T-}{$H+}
-{$ENDIF}
+  {$IFDEF DELPHI2}
+    {$DEFINE PS_NOINT64}
+    {$DEFINE PS_NOWIDESTRING}
+    {$B-}{$X+}{$T-}{$H+}
+  {$ENDIF}
 
-{$IFDEF LINUX}{KYLIX}{$DEFINE CLX}{$DEFINE DELPHI3UP}{$DEFINE DELPHI6UP}{$ENDIF}
+  {$IFDEF LINUX}{KYLIX}{$DEFINE CLX}{$DEFINE DELPHI3UP}{$DEFINE DELPHI6UP}{$ENDIF}
 {$ENDIF !FPC}
 {$R-}{$Q-}
 
@@ -56,21 +67,28 @@ Defines:
   PS_NOWIDESTRING
   PS_NOINT64
   PS_DELPHIDIV
+  PS_USESSUPPORT
 }
+//+:
+{-$DEFINE PS_USESSUPPORT}    { optional: default: not defined } // TODO: Need test it ...
 
 {$UNDEF DEBUG} { optional }
+//+.
 
 {$IFDEF CLX}
   {$DEFINE PS_NOIDISPATCH} // not implemented
 {$ENDIF}
-
-{+}
-{.$DEFINE PS_USESSUPPORT} { optional } // TODO: Need test it ...
-{+.}
+{$IFNDEF MSWINDOWS}
+  {$DEFINE PS_NOIDISPATCH} // not implemented
+{$ENDIF}
 
 {$IFDEF FPC}
+  // FPC :
   {$I PascalScriptFPC.inc}
-{$ENDIF}
+{+}
+{$ELSE !FPC}
+{+.}
+{$ENDIF !FPC}
 {+}
 {$IFDEF FPC}
   {$DEFINE UNICODE_OR_FPC}

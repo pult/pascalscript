@@ -1,32 +1,35 @@
+{ uPSC_dll.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime DLL importing support }
 unit uPSC_dll;
 
 {$I PascalScript.inc}
 interface
 {
-
   Function FindWindow(c1, c2: PChar): Cardinal; external 'FindWindow@user32.dll stdcall';
-
 }
 uses
-  uPSCompiler, uPSUtils;
+  uPSCompiler, uPSUtils, SysUtils;
 
-{$IFDEF DELPHI3UP }
-resourceString
-{$ELSE }
+{$if (defined(DELPHI3UP) or defined(FPC))}
+resourcestring
+{$else}
 const
-{$ENDIF }
-
+{$ifend}
   RPS_Invalid_External = 'Invalid External';
   RPS_InvalidCallingConvention = 'Invalid Calling Convention';
 
-function DllExternalProc(Sender: TPSPascalCompiler; Decl: TPSParametersDecl; const OriginalName, FExternal: tbtstring): TPSRegProc;
-type
+function DllExternalProc(Sender: TPSPascalCompiler; Decl: TPSParametersDecl;
+  const OriginalName, FExternal: TbtString): TPSRegProc;
 
-  TDllCallingConvention = (clRegister
-  , clPascal
-  , ClCdecl
-  , ClStdCall
+type
+  TDllCallingConvention = (
+     clRegister
+    ,clPascal
+    ,ClCdecl
+    ,ClStdCall
   );
 
 var
@@ -36,67 +39,70 @@ procedure RegisterDll_Compiletime(cs: TPSPascalCompiler);
 
 implementation
 
-function rpos(ch: tbtchar; const s: tbtstring): Longint;
-var
-  i: Longint;
+function rpos(ch: TbtChar; const s: TbtString): Longint;
+var i: Longint;
 begin
-  for i := length(s) downto 1 do
-  if s[i] = ch then begin Result := i; exit; end;
-  result := 0;
+  i := Length(S);
+  for i := i downto 1 do begin
+    if s[i] = ch then begin
+      Result := i;
+      Exit;
+    end;
+  end;
+  Result := 0;
 end;
 
-function RemoveQuotes(s: tbtstring): tbtstring;
+function RemoveQuotes(s: TbtString): TbtString;
+var L: Longint;
 begin
-  result := s;
-  if result = '' then exit;
-  if Result[1] = '"' then delete(result ,1,1);
-  if (Result <> '') and (Result[Length(result)] = '"') then delete(result, length(result), 1);
+  Result := s;
+  L := Length(Result);
+  if (L = 0) then
+    Exit;
+  if (Result[1] = '"') then begin
+    Delete(Result,1,1);
+    Dec(L);
+  end;
+  if (L > 0) and (Result[L] = '"') then
+    Delete(Result, L, 1);
 end;
 
-function DllExternalProc(Sender: TPSPascalCompiler; Decl: TPSParametersDecl; const OriginalName, FExternal: tbtstring): TPSRegProc;
+function DllExternalProc(Sender: TPSPascalCompiler; Decl: TPSParametersDecl;
+  const OriginalName, FExternal: TbtString): TPSRegProc;
 var
-  FuncName,
-  Name,
-  FuncCC, s, s2: AnsiString;
+  FuncName, Name, FuncCC, s, s2: TbtString;
   CC: TDllCallingConvention;
   DelayLoad, LoadWithAlteredSearchPath: Boolean;
-
 begin
   Name := FastUpperCase(OriginalName);
   DelayLoad := False;
   LoadWithAlteredSearchPath := false;
   FuncCC := FExternal;
-
-  if (pos(tbtChar('@'), FuncCC) = 0) then
-  begin
+  if (Pos(TbtChar('@'), FuncCC) = 0) then begin
     Sender.MakeError('', ecCustomError, tbtString(RPS_Invalid_External));
     Result := nil;
-    exit;
+    Exit;
   end;
-  FuncName := copy(FuncCC, 1, rpos('@', FuncCC)-1)+#0;
-  delete(FuncCc, 1, length(FuncName));
-  if pos(tbtchar(' '), Funccc) <> 0 then
-  begin
-    if FuncCC[1] = '"' then
-    begin
+  FuncName := Copy(FuncCC, 1, rpos('@', FuncCC)-1)+#0;
+  Delete(FuncCc, 1, Length(FuncName));
+  if (Pos(TbtChar(' '), Funccc) > 0) then begin
+    if (FuncCC[1] = '"') then begin
       Delete(FuncCC, 1, 1);
-      FuncName := RemoveQuotes(copy(FuncCC, 1, pos(tbtchar('"'), FuncCC)-1))+#0+FuncName;
-      Delete(FuncCC,1, pos(tbtchar('"'), FuncCC));
-      if (FuncCC <> '') and( FuncCC[1] = ' ') then delete(FuncCC,1,1);
-    end else
-    begin
-      FuncName := copy(FuncCc, 1, pos(tbtchar(' '),FuncCC)-1)+#0+FuncName;
-      Delete(FuncCC, 1, pos(tbtchar(' '), FuncCC));
+      FuncName := RemoveQuotes(copy(FuncCC, 1, Pos(TbtChar('"'), FuncCC)-1))+#0+FuncName;
+      Delete(FuncCC,1, Pos(TbtChar('"'), FuncCC));
+      if (FuncCC <> '') and( FuncCC[1] = ' ') then Delete(FuncCC,1,1);
+    end else begin
+      FuncName := Copy(FuncCc, 1, Pos(TbtChar(' '),FuncCC)-1)+#0+FuncName;
+      Delete(FuncCC, 1, Pos(TbtChar(' '), FuncCC));
     end;
-    if pos(tbtchar(' '), FuncCC) > 0 then
-    begin
-      s := Copy(FuncCC, pos(tbtchar(' '), Funccc)+1, MaxInt);
-      FuncCC := FastUpperCase(Copy(FuncCC, 1, pos(tbtchar(' '), FuncCC)-1));
-      Delete(FuncCC, pos(tbtchar(' '), Funccc), MaxInt);
+    if (Pos(TbtChar(' '), FuncCC) > 0) then begin
+      s := Copy(FuncCC, Pos(TbtChar(' '), Funccc)+1, MaxInt);
+      FuncCC := FastUpperCase(Copy(FuncCC, 1, Pos(TbtChar(' '), FuncCC)-1));
+      Delete(FuncCC, Pos(TbtChar(' '), Funccc), MaxInt);
       repeat
-        if pos(tbtchar(' '), s) > 0 then begin
-          s2 := Copy(s, 1, pos(tbtchar(' '), s)-1);
-          delete(s, 1, pos(tbtchar(' '), s));
+        if Pos(TbtChar(' '), s) > 0 then begin
+          s2 := Copy(s, 1, Pos(TbtChar(' '), s)-1);
+          Delete(s, 1, Pos(TbtChar(' '), s));
         end else begin
           s2 := s;
           s := '';
@@ -108,32 +114,37 @@ begin
         if FastUpperCase(s2) = 'LOADWITHALTEREDSEARCHPATH' then
           LoadWithAlteredSearchPath := True
         {$ENDIF}
-        else
-        begin
+        else begin
           Sender.MakeError('', ecCustomError, 'Invalid External');
           Result := nil;
-          exit;
+          Exit;
         end;
-      until s = '';
-
-    end else
+      until (s = '');
+    end else begin
       FuncCC := FastUpperCase(FuncCC);
-    if FuncCC = 'STDCALL' then cc := ClStdCall else
-    if FuncCC = 'CDECL' then cc := ClCdecl else
-    if FuncCC = 'REGISTER' then cc := clRegister else
-    if FuncCC = 'PASCAL' then cc := clPascal else
-    begin
-      Sender.MakeError('', ecCustomError, tbtstring(RPS_InvalidCallingConvention));
-      Result := nil;
-      exit;
     end;
-  end else
-  begin
+    if      (FuncCC = 'STDCALL') then
+      cc := ClStdCall
+    else if (FuncCC = 'CDECL') then
+      cc := ClCdecl
+    else if (FuncCC = 'REGISTER') then
+      cc := clRegister
+    else if (FuncCC = 'PASCAL') then
+      cc := clPascal
+    else begin
+      Sender.MakeError('', ecCustomError, TbtString(RPS_InvalidCallingConvention));
+      Result := nil;
+      Exit;
+    end;
+  end else begin
     FuncName := RemoveQuotes(FuncCC)+#0+FuncName;
     FuncCC := '';
     cc := DefaultCC;
   end;
-  FuncName := 'dll:'+FuncName+tbtchar(cc)+tbtchar(bytebool(DelayLoad)) +tbtchar(bytebool(LoadWithAlteredSearchPath))+ declToBits(Decl);
+  FuncName := 'dll:'+FuncName+TbtChar(cc)
+    + TbtChar(bytebool(DelayLoad))
+    + TbtChar(bytebool(LoadWithAlteredSearchPath))
+    + DeclToBits(Decl);
   Result := TPSRegProc.Create;
   Result.ImportDecl := FuncName;
   Result.Decl.Assign(Decl);
@@ -150,5 +161,5 @@ begin
 end;
 
 begin
-  DefaultCc := clRegister;
+  DefaultCC := clRegister;
 end.

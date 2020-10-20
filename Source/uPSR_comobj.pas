@@ -1,3 +1,7 @@
+{ uPSR_comobj.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSR_comobj;
 
 {$I PascalScript.inc}
@@ -26,11 +30,11 @@ uses
 {+.}
 {$IFNDEF DELPHI3UP}
 
-{$IFDEF DELPHI3UP } // {+} TODO: check "resourcestring" for modern FPC {+.}
+{$if (defined(DELPHI3UP) or defined(FPC))}
 resourcestring
-{$ELSE }
+{$else}
 const
-{$ENDIF }
+{$ifend}
   RPS_OLEError = 'OLE error %.8x';
 
 function OleErrorMessage(ErrorCode: HResult): String;

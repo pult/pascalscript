@@ -1,3 +1,7 @@
+{ uPSC_dateutils.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compile time Date Time library }
 unit uPSC_dateutils;
 

@@ -1,3 +1,7 @@
+{ uPSC_controls.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime Controls support }
 unit uPSC_controls;
 {$I PascalScript.inc}
@@ -192,7 +196,7 @@ begin
   cl.AddConstantN('crNo', 'Integer').Value.ts32 := -18;
   cl.AddConstantN('crAppStart', 'Integer').Value.ts32 := -19;
   cl.AddConstantN('crHelp', 'Integer').Value.ts32 := -20;
-{$IFDEF DELPHI3UP}
+{$IFDEF DELPHI3UP} // or FPC
   cl.AddConstantN('crHandPoint', 'Integer').Value.ts32 := -21;
 {$ENDIF}
 {$IFDEF DELPHI4UP}
@@ -219,9 +223,9 @@ begin
     RegisterMethod('procedure ShowDragImage');
 {$IFDEF DELPHI4UP}
     RegisterProperty('Cancelling', 'Boolean', iptrw);
-	{+}
+    {+}
     RegisterProperty('DragHandle', 'NativeUInt', iptrw); // == HWND == UINT_PTR == NativeUInt
-	{+.}
+    {+.}
     RegisterProperty('DragPos', 'TPoint', iptrw);
     RegisterProperty('DragTargetPos', 'TPoint', iptrw);
     RegisterProperty('MouseDeltaX', 'Double', iptr);

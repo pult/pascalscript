@@ -1,15 +1,19 @@
- unit uPSComponent_DB;
+{ uPSComponent_DB.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
+unit uPSComponent_DB;
 
 interface
 {$I PascalScript.inc}
 uses
-  SysUtils, Classes, uPSComponent, uPSRuntime, uPSCompiler;
+  SysUtils, Classes, uPSComponent, uPSRuntime, {%H-}uPSCompiler;
 type
 
   TPSImport_DB = class(TPSPlugin)
   public
     procedure CompileImport1(CompExec: TPSScript); override;
-    procedure ExecImport1(CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
+    procedure ExecImport1({%H-}CompExec: TPSScript; const ri: TPSRuntimeClassImporter); override;
   public
   end;
 

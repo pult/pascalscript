@@ -1,3 +1,7 @@
+{ uPSC_DB.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime DB support }
 Unit uPSC_DB;
 {
@@ -83,15 +87,17 @@ procedure SIRegisterTNAMEDITEM(CL: TPSPascalCompiler);
 procedure SIRegister_DB(Cl: TPSPascalCompiler);
 
 implementation
-Uses Sysutils;
+
+uses
+  SysUtils, uPSUtils;
 
 Function RegClassS(cl : TPSPascalCompiler;Const InheritsFrom,Classname : String) : TPSCompileTimeClass;
 begin
-  Result := cl.FindClass({+}AnsiString(Classname){+.});
+  Result := cl.FindClass(TbtString(Classname));
   if Result = nil then
-    Result := cl.AddClassN(cl.FindClass({+}AnsiString(InheritsFrom){+.}),{+}AnsiString(Classname){+.})
+    Result := cl.AddClassN(cl.FindClass(TbtString(InheritsFrom)),TbtString(Classname))
   else
-    Result.ClassInheritsFrom := cl.FindClass({+}AnsiString(InheritsFrom){+.});
+    Result.ClassInheritsFrom := cl.FindClass(TbtString(InheritsFrom));
 end;
 
 procedure SIRegisterTDATASET(CL: TPSPascalCompiler);

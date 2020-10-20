@@ -1,3 +1,7 @@
+{ uPSC_buttons.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime Buttons support }
 unit uPSC_buttons;
 {$I PascalScript.inc}

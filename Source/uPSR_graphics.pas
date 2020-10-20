@@ -1,3 +1,7 @@
+{ uPSR_graphics.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 unit uPSR_graphics;
 {$I PascalScript.inc}
 interface
@@ -26,7 +30,7 @@ uses
   {+.}
 {$ELSE}
 uses
-  Classes, Graphics,LCLType;
+  Classes, Graphics, LCLType; // FPC: required Lazarus "LCL" package!
 {$ENDIF}
 
 {$IFNDEF CLX}
@@ -34,7 +38,7 @@ procedure TFontHandleR(Self: TFont; var T: {+}THandle{+.}); begin T := Self.Hand
 procedure TFontHandleW(Self: TFont; T: {+}THandle{+.}); begin Self.Handle := T; end;
 {$ENDIF}
 procedure TFontPixelsPerInchR(Self: TFont; var T: Longint); begin T := Self.PixelsPerInch; end;
-procedure TFontPixelsPerInchW(Self: TFont; T: Longint); begin {$IFNDEF FPC} Self.PixelsPerInch := T;{$ENDIF} end;
+procedure TFontPixelsPerInchW({%H-}Self: TFont; {%H-}T: Longint); begin {$IFNDEF FPC} Self.PixelsPerInch := T;{$ENDIF} end;
 procedure TFontStyleR(Self: TFont; var T: TFontStyles); begin T := Self.Style; end;
 procedure TFontStyleW(Self: TFont; T: TFontStyles); begin Self.Style:= T; end;
 

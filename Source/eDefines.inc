@@ -1,4 +1,4 @@
-{ eDefines.inc } // version: 2020.0628.1520
+{ eDefines.inc } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -1149,7 +1149,7 @@
   {$ENDIF}
 {$ENDIF}
 
-{ defines for Delphi 10.4 Sydney }
+{ defines for Delphi XE13 (Delphi 10.4 Sydney) }
 {$IFDEF VER340}
   {$DEFINE VER140UP}
   {$DEFINE DELPHI}
@@ -1182,7 +1182,6 @@
   {$DEFINE DELPHI27UP}
 
   {$DEFINE DELPHIXE13}{$DEFINE DELPHI_SYDNEY}
-  {$DEFINE DELPHIXE12}{$DEFINE DELPHI_RIO}
   {$DEFINE DELPHI2005UP}
   {$DEFINE DELPHI2006UP}
   {$DEFINE DELPHI2007UP}
@@ -1203,7 +1202,7 @@
   {$DEFINE DELPHIXE13UP}{$DEFINE DELPHI_SYDNEY_UP}
 
   {$DEFINE BDS}
-  {$DEFINE BDS20}
+  {$DEFINE BDS21}
   {$DEFINE BDS3UP}
   {$DEFINE BDS4UP}
   {$DEFINE BDS5UP}
@@ -1235,8 +1234,6 @@
 {$IFDEF CLR}
   {$DEFINE DOTNET}
 {$ENDIF}
-
-// -----------------------------------------------------------------------------
 
 {$IFDEF DELPHI}
   {$IFDEF DELPHI2UP}
@@ -1292,10 +1289,6 @@
   {$ENDIF LINUX}
 {$ENDIF DelphiXE11UP}
 
-{$IFDEF DELPHI9UP}
-  {$DEFINE _INLINE_} { optional }
-{$ENDIF DELPHI9UP}
-
 // -----------------------------------------------------------------------------
 {$ENDIF !FPC}
 
@@ -1328,10 +1321,18 @@
           {$DEFINE CPUX86}
         {$ENDIF !CPU64BITS}
       {$ifend} //!CPUARM
+
+      {$IFDEF CPU64BITS}
+        {$UNDEF 32BIT}
+        {$UNDEF CPU32}
+        {$DEFINE CPU64}
+      {$ELSE !CPU64BITS}
+        {$DEFINE 32BIT}
+        {$DEFINE CPU32}
+      {$ENDIF !CPU64BITS}
+
     {$ENDIF !CPU386}
   {$ENDIF DELPHI11UP}
-
-  {$DEFINE _INLINE_} { optional }
 // -----------------------------------------------------------------------------
 {$ENDIF !FPC}
 {+.}
@@ -1435,7 +1436,7 @@
   {$DEFINE FPC_SAFECALL_BUG}          // nextgen&linux compiler causes bug with safecall declarations
 {$ENDIF}
 
-{$IFDEF DELPHI2005UP}
+{$IFDEF DELPHI2005UP} // DELPHI9UP
   {$DEFINE INLINE_SUPPORT}
 {$ENDIF}
 {$IFDEF FPC}
@@ -1443,6 +1444,10 @@
 {$ENDIF}
 
 {+}
+{$IFDEF INLINE_SUPPORT}
+  {$DEFINE _INLINE_} { optional }
+{$ENDIF}
+
 {.$if defined(cpuarm)}
 {$ifdef wince}
   {$UNDEF UNICODE} // todo: need check on fpc 2.5.x

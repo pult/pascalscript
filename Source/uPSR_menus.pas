@@ -1,3 +1,7 @@
+{ uPSR_menus.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 Unit uPSR_menus;
 {$I PascalScript.inc}
 Interface
@@ -24,7 +28,19 @@ Uses
   SysUtils, Classes, Controls, Menus, Graphics, LCLType, ImgList{+}{$IFDEF DELPHI16UP},UITypes{$ENDIF}{+.};
 {$ENDIF}
 {$ELSE}
-Uses {$IFNDEF FPC}WINDOWS,{$ELSE} LCLType,{$ENDIF} SYSUTILS, CLASSES, CONTNRS, MESSAGES, GRAPHICS, IMGLIST{+}{$IFDEF DELPHI16UP},UITypes{$ENDIF}{+.}, ACTNLIST, Menus;
+Uses
+  {$IFNDEF FPC}WINDOWS,
+  {$ELSE}
+  LCLType,
+  {$ENDIF}
+  SYSUTILS, CLASSES, {%H-}CONTNRS, {%H-}MESSAGES,
+  GRAPHICS, IMGLIST
+  {+}
+  {$IFDEF DELPHI16UP}
+  ,UITypes
+  {$ENDIF}
+  {+.}
+  ,ACTNLIST, Menus;
 {$ENDIF}
 
 {$IFNDEF FPC}

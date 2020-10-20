@@ -1,3 +1,7 @@
+{ uPSR_dll.pas } // version: 2020.1010.1010
+{----------------------------------------------------------------------------}
+{ RemObjects Pascal Script                                                   }
+{----------------------------------------------------------------------------}
 { Compiletime DLL importing support }
 unit uPSR_dll;
 
@@ -76,13 +80,20 @@ begin
   end;
 end;
 
+{$IFNDEF MSWINDOWS}
+const
+  ERROR_MOD_NOT_FOUND = 126;
+{$ENDIF}
+
 function LoadDll(Caller: TPSExec; P: TPSExternalProcRec; var ErrorCode: LongInt): Boolean;
 var
   s, s2, s3: TbtString;
   h, i: Longint;
   ph: PLoadedDll;
   dllHandle: THandle;
+  {$IFDEF MSWINDOWS}
   LoadWithAlteredSearchPath: Boolean;
+  {$ENDIF}
   {$IFNDEF UNIX}
   Filename: string;
   {$ENDIF}
@@ -94,7 +105,9 @@ begin
   h := MakeHash(s2);
   s3 := copy(s, 1, Pos(TbtChar(#0), s)-1);
   Delete(s, 1, Length(s3)+1);
+  {$IFDEF MSWINDOWS}
   LoadWithAlteredSearchPath := ByteBool(s[3]);
+  {$ENDIF}
   i := 2147483647; // maxint
   dllHandle := 0;
   repeat
@@ -118,16 +131,18 @@ begin
       {$ENDIF}
 
       {$IFDEF UNIX_OR_KYLIX}
-      dllhandle := LoadLibrary(PChar(s2));
-      {$ELSE}
+      dllHandle := LoadLibrary(PTbtChar(s2));
+      {$ELSE !UNIX_OR_KYLIX}
       {$IFDEF UNICODE}
       if Copy(s2, 1, 6) = '<utf8>' then
-        Filename := UTF8ToUnicodeString(Copy(s2, 7, Maxint))
+        Filename := string( {$if declared(UTF8ToUnicodeString)}UTF8ToUnicodeString{$else}UTF8Decode{$ifend}
+          ( {$if btCharIsWide}RawByteString{$ifend}(Copy(s2, 7, Maxint)) ) )
       else
         Filename := string(s2);
       {$ELSE}
       Filename := string(s2);
-      {$ENDIF}
+      {$ENDIF !NICODE}
+      {$IFDEF MSWINDOWS}
       if LoadWithAlteredSearchPath then
       {+}
       begin
@@ -138,6 +153,7 @@ begin
         {$endif}
       end
       else
+      {$ENDIF MSWINDOWS}
       begin
         {$ifdef wince}
         dllHandle := LoadLibrary(PWideChar(WideString(Filename)));
@@ -146,11 +162,16 @@ begin
         {$endif}
       end;
       {+.}
-      {$ENDIF}
-      if dllhandle = 0 then
-      begin
+      {$ENDIF !UNIX_OR_KYLIX}
+      if         {+}
+        {$IFDEF MSWINDOWS}
+        (dllHandle <= HINSTANCE_ERROR)
+        {$ELSE}
+        (dllHandle = 0)
+        {$ENDIF} {+.}
+      then begin
         p.Ext2 := Pointer(1);
-        ErrorCode := GetLastError;
+        ErrorCode := {$IFDEF MSWINDOWS}GetLastError{$ELSE}1{$ENDIF};
         Result := False;
         Exit;
       end;
@@ -169,13 +190,13 @@ begin
   {$ifdef wince}
   p.Ext1 := GetProcAddress(dllHandle, pwidechar(widestring(s3)));
   {$else}
-  p.Ext1 := GetProcAddress(dllHandle, pansichar(s3));
+  p.Ext1 := GetProcAddress(dllHandle, PTbtChar(s3));
   {$endif}
   {+.}
   if p.Ext1 = nil then
   begin
     p.Ext2 := Pointer(1);
-    ErrorCode := GetLastError;
+    ErrorCode := {$IFDEF MSWINDOWS}GetLastError{$ELSE}2{$ENDIF};
     Result := false;
     Exit;
   end;

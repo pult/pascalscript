@@ -1,4 +1,4 @@
-{ uPSPreProcessor.pas }
+{ uPSPreProcessor.pas } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -245,7 +245,7 @@ var
   lModuleName: tbtstring;
 begin
   {+}
-  linepos := 0;
+  linepos := 0; //if linepos > 0 then;
   {+.}
   lModuleName := FastUpperCase(ModuleName);
   for i := FItems.Count-1 downto 0 do begin
@@ -663,7 +663,7 @@ begin
         for i := length(s) downto 1 do
           s[i] := #32; // space
       end;
-      Dest.Write(s[1], length(s));
+      Dest.Write(s[1], length(s)*btCharSize);
       Parser.Next;
     end; // while
     Item.FEndPos := Dest.Position;
@@ -683,7 +683,7 @@ begin
 end;
 
 procedure TPSPreProcessor.PreProcess(const Filename: TbtString; var Output: TbtString);
-var Stream: TMemoryStream;
+var Stream: TMemoryStream; iSz: Longint;
 begin
   FAddedPosition := 0;
   {$IFDEF FPC}
@@ -695,8 +695,19 @@ begin
   try
     IntPreProcess(0, '', FileName, Stream);
     Stream.Position := 0;
-    SetLength(Output, Stream.Size);
-    Stream.Read(Output[1], Length(Output));
+    iSz := Stream.Size;
+    if iSz = 0 then
+      Output := ''
+    else begin
+      {$if btCharIsWide}
+        iSz := (iSz + 1) div 2 * 2;
+      {$ifend}
+      SetLength(Output, iSz);
+      {$if btCharIsWide}
+        Output[iSz] := TbtChar(#0);
+      {$ifend}
+      Stream.Read(Output[1], Stream.Size);
+    end;
   finally
     Stream.Free;
   end;

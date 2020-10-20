@@ -1,4 +1,4 @@
-{ uPSRuntime.pas } // version: 2020.0722.0808
+{ uPSRuntime.pas } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -27,9 +27,9 @@ uses
   {$IFNDEF FPC}{$IFDEF DELPHI2010UP}
   System.Rtti,
   {$ENDIF}{$ENDIF !FPC}
-  {$IFDEF FPC}
+  {$IFDEF FPC}{$IFDEF _INVOKECALL_IMPL_}
   {%H-}Rtti, // Warning: Unit "Rtti" is experimental
-  {$ENDIF FPC}
+  {$ENDIF}{$ENDIF FPC}
   SysUtils,
   {$IFNDEF MSWINDOWS}
   Classes,
@@ -193,7 +193,6 @@ type
   end;
 
   {+}
-
   TPSTypeRec_Chars = class(TPSTypeRec)
   private
     FPChasrRefCount: Integer;
@@ -202,29 +201,33 @@ type
   end;
 
   TPSTypeRec_PChar = class(TPSTypeRec)
-  private
-    //FTempBaseType: TPSBaseType;
-    FTempData: Pointer;
-    FTypeCharsRec: TPSTypeRec_Chars;
-  public
+  //private
+  //  //FTempBaseType: TPSBaseType;
+  //  FTempData: Pointer;
+  //  FTypeCharsRec: TPSTypeRec_Chars;
+  //public
+  //  constructor Create(Owner: TPSExec);
+  //  destructor Destroy; override;
 
-    constructor Create(Owner: TPSExec);
-    destructor Destroy; override;
-
-    procedure Clear; override;
+  //  procedure Clear; override;
 
     //property TempBaseType: TPSBaseType read FTempBaseType write FTempBaseType;
-    property TempData: Pointer read FTempData write FTempData;
+  //  property TempData: Pointer read FTempData write FTempData;
   end;
 
   TPSTypeRec_PAnsiChar = class(TPSTypeRec_PChar)
   private
-    fBuffer: tbtString;
+    fBuffer: TbtString;
   end;
+
+  {$IFNDEF PS_NOWIDESTRING}
+    {$if declared(btPWideChar)}
   TPSTypeRec_PWideChar = class(TPSTypeRec_PChar)
-  //private
-  //  todo: fBuffer: tbtUnicodeString;
+  private
+    fBuffer: TbtUnicodeString;
   end;
+    {$ifend}
+  {$ENDIF !PS_NOWIDESTRING}
   {+.}
 
   TPSTypeRec_ProcPtr = class(TPSTypeRec)
@@ -866,8 +869,8 @@ type
     function GetAnsiString(ItemNo: Longint): TbtString;
     {$IFNDEF PS_NOWIDESTRING}
     function GetWideString(ItemNo: Longint): tbtWideString;
-    function GetUnicodeString(ItemNo: Longint): tbtunicodestring;
     {$ENDIF}
+    function GetUnicodeString(ItemNo: Longint): TbtUnicodeString;
     function GetReal(ItemNo: Longint): Extended;
     function GetCurrency(ItemNo: Longint): Currency;
     function GetBool(ItemNo: Longint): Boolean;
@@ -879,11 +882,11 @@ type
     procedure SetInt64(ItemNo: Longint; const Data: Int64);
     {$ENDIF}
     procedure SetString(ItemNo: Longint; const Data: string);
-    procedure SetAnsiString(ItemNo: Longint; const Data: tbtstring);
+    procedure SetAnsiString(ItemNo: Longint; const Data: TbtString);
     {$IFNDEF PS_NOWIDESTRING}
     procedure SetWideString(ItemNo: Longint; const Data: tbtWideString);
-    procedure SetUnicodeString(ItemNo: Longint; const Data: tbtunicodestring);
     {$ENDIF}
+    procedure SetUnicodeString(ItemNo: Longint; const Data: TbtUnicodeString);
     procedure SetReal(ItemNo: Longint; const Data: Extended);
     procedure SetCurrency(ItemNo: Longint; const Data: Currency);
     procedure SetBool(ItemNo: Longint; const Data: Boolean);
@@ -939,8 +942,8 @@ function PSGetAnsiString(Src: Pointer; aType: TPSTypeRec): TbtString;
 function PSGetWideChar(Src: Pointer; aType: TPSTypeRec): TbtWideChar;
 {+.}
 function PSGetWideString(Src: Pointer; aType: TPSTypeRec): tbtWideString;
-function PSGetUnicodeString(Src: Pointer; aType: TPSTypeRec): tbtunicodestring;
 {$ENDIF}
+function PSGetUnicodeString(Src: Pointer; aType: TPSTypeRec): TbtUnicodeString;
 
 procedure PSSetObject(Src: Pointer; aType: TPSTypeRec; var {%H-}Ok: Boolean; Const val: TObject);
 procedure PSSetUInt(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: Cardinal);
@@ -951,11 +954,11 @@ procedure PSSetReal(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val:
 procedure PSSetCurrency(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: Currency);
 procedure PSSetInt(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: Longint);
 procedure PSSetString(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: String);
-procedure PSSetAnsiString(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: tbtString);
+procedure PSSetAnsiString(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: TbtString);
 {$IFNDEF PS_NOWIDESTRING}
 procedure PSSetWideString(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: tbtWideString);
-procedure PSSetUnicodeString(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: tbtunicodestring);
 {$ENDIF}
+procedure PSSetUnicodeString(Src: Pointer; aType: TPSTypeRec; var Ok: Boolean; const Val: TbtUnicodeString);
 
 procedure VNSetPointerTo(const Src: TPSVariantIFC; Data: Pointer; aType: TPSTypeRec);
 
@@ -1125,7 +1128,7 @@ function MakeWString(const s: TbtUnicodeString): TbtString; {$ifdef _inline_}inl
 {$ENDIF}
 
 {$IFNDEF PS_NOIDISPATCH}
-function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: tbtString;
+function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string;
   const Par: array of Variant): Variant;
 {$ENDIF}
 
@@ -1253,21 +1256,6 @@ type
 
     destructor Destroy; override;
   end;
-  TPSHeader = packed record
-    HDR: Cardinal;
-    PSBuildNo: Cardinal;
-    TypeCount: Cardinal;
-    ProcCount: Cardinal;
-    VarCount: Cardinal;
-    MainProcNo: Cardinal;
-    ImportTableSize: Cardinal;
-  end;
-
-  {TPSExportItem = packed record
-    ProcNo: Cardinal;
-    NameLength: Cardinal;
-    DeclLength: Cardinal;
-  end;}
 
   TPSType = packed record
     BaseType: TPSBaseType;
@@ -1568,6 +1556,11 @@ begin
 end;
 {$ENDIF _DEBUG_}
 
+{$IFDEF PS_NOIDISPATCH}
+const
+  GUID_NULL: TGUID = '{00000000-0000-0000-0000-000000000000}';
+{$ENDIF}
+
 function AssignIInterfaceFromVariant(var Dest: IUnknown; const Src: Variant; const dest_giud: TGUID; AllowEmptyAssign: Boolean = True): Boolean;
 var
   pDest: Pointer absolute Dest;
@@ -1811,52 +1804,6 @@ function uPadr(s: TbtUnicodeString; i: longInt): TbtUnicodeString;
 begin
   Result := s + TbtUnicodeString(StringOfChar({$IFDEF FPC}Char{$ELSE}TbtWideChar{$ENDIF}(' '), i - Length(s)));
 end;
-{$ENDIF !PS_NOWIDESTRING}
-
-{$IFNDEF PS_NOWIDESTRING}
-function MakeWString(const s: tbtunicodestring): tbtString;
-var
-  i: Longint;
-  e: tbtString;
-  b: Boolean;
-begin
-  Result := tbtString(s);
-  i := 1;
-  b := False;
-  while i <= Length(Result) do begin
-    if Result[i] = '''' then begin
-      if not b then begin
-        b := True;
-        Insert('''', Result, i);
-        inc(i);
-      end;
-      Insert('''', Result, i);
-      inc(i, 2);
-    end else if (Result[i] < #32) or (Result[i] > #255) then begin
-      e := '#'+inttostr(ord(Result[i]));
-      Delete(Result, i, 1);
-      if b then begin
-        b := False;
-        Insert('''', Result, i);
-        inc(i);
-      end;
-      Insert(e, Result, i);
-      inc(i, length(e));
-    end else begin
-      if not b then begin
-        b := True;
-        Insert('''', Result, i);
-        inc(i, 2);
-      end else
-        inc(i);
-    end;
-  end;
-  if b then
-    Result := Result + '''';
-  if Result = '' then
-    Result := '''''';
-end; // function MakeWString
-{$ENDIF !PS_NOWIDESTRING}
 
 function MakeString(const s: TbtString): TbtString;
 var
@@ -1900,6 +1847,55 @@ begin
   if Result = '' then
     Result := '''''';
 end; // function MakeString
+
+{$IFNDEF PS_NOWIDESTRING}
+function MakeWString(const s: TbtUnicodeString): TbtString;
+begin
+  Result := MakeString(TbtString(s));
+end;
+(*function MakeWString(const s: TbtUnicodeString): TbtString;
+var
+  i: Longint;
+  e: TbtString;
+  b: Boolean;
+begin
+  Result := TbtString(s);
+  i := 1;
+  b := False;
+  while i <= Length(Result) do begin
+    if Result[i] = '''' then begin
+      if not b then begin
+        b := True;
+        Insert('''', Result, i);
+        Inc(i);
+      end;
+      Insert('''', Result, i);
+      Inc(i, 2);
+    end else if (Result[i] < #32) or (Result[i] > #255) then begin
+      e := '#'+IntToStr(Ord(Result[i]));
+      Delete(Result, i, 1);
+      if b then begin
+        b := False;
+        Insert('''', Result, i);
+        Inc(i);
+      end;
+      Insert(e, Result, i);
+      Inc(i, length(e));
+    end else begin
+      if not b then begin
+        b := True;
+        Insert('''', Result, i);
+        Inc(i, 2);
+      end else
+        Inc(i);
+    end;
+  end;
+  if b then
+    Result := Result + '''';
+  if Result = '' then
+    Result := '''''';
+end; // function MakeWString *)
+{$ENDIF !PS_NOWIDESTRING}
 
 function SafeStr(const S: TbtString): TbtString;
 var i: Longint;
@@ -2069,7 +2065,7 @@ begin
       {$WARN IMPLICIT_STRING_CAST ON} // +W1057
     {$ENDIF}
     btString:
-      Result := MakeString(tbtString(p.dta^));
+      Result := MakeString(TbtString(p.dta^));
     btPChar: begin
       if PTbtChar(p.dta^) = nil then
         Result := 'nil'
@@ -2257,24 +2253,24 @@ begin
 end;
 
 {+}
-
 { TPSTypeRec_PChar }
 
-constructor TPSTypeRec_PChar.Create(Owner: TPSExec);
+//constructor TPSTypeRec_PChar.Create(Owner: TPSExec);
+//begin
+//  inherited Create(Owner);
+//end;
+//
+//destructor TPSTypeRec_PChar.Destroy;
+//begin
+//  Clear;
+//  inherited;
+//end;
+//
+//procedure FinalizeVariant(p: Pointer; aType: TPSTypeRec); forward;
+//
+(*procedure TPSTypeRec_PChar.Clear;
 begin
-  inherited Create(Owner);
-end;
-
-destructor TPSTypeRec_PChar.Destroy;
-begin
-  Clear;
-  inherited;
-end;
-
-procedure FinalizeVariant(p: Pointer; aType: TPSTypeRec); forward;
-
-procedure TPSTypeRec_PChar.Clear;
-begin
+  {
   if Assigned(FTypeCharsRec) then
   begin
     Dec(FTypeCharsRec.FPChasrRefCount);
@@ -2288,42 +2284,41 @@ begin
     FTypeCharsRec := nil;
     //Exit;
   end;
-  (*
+  }
   //
-  case FTempBaseType of
-    btString:
-      begin
-        FTempBaseType := 0;
-        if Assigned(FTempData) then
-        begin
-          tbtString(FTempData^) := '';
-          FTempData := nil;
-        end;
-      end;
-    {$IFNDEF PS_NOWIDESTRING}
-    btWideString:
-      begin
-        FTempBaseType := 0;
-        if Assigned(FTempData) then
-        begin
-          tbtWideString(FTempData^) := '';
-          FTempData := nil;
-        end;
-      end;
-    btUnicodeString:
-      begin
-        FTempBaseType := 0;
-        if Assigned(FTempData) then
-        begin
-          tbtUnicodeString(FTempData^) := '';
-          FTempData := nil;
-        end;
-      end;
-    {$ENDIF}
-  end;
-  //*)
-end;
-
+  //case FTempBaseType of
+  //  btString:
+  //    begin
+  //      FTempBaseType := 0;
+  //      if Assigned(FTempData) then
+  //      begin
+  //        TbtString(FTempData^) := '';
+  //        FTempData := nil;
+  //      end;
+  //    end;
+  //  {$IFNDEF PS_NOWIDESTRING}
+  //  btWideString:
+  //    begin
+  //      FTempBaseType := 0;
+  //      if Assigned(FTempData) then
+  //      begin
+  //        tbtWideString(FTempData^) := '';
+  //        FTempData := nil;
+  //      end;
+  //    end;
+  //  btUnicodeString:
+  //    begin
+  //      FTempBaseType := 0;
+  //      if Assigned(FTempData) then
+  //      begin
+  //        TbtUnicodeString(FTempData^) := '';
+  //        FTempData := nil;
+  //      end;
+  //    end;
+  //  {$ENDIF}
+  //end;
+  //
+end;//*)
 {+.}
 
 { TPSTypeRec_Record }
@@ -3042,6 +3037,9 @@ var
     Result := Longint(Pos + Len) <= Length(s);
     if Result then begin
       Move(S[Pos + 1], Data, Len);
+      {$if btCharIsWide}
+      Len := (Len+1) div 2;
+      {$ifend}
       Pos := Pos + Len;
     end;
   end;
@@ -3066,7 +3064,7 @@ var
         Exit;
       end;
       SetLength({%H-}Name, NameLen);
-      Result := Read(Name[1], NameLen);
+      Result := Read(Name[1], NameLen*btCharSize);
       if not Result then begin
         CMD_Err2(erOutOfRange, TbtString(RPS_OutOfRange));
         Exit;
@@ -3096,14 +3094,17 @@ var
               Exit;
             end;
           end;
-          bts8, btchar, btU8: begin
-            Result := Read(PPSVariantU8(VarP)^.data, 1);
+          bts8 {$if btCharIsAnsi},btChar{$ifend}, btU8: begin
+            Result := Read(PPSVariantU8(VarP)^.Data, 1);
             if not Result then begin
-              CMD_Err2(erOutOfRange, tbtString(RPS_OutOfRange));
+              CMD_Err2(erOutOfRange, TbtString(RPS_OutOfRange));
               DestroyHeapVariant(VarP);
               Exit;
             end;
           end;
+          {$if btCharIsWide}
+          btChar,
+          {$ifend}
           bts16,
           {$IFNDEF PS_NOWIDESTRING}
           btWideChar,
@@ -3195,7 +3196,7 @@ var
             end;
             Inc(FCurrentPosition, 4);
             SetLength(PPSVariantAString(VarP)^.Data, NameLen);
-            Result := Read(PPSVariantAString(VarP)^.Data[1], NameLen);
+            Result := Read(PPSVariantAString(VarP)^.Data[1], NameLen*btCharSize);
             if not Result then begin
               CMD_Err2(erOutOfRange, TbtString(RPS_OutOfRange));
               DestroyHeapVariant(VarP);
@@ -3375,7 +3376,7 @@ var
             Exit;
           end;
           SetLength(TPSTypeRec_Class(Curr).FCN, d);
-          Result := Read(TPSTypeRec_Class(Curr).FCN[1], d);
+          Result := Read(TPSTypeRec_Class(Curr).FCN[1], d*btCharSize);
           if not Result then begin
             curr.Free;
             CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
@@ -3393,7 +3394,7 @@ var
             Exit;
           end;
           Setlength(TPSTypeRec_ProcPtr(Curr).FParamInfo, d);
-          Result := Read(TPSTypeRec_ProcPtr(Curr).FParamInfo[1], d);
+          Result := Read(TPSTypeRec_ProcPtr(Curr).FParamInfo[1], d*btCharSize);
           if not Result then begin
             curr.Free;
             CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
@@ -3544,7 +3545,7 @@ var
           Exit;
         end;
         SetLength(Curr.FExportName, d);
-        Result := Read(Curr.fExportName[1], d);
+        Result := Read(Curr.fExportName[1], d*btCharSize);
         if not Result then begin
           CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
           Exit;
@@ -3590,7 +3591,7 @@ var
           Exit;
         end;
         SetLength({%H-}n, b);
-        OK := Read(n[1], b);
+        OK := Read(n[1], b*btCharSize);
         if not OK then begin
           Curr.Free;
           CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
@@ -3607,7 +3608,7 @@ var
             Exit;
           end;
           SetLength(n, L2);
-          Read(n[1], L2); // no check is needed
+          Read(n[1], L2*btCharSize); // no check is needed
           TPSExternalProcRec(Curr).FDecl := n;
         end;
         OK := ImportProc(TPSExternalProcRec(Curr).Name, TPSExternalProcRec(Curr));
@@ -3658,7 +3659,7 @@ var
             Exit;
           end;
           SetLength(TPSInternalProcRec(Curr).FExportName, L3);
-          OK := Read(TPSInternalProcRec(Curr).FExportName[1], L3);
+          OK := Read(TPSInternalProcRec(Curr).FExportName[1], L3*btCharSize);
           if not OK then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
@@ -3677,7 +3678,7 @@ var
             Exit;
           end;
           SetLength(TPSInternalProcRec(Curr).FExportDecl, L3);
-          OK := Read(TPSInternalProcRec(Curr).FExportDecl[1], L3);
+          OK := Read(TPSInternalProcRec(Curr).FExportDecl[1], L3*btCharSize);
           if not OK then begin
             Curr.Free;
             CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
@@ -3740,7 +3741,7 @@ var
         New(e);
         try
           SetLength(e^.FName, n);
-          Result := Read(e^.FName[1], n);
+          Result := Read(e^.FName[1], n*btCharSize);
           if not Result then begin
             Dispose(e);
             CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
@@ -3764,7 +3765,7 @@ var
 begin // function TPSExec.LoadData
   Clear();
   Pos := 0;
-  Result := Read({%H-}HDR, SizeOf(HDR));
+  Result := Read({%H-}HDR, SizeOf(HDR)); // @dbg: (HDR:1397769801; PSBuildNo:23; TypeCount:42; ProcCount:12; VarCount:8; MainProcNo:0; ImportTableSize:0)
   if not Result then begin
     CMD_Err2(erInvalidHeader, TbtString(RPS_InvalidHeader));
     Exit;
@@ -4425,15 +4426,23 @@ begin
       {$IFNDEF PS_NOWIDESTRING}
         Result := TbtString(WideString(WideChar(Word(tbtU32(Src^)))));
       {$ELSE}
+        {$if btCharIsWide}
+        Result := TbtString(WideString(WideChar(Word(tbtU32(Src^)))));
+        {$else}
         Result := TbtString(AnsiChar(Word(tbtU32(Src^))));
+        {$ifend}
       {$ENDIF}
     end;
    {$IFNDEF PS_NOINT64}
     btS64: begin
       {$IFNDEF PS_NOWIDESTRING}
-        Result := tbtString(WideString(WideChar(Word(tbtS64(src^)))));
+        Result := TbtString(WideString(WideChar(Word(tbtS64(src^)))));
       {$ELSE}
+        {$if btCharIsWide}
+        Result := TbtString(WideString(WideChar(Word(tbtS64(src^)))));
+        {$else}
         Result := TbtString(AnsiChar(Word(tbtS64(Src^))));
+        {$ifend}
       {$ENDIF}
     end;
     {$ENDIF !PS_NOINT64}
@@ -4441,7 +4450,7 @@ begin
     btChar: Result := tbtChar(Src^);
     {+}
     btPChar: begin
-      Result := tbtString(PAnsiChar(Src^)); //todo: detect memory AV
+      Result := TbtString(PTbtChar(Src^)); //todo: detect memory AV
     end;
     {+.}
     {+} // debug: pansichar(src^)    pwidechar(src^)
@@ -4468,10 +4477,17 @@ begin
       begin // autocopy Array Of IntType into AnsiString
         n := PSDynArrayGetLength(Pointer(Src^), aType);
         n := n * {elSize:}LongInt(TPSTypeRec_Array(aType).FArrayType.FRealSize);
-        SetLength(Result, n);
+        {$if btCharIsWide}
+        SetLength(Result, (n+1) div 2);
         if n > 0 then
-        begin // dbg: pansichar(@(PDynArrayRec(PointerShift(Pointer(src^),-SizeOf(TDynArrayRecHeader))).datas))
-          Move({src:}Pointer(@(PDynArrayRec(PointerShift(Pointer(Src^),-SizeOf(TDynArrayRecHeader))).datas))^, Pointer(Result)^, n);
+          Result[(n+1) div 2] := TbtChar(#0);
+        {$else}
+        SetLength(Result, n);
+        {$ifend}
+        if n > 0 then
+        begin // dbg: ptbtchar(@(PDynArrayRec(PointerShift(Pointer(src^),-SizeOf(TDynArrayRecHeader))).datas))
+          Move({src:}Pointer(@(PDynArrayRec(PointerShift(Pointer(Src^),-SizeOf(TDynArrayRecHeader))).datas))^,
+            {dest:}Pointer(Result)^, {size:}n);
         end;
       end
       else
@@ -5636,8 +5652,12 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
       {+}
       {$if declared(btPWideChar)}
       btPWideChar: begin
+        {
         destType.Clear;
         PWideChar(Dest^) := PWideChar(PSGetWideString(Src, srcType));
+        }
+        TPSTypeRec_PWideChar(destType).fBuffer := PSGetWideString(Src, srcType); // lock pwidechar by reference to widestring
+        PWideChar(Dest^) := PWideChar(TPSTypeRec_PWideChar(destType).fBuffer);
       end;
       {$ifend}
       {+.}
@@ -5671,7 +5691,12 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
             btChar:
               len := 1;
             btPChar:
-              len := {+}uPSUtils.StrLenA(PAnsiChar(src^));{+.}
+              {$if btCharIsWide}
+              //len := uPSUtils.StrLenW(PWideChar(src^));
+              len := StrLen(PWideChar(src^));
+              {$else}
+              len := uPSUtils.StrLenA(PAnsiChar(src^));
+              {$ifend}
             btString:
               len := Length(TbtString(src^));
             {$IFNDEF PS_NOWIDESTRING}
@@ -10350,9 +10375,7 @@ var
   b: Boolean;
   pex: TPSExceptionHandler;
   Tmp: TObject;
-  {$IFNDEF PS_NOWIDESTRING}
   SI, SI2: PPSVariant;
-  {$ENDIF !PS_NOWIDESTRING}
   C: Cardinal; AReplaceFlags: TReplaceFlags absolute C;
 begin
   { The following needs to be in synch in these 3 functions:
@@ -10362,57 +10385,89 @@ begin
   }
   case {+}NativeUInt{+.}(p.Ext1) of
     0: // IntToStr
-      Stack.SetAnsiString(-1, tbtString(SysUtils.IntToStr(Stack.{$IFNDEF PS_NOINT64}GetInt64{$ELSE}GetInt{$ENDIF}(-2))));
+      begin
+        //{$if btCharIsWide}
+        //Stack.SetUnicodeString(-1, TbtString(SysUtils.IntToStr(
+        //  Stack.{$IFNDEF PS_NOINT64}GetInt64{$ELSE}GetInt{$ENDIF}(-2))));
+        //{$else}
+        Stack.SetAnsiString(-1, TbtString(SysUtils.IntToStr(
+          Stack.{$IFNDEF PS_NOINT64}GetInt64{$ELSE}GetInt{$ENDIF}(-2))));
+        //{$ifend}
+      end;
     1: // StrToInt
-      Stack.SetInt(-1, StrToInt(Stack.GetAnsiString(-2)));
+      begin
+        //{$if btCharIsWide}
+        //Stack.SetInt(-1, StrToInt(Stack.GetUnicodeString(-2)));
+        //{$else}
+        Stack.SetInt(-1, StrToInt(Stack.GetAnsiString(-2)));
+        //{$ifend}
+      end;
     2: // StrTointDef
-      Stack.SetInt(-1, StrToIntDef(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
+      begin
+        //{$if btCharIsWide}
+        //Stack.SetInt(-1, StrToIntDef(Stack.GetUnicodeString(-2), Stack.GetInt(-3)));
+        //{$else}
+        Stack.SetInt(-1, StrToIntDef(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
+        //{$ifend}
+      end;
     3: // Pos
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-3); // analysis "BaseType" of the second parameter "p2" ( "Pos(p1, p2)" )
         case SI.FType.BaseType of
           btUnicodeString:
             I := uPSUtils.PosU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+          {$IFNDEF PS_NOWIDESTRING}
           btWideString, btWideChar:
             I := uPSUtils.PosW(Stack.GetWideString(-2), Stack.GetWideString(-3));
-          else //btChar, btString:
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            I := uPSUtils.PosU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+            {$else}
             I :=  uPSUtils.PosA(Stack.GetAnsiString(-2), Stack.GetAnsiString(-3));
+            {$ifend}
+          end;
         end; // case
-        {$ELSE  PS_NOWIDESTRING}
-          I :=  uPSUtils.PosA(Stack.GetAnsiString(-2), Stack.GetAnsiString(-3));
-        {$ENDIF PS_NOWIDESTRING}
         Stack.SetInt(-1, I);
       end;
     45: // PosEx
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-3); // analysis "BaseType" of the second parameter "p2" ( "PosEx(p1, p2, p3)" )
         case SI.FType.BaseType of
           btUnicodeString:
             I := uPSUtils.PosExU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3), Stack.GetInt(-4));
+          {$IFNDEF PS_NOWIDESTRING}
           btWideString, btWideChar:
             I := uPSUtils.PosExW(Stack.GetWideString(-2), Stack.GetWideString(-3), Stack.GetInt(-4));
-          else //btChar, btString:
+          {$ENDIF PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            I := uPSUtils.PosExU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3), Stack.GetInt(-4));
+            {$else}
             I := uPSUtils.PosExA(Stack.GetAnsiString(-2), Stack.GetAnsiString(-3), Stack.GetInt(-4));
+            {$ifend}
+          end;
         end; // case
-        {$ELSE  PS_NOWIDESTRING}
-          I := uPSUtils.PosExA(Stack.GetAnsiString(-2), Stack.GetAnsiString(-3), Stack.GetInt(-4));
-        {$ENDIF PS_NOWIDESTRING}
         Stack.SetInt(-1, I);
       end;
     4: // Copy
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        if SI.FType.BaseType = btWideString then
-          Stack.SetWideString(-1, Copy(Stack.GetWideString(-2), Stack.GetInt(-3), Stack.GetInt(-4)))
-        else
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, Copy(Stack.GetUnicodeString(-2), Stack.GetInt(-3), Stack.GetInt(-4)))
-        else
-        {$ENDIF !PS_NOWIDESTRING}
-          Stack.SetAnsiString(-1, Copy(Stack.GetAnsiString(-2), Stack.GetInt(-3), Stack.GetInt(-4)));
+        case SI.FType.BaseType of
+          btUnicodeString:
+          Stack.SetUnicodeString(-1, Copy(Stack.GetUnicodeString(-2), Stack.GetInt(-3), Stack.GetInt(-4)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideChar, btWideString:
+            Stack.SetWideString(-1, Copy(Stack.GetWideString(-2), Stack.GetInt(-3), Stack.GetInt(-4)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, Copy(Stack.GetUnicodeString(-2), Stack.GetInt(-3), Stack.GetInt(-4)))
+            {$else}
+            Stack.SetAnsiString(-1, Copy(Stack.GetAnsiString(-2), Stack.GetInt(-3), Stack.GetInt(-4)));
+            {$ifend}
+          end;
+        end; // case
       end;
     5: // Delete
       begin
@@ -10420,159 +10475,319 @@ begin
         if (temp.Dta = nil) then begin
           Result := False;
           Exit;
-        end else
-        {$IFNDEF PS_NOWIDESTRING}
-        if (temp.aType.BaseType = btUnicodeString) then
-        begin
-          Delete(tbtUnicodeString(temp.Dta^), Stack.GetInt(-2), Stack.GetInt(-3));
-        end else
-        if (temp.aType.BaseType = btWideString) then
-        begin
-          Delete(tbtWideString(temp.Dta^), Stack.GetInt(-2), Stack.GetInt(-3));
-        end else
-        {$ENDIF !PS_NOWIDESTRING}
-        if (temp.aType.BaseType = btString) then begin
-          Delete(tbtString(temp.Dta^), Stack.GetInt(-2), Stack.GetInt(-3));
-        end else begin
-          Result := False;
-          Exit;
         end;
+        case temp.aType.BaseType of
+          btUnicodeString:
+            Delete(TbtUnicodeString(temp.Dta^), Stack.GetInt(-2), Stack.GetInt(-3));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString:
+            Delete(tbtWideString(temp.Dta^), Stack.GetInt(-2), Stack.GetInt(-3));
+          {$ENDIF !PS_NOWIDESTRING}
+          btString:
+            {$if btCharIsWide}
+            Delete(TbtUnicodeString(temp.Dta^), Stack.GetInt(-2), Stack.GetInt(-3));
+            {$else}
+            Delete(TbtString(temp.Dta^), Stack.GetInt(-2), Stack.GetInt(-3));
+            {$ifend}
+          else begin
+            Result := False;
+            Exit;
+          end;
+        end; // case
       end;
     6: // Insert
       begin
         temp := NewTPSVariantIFC(Stack[Stack.Count-2], True);
-        {$IFNDEF PS_NOWIDESTRING}
-        if (temp.Dta <> nil) and (temp.aType.BaseType = btUnicodeString) then begin
-          Insert(Stack.GetUnicodeString(-1), tbtUnicodeString(temp.Dta^), Stack.GetInt(-3));
-        end else if (temp.Dta <> nil) and (temp.aType.BaseType = btWideString) then begin
-          Insert(Stack.GetWideString(-1), tbtwidestring(temp.Dta^), Stack.GetInt(-3));
-        end else
-        {$ENDIF !PS_NOWIDESTRING}
-        begin
-          if (temp.Dta = nil) or (temp.aType.BaseType <> btString) then begin
+        if (temp.Dta = nil) then begin
+          Result := False;
+          Exit;
+        end;
+        case temp.aType.BaseType of
+          btUnicodeString:
+            Insert(Stack.GetUnicodeString(-1), TbtUnicodeString(temp.Dta^), Stack.GetInt(-3));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString:
+            Insert(Stack.GetWideString(-1), tbtwidestring(temp.Dta^), Stack.GetInt(-3));
+          {$ENDIF !PS_NOWIDESTRING}
+          btString:
+            {$if btCharIsWide}
+            Insert(Stack.GetUnicodeString(-1), TbtUnicodeString(temp.Dta^), Stack.GetInt(-3));
+            {$else}
+            Insert(Stack.GetAnsiString(-1), TbtString(temp.Dta^), Stack.GetInt(-3));
+            {$ifend}
+          else begin
             Result := False;
             Exit;
           end;
-          Insert(Stack.GetAnsiString(-1), tbtstring(temp.Dta^), Stack.GetInt(-3));
-        end;
+        end; // case
       end;
     7: // StrGet
       begin
         temp :=  NewTPSVariantIFC(Stack[Stack.Count-2], True);
-        if (temp.Dta = nil) or not (temp.aType.BaseType in [btString, btUnicodeString]) then begin
+        if (temp.Dta = nil) or (not (temp.aType.BaseType in [btString, btUnicodeString
+            {$IFNDEF PS_NOWIDESTRING},btWideString{$ENDIF}
+          ])) then
+        begin
           Result := False;
           Exit;
         end;
         I := Stack.GetInt(-3);
-        if (i<1) or (i>length(tbtstring(temp.Dta^))) then begin
-          Caller.CMD_Err2(erCustomError, tbtString(RPS_OutOfStringRange));
+        if (i<1) then begin
+          Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
           Result := False;
           Exit;
         end;
-        Stack.SetInt(-1,Ord(tbtstring(temp.Dta^)[i]));
+        case temp.aType.BaseType of
+          btUnicodeString:
+            begin
+              if (i>length(TbtUnicodeString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := False;
+                Exit;
+              end;
+              Stack.SetInt(-1, Ord(TbtUnicodeString(temp.Dta^)[i]));
+            end;
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString:
+            begin
+              if (i>length(TbtWideString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := False;
+                Exit;
+              end;
+              Stack.SetInt(-1, Ord(TbtWideString(temp.Dta^)[i]));
+            end;
+          {$ENDIF PS_NOWIDESTRING}
+          btString:
+            begin
+              {$if btCharIsWide}
+              if (i>length(TbtUnicodeString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := False;
+                Exit;
+              end;
+              Stack.SetInt(-1, Ord(TbtUnicodeString(temp.Dta^)[i]));
+              {$else}
+              if (i>length(TbtString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := False;
+                Exit;
+              end;
+              Stack.SetInt(-1, Ord(TbtString(temp.Dta^)[i]));
+              {$ifend}
+            end;
+          else begin
+            Result := False;
+            Exit;
+          end;
+        end; // case
       end;
     8: // StrSet
       begin
         temp := NewTPSVariantIFC(Stack[Stack.Count -3], True);
-        if (temp.Dta = nil) or not (temp.aType.BaseType in [btString, btUnicodeString]) then begin
+        if (temp.Dta = nil) or (not (temp.aType.BaseType in [btString, btUnicodeString
+            {$IFNDEF PS_NOWIDESTRING},btWideString{$ENDIF}
+          ])) then
+        begin
           Result := False;
           Exit;
         end;
-        I := Stack.GetInt(-2);
-        if (i<1) or (i>length(tbtstring(temp.Dta^))) then begin
-          Caller.CMD_Err2(erCustomError, tbtString(RPS_OutOfStringRange));
+        {
+        if (i<1) or (i > Length(TbtString(temp.Dta^))) then begin
+          Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
           Result := True;
           Exit;
         end;
-        tbtstring(temp.Dta^)[i] := tbtchar(Stack.GetInt(-1));
+        TbtString(temp.Dta^)[i] := TbtChar(Stack.GetInt(-1));
+        }
+        I := Stack.GetInt(-2); // index value
+        if (i < 1) then begin
+          Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+          Result := True;
+          Exit;
+        end;
+        case temp.aType.BaseType of
+          btUnicodeString:
+            begin
+              if (i > Length(TbtUnicodeString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := True;
+                Exit;
+              end;
+              TbtUnicodeString(temp.Dta^)[i] := WideChar(Word(Stack.GetInt(-1)));
+           end;
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString:
+            begin
+              if (i > Length(TbtWideString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := True;
+                Exit;
+              end;
+              TbtWideString(temp.Dta^)[i] := WideChar(Word(Stack.GetInt(-1)));
+            end;
+          {$ENDIF !PS_NOWIDESTRING}
+          btString:
+            begin
+              {$if btCharIsWide}
+              TbtUnicodeString(temp.Dta^)[i] := WideChar(Word(Stack.GetInt(-1)));
+              {$else}
+              TbtString(temp.Dta^)[i] := TbtChar(Stack.GetInt(-1));
+              {$ifend}
+            end;
+          else begin
+            Result := True;
+            Exit;
+          end;
+        end; // case
       end;
-    10: // Uppercase
+    10: // UpperCase
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, UpperCase(Stack.GetUnicodeString(-2)))
-        else
-        {$ENDIF UNICODE}
-        if (SI.FType.BaseType = btWideString) or (SI.FType.BaseType = btUnicodeString) then
-          Stack.SetWideString(-1, WideUpperCase(Stack.GetWideString(-2)))
-        else
-        {$ENDIF !PS_NOWIDESTRING}
-          Stack.SetAnsiString(-1, FastUpperCase(Stack.GetAnsiString(-2)));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, UpperCase(Stack.GetUnicodeString(-2)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString, btWideChar:
+            Stack.SetWideString(-1, WideUpperCase(Stack.GetWideString(-2)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, UpperCase(Stack.GetUnicodeString(-2)));
+            {$else}
+            Stack.SetAnsiString(-1, FastUpperCase(Stack.GetAnsiString(-2)));
+            {$ifend}
+          end;
+        end; // case
       end;
     11: // LowerCase
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, LowerCase(Stack.GetUnicodeString(-2)))
-        else
-        {$ENDIF UNICODE}
-        if (SI.FType.BaseType = btWideString) or (SI.FType.BaseType = btUnicodeString) then
-          Stack.SetWideString(-1, WideLowerCase(Stack.GetWideString(-2)))
-        else
-        {$ENDIF !PS_NOWIDESTRING}
-          Stack.SetAnsiString(-1, FastLowercase(Stack.GetAnsiString(-2)));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, LowerCase(Stack.GetUnicodeString(-2)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString, btWideChar:
+            Stack.SetWideString(-1, WideLowerCase(Stack.GetWideString(-2)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, LowerCase(Stack.GetUnicodeString(-2)));
+            {$else}
+            Stack.SetAnsiString(-1, FastLowercase(Stack.GetAnsiString(-2)));
+            {$ifend}
+          end;
+        end; // case
       end;
     12: // function Trim(S: AnyString): AnyString;
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, SysUtils.Trim(Stack.GetUnicodestring(-2)))
-        else
-        {$ENDIF UNICODE}
-        if SI.FType.BaseType {+}in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}]{+.} then
-          Stack.SetWideString(-1, SysUtils.Trim(Stack.GetWideString(-2)))
-        else // tsString, btChar
-        {$ENDIF !PS_NOWIDESTRING}
-        Stack.SetAnsiString(-1, AnsiString(SysUtils.Trim(String(Stack.GetAnsiString(-2)))));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, SysUtils.Trim(Stack.GetUnicodestring(-2)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString, btWideChar:
+            Stack.SetWideString(-1, SysUtils.Trim(Stack.GetWideString(-2)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, SysUtils.Trim(Stack.GetUnicodestring(-2)));
+            {$else}
+            Stack.SetAnsiString(-1, AnsiString(SysUtils.Trim(String(Stack.GetAnsiString(-2)))));
+            {$ifend}
+          end;
+        end; // case
       end;
     {+}
     46: // function TrimLeft(S: AnyString): AnyString;
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, SysUtils.TrimLeft(Stack.GetUnicodestring(-2)))
-        else
-        {$ENDIF UNICODE}
-        if SI.FType.BaseType {+}in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}]{+.} then
-          Stack.SetWideString(-1, SysUtils.TrimLeft(Stack.GetWideString(-2)))
-        else // tsString, btChar
-        {$ENDIF !PS_NOWIDESTRING}
-        Stack.SetAnsiString(-1, AnsiString(SysUtils.TrimLeft(String(Stack.GetAnsiString(-2)))));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, SysUtils.TrimLeft(Stack.GetUnicodestring(-2)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString, btWideChar:
+            Stack.SetWideString(-1, SysUtils.TrimLeft(Stack.GetWideString(-2)))
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, SysUtils.TrimLeft(Stack.GetUnicodestring(-2)));
+            {$else}
+            Stack.SetAnsiString(-1, AnsiString(SysUtils.TrimLeft(String(Stack.GetAnsiString(-2)))));
+            {$ifend}
+          end;
+        end; // case
       end;
     47: // function TrimRight(S: AnyString): AnyString;
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, SysUtils.TrimRight(Stack.GetUnicodestring(-2)))
-        else
-        {$ENDIF UNICODE}
-        if SI.FType.BaseType {+}in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}]{+.} then
-          Stack.SetWideString(-1, SysUtils.TrimRight(Stack.GetWideString(-2)))
-        else // tsString, btChar
-        {$ENDIF !PS_NOWIDESTRING}
-        Stack.SetAnsiString(-1, AnsiString(SysUtils.TrimRight(String(Stack.GetAnsiString(-2)))));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, SysUtils.TrimRight(Stack.GetUnicodestring(-2)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString, btWideChar:
+            Stack.SetWideString(-1, SysUtils.TrimRight(Stack.GetWideString(-2)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, SysUtils.TrimRight(Stack.GetUnicodestring(-2)));
+            {$else}
+            Stack.SetAnsiString(-1, AnsiString(SysUtils.TrimRight(String(Stack.GetAnsiString(-2)))));
+            {$ifend}
+          end;
+        end; // case
       end;
     {+.}
     13: // Length
-      Stack.SetInt(-1, Length(Stack.GetAnsiString(-2)));
+      begin
+        //Stack.SetInt(-1, Length(Stack.GetAnsiString(-2)));
+        SI := Stack.GetItem(Stack.Count-2);
+        case SI.FType.BaseType of
+          btChar:
+            Stack.SetInt(-1, 1);
+          btUnicodeString:
+            Stack.SetInt(-1, Length(Stack.GetUnicodeString(-2)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString:
+            Stack.SetInt(-1, Length(Stack.GetWideString(-2)));
+          btWideChar:
+            Stack.SetInt(-1, 1);
+          {$ENDIF PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            Stack.SetInt(-1, Length(Stack.GetUnicodeString(-2)));
+            {$else}
+            Stack.SetInt(-1, Length(Stack.GetAnsiString(-2)));
+            {$ifend}
+          end;
+        end; // case
+      end;
     14: // SetLength
       begin
         temp := NewTPSVariantIFC(Stack[Stack.Count-1], True);
-        if (temp.Dta = nil) or (temp.aType.BaseType <> btString) then  begin
+        if (temp.Dta = nil) or (not (temp.aType.BaseType in [btString, btUnicodeString
+            {$IFNDEF PS_NOWIDESTRING},btWideString{$ENDIF}
+          ])) then
+        begin
           Result := False;
           Exit;
         end;
-        SetLength(tbtstring(temp.Dta^), STack.GetInt(-2));
+        //SetLength(TbtString(temp.Dta^), STack.GetInt(-2));
+        case temp.aType.BaseType of
+          btUnicodeString:
+            SetLength(TbtUnicodeString(temp.Dta^), STack.GetInt(-2));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString:
+            SetLength(TbtWideString(temp.Dta^), STack.GetInt(-2));
+          {$ENDIF PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+            SetLength(TbtUnicodeString(temp.Dta^), STack.GetInt(-2));
+            {$else}
+            SetLength(TbtString(temp.Dta^), STack.GetInt(-2));
+            {$ifend}
+          end;
+        end; // case
       end;
     15: // Sin
       Stack.SetReal(-1, Sin(Stack.GetReal(-2)));
@@ -10624,50 +10839,94 @@ begin
     22: // Abs
       Stack.SetReal(-1, Abs(Stack.GetReal(-2)));
     23: // StrToFloat
-      Stack.SetReal(-1, StrToFloat(Stack.GetAnsiString(-2)));
+      begin
+        {$if btCharIsWide}
+        Stack.SetReal(-1, StrToFloat(Stack.GetUnicodeString(-2)));
+        {$else}
+        Stack.SetReal(-1, StrToFloat(Stack.GetAnsiString(-2)));
+        {$ifend}
+      end;
     24: // FloatToStr
-      Stack.SetAnsiString(-1, FloatToStr(Stack.GetReal(-2)));
+      begin
+        {$if btCharIsWide}
+        Stack.SetUnicodeString(-1, FloatToStr(Stack.GetReal(-2)));
+        {$else}
+        Stack.SetAnsiString(-1, FloatToStr(Stack.GetReal(-2)));
+        {$ifend}
+      end;
     25: //  PadL
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, upadL(Stack.GetUnicodeString(-2), Stack.GetInt(-3)))
-        else
-        if SI.FType.BaseType = btWideString then
-          Stack.SetWideString(-1, wPadL(Stack.GetWideString(-2), Stack.GetInt(-3)))
-        else
-        {$ENDIF !PS_NOWIDESTRING}
-          Stack.SetAnsiString(-1, PadL(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, upadL(Stack.GetUnicodeString(-2), Stack.GetInt(-3)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideChar, btWideString:
+            Stack.SetWideString(-1, wPadL(Stack.GetWideString(-2), Stack.GetInt(-3)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, upadL(Stack.GetUnicodeString(-2), Stack.GetInt(-3)));
+            {$else}
+            Stack.SetAnsiString(-1, PadL(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
+            {$ifend}
+          end;
+        end; // case
       end;
     26: // PadR
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, uPadR(Stack.GetUnicodeString(-2), Stack.GetInt(-3)))
-        else
-        if SI.FType.BaseType = btWideString then
-          Stack.SetWideString(-1, wPadR(Stack.GetWideString(-2), Stack.GetInt(-3)))
-        else
-        {$ENDIF !PS_NOWIDESTRING}
-          Stack.SetAnsiString(-1, PadR(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
-       end;
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, uPadR(Stack.GetUnicodeString(-2), Stack.GetInt(-3)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideChar, btWideString:
+            Stack.SetWideString(-1, wPadR(Stack.GetWideString(-2), Stack.GetInt(-3)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, uPadR(Stack.GetUnicodeString(-2), Stack.GetInt(-3)));
+            {$else}
+            Stack.SetAnsiString(-1, PadR(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
+            {$ifend}
+          end;
+        end; // case
+      end;
     27: // PadZ
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        if SI.FType.BaseType = btUnicodeString then
-          Stack.SetUnicodeString(-1, uPadZ(Stack.GetUnicodeString(-2), Stack.GetInt(-3)))
-        else
-        if SI.FType.BaseType = btWideString then
-          Stack.SetWideString(-1, wPadZ(Stack.GetWideString(-2), Stack.GetInt(-3)))
-        else
-        {$ENDIF !PS_NOWIDESTRING}
-          Stack.SetAnsiString(-1, PadZ(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            Stack.SetUnicodeString(-1, uPadZ(Stack.GetUnicodeString(-2), Stack.GetInt(-3)));
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideChar, btWideString:
+            Stack.SetWideString(-1, wPadZ(Stack.GetWideString(-2), Stack.GetInt(-3)));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin
+            {$if btCharIsWide}
+            Stack.SetUnicodeString(-1, uPadZ(Stack.GetUnicodeString(-2), Stack.GetInt(-3)));
+            {$else}
+            Stack.SetAnsiString(-1, PadZ(Stack.GetAnsiString(-2), Stack.GetInt(-3)));
+            {$ifend}
+          end;
+        end; // case
       end;
     28: // Replicate/StrOfChar
-      Stack.SetAnsiString(-1, StringOfChar(tbtChar(Stack.GetInt(-2)), Stack.GetInt(-3)));
+      begin // function StringOfChar(ch: *Char; Count: Integer): *String; overload;
+        {$IFNDEF PS_NOWIDESTRING}
+        SI := Stack.GetItem(Stack.Count-2);
+        if SI.FType.BaseType in [btWideChar, btWideString] then
+          Stack.SetWideString(-1, StringOfChar(TbtWideChar(Stack.GetInt(-2)), Stack.GetInt(-3)))
+        else
+        {$ENDIF !PS_NOWIDESTRING}
+        begin
+          {$if btCharIsWide}
+          Stack.SetUnicodeString(-1, StringOfChar(TbtChar(Stack.GetInt(-2)), Stack.GetInt(-3)));
+          {$else}
+          Stack.SetAnsiString(-1, StringOfChar(TbtChar(Stack.GetInt(-2)), Stack.GetInt(-3)));
+          {$ifend}
+        end;
+      end;
     29: // Assigned
       begin
         temp := NewTPSVariantIFC(Stack[Stack.Count-2], True);
@@ -10679,14 +10938,17 @@ begin
           btU8, btS8: b := tbtu8(temp.dta^) <> 0;
           btU16, btS16: b := tbtu16(temp.dta^) <> 0;
           btU32, btS32: b := tbtu32(temp.dta^) <> 0;
-          btString, btPChar: b := tbtstring(temp.dta^) <> '';
+          btString, btPChar: b := Length(TbtString(temp.dta^)) > 0;
           {$IFNDEF PS_NOWIDESTRING}
-          btWideString{+}{$if declared(btPWideChar)},btPWideChar{$ifend}{+.}: b := tbtwidestring(temp.dta^)<> '';
+          btWideString{+}{$if declared(btPWideChar)},btPWideChar{$ifend}{+.}:
+            b := Length(TbtWideString(temp.dta^)) > 0;
           btUnicodeString: b := TbtUnicodeString(temp.dta^)<> '';
           {$ENDIF !PS_NOWIDESTRING}
-          btArray, btClass{$IFNDEF PS_NOINTERFACES}, btInterface{$ENDIF}: b := Pointer(temp.dta^) <> nil;
+          btArray, btClass{$IFNDEF PS_NOINTERFACES}, btInterface{$ENDIF}:
+            b := Pointer(temp.dta^) <> nil;
           {+}
-          btVariant: b := not VarIsEmptyOrNull(Variant(temp.dta^));
+          btVariant:
+            b := not VarIsEmptyOrNull(Variant(temp.dta^));
           {+.}
         else
           Result := False;
@@ -10738,7 +11000,7 @@ begin
         if Temp.aType = nil then
           Stack.SetInt(-1, 0)
         else
-          Stack.SetInt(-1, Temp.aType.RealSize)s
+          Stack.SetInt(-1, Temp.aType.RealSize)
       end;
     {$IFNDEF PS_NOWIDESTRING}
     43: // WStrGet
@@ -10759,7 +11021,7 @@ begin
               end;
               Stack.SetInt(-1, Ord(TbtWideString(temp.Dta^)[i]));
             end;
-          btUnicodeString:
+          btUnicodeString {$if btCharIsWide}, btString{$ifend}:
             begin
               I := Stack.GetInt(-3);
               if (i<1) or (i>length(TbtUnicodeString(temp.Dta^))) then begin
@@ -10769,7 +11031,18 @@ begin
               end;
               Stack.SetInt(-1, Ord(TbtUnicodeString(temp.Dta^)[i]));
             end;
-
+          {$if not btCharIsWide}
+          btString:
+            begin
+              I := Stack.GetInt(-3);
+              if (i<1) or (i>length(TbtString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := False;
+                Exit;
+              end;
+              Stack.SetInt(-1, Ord(TbtString(temp.Dta^)[i]));
+            end;
+          {$ifend}
           else begin
             Result := False;
             Exit;
@@ -10794,7 +11067,7 @@ begin
               end;
               TbtWidestring(temp.Dta^)[i] := WideChar(Stack.GetInt(-1));
             end;
-          btUnicodeString:
+          btUnicodeString {$if btCharIsWide}, btString{$ifend}:
             begin
               I := Stack.GetInt(-2);
               if (i<1) or (i>length(TbtUnicodeString(temp.Dta^))) then begin
@@ -10804,6 +11077,18 @@ begin
               end;
               TbtUnicodeString(temp.Dta^)[i] := WideChar(Stack.GetInt(-1));
             end;
+          {$if not btCharIsWide}
+          btString:
+            begin
+              I := Stack.GetInt(-2);
+              if (i<1) or (i>length(TbtString(temp.Dta^))) then begin
+                Caller.CMD_Err2(erCustomError, TbtString(RPS_OutOfStringRange));
+                Result := True;
+                Exit;
+              end;
+              TbtString(temp.Dta^)[i] := TbtChar(Stack.GetInt(-1));
+            end;
+          {$ifend}
           else begin
             Result := False;
             Exit;
@@ -10814,134 +11099,204 @@ begin
     {+}
     48: // function TrimLen(S: AnyString): Integer;
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
         if SI.FType.BaseType = btUnicodeString then
-          I := uPSUtils.TrimLenU(Stack.GetUnicodeString(-2))
-        else
-        {$ENDIF UNICODE}
-        if SI.FType.BaseType in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}] then
+        begin
+          {$if declared(TrimLenU)}
+          I := uPSUtils.TrimLenU(Stack.GetUnicodeString(-2));
+          {$else}
+          I := uPSUtils.TrimLenW(Stack.GetUnicodeString(-2));
+          {$ifend}
+        end
+        {$IFNDEF PS_NOWIDESTRING}
+        else if SI.FType.BaseType in [btWideString, btWideChar] then
           I := uPSUtils.TrimLenW(Stack.GetWideString(-2))
-        else // tsString, btChar
         {$ENDIF !PS_NOWIDESTRING}
+        else // tsString, btChar
+        begin
+          {$if btCharIsWide}
+            {$if declared(TrimLenU)}
+            I := uPSUtils.TrimLenU(Stack.GetUnicodeString(-2));
+            {$else}
+            I := uPSUtils.TrimLenW(Stack.GetUnicodeString(-2));
+            {$ifend}
+          {$else}
           I := uPSUtils.TrimLenA(Stack.GetAnsiString(-2));
+          {$ifend}
+        end;
         Stack.SetInt(-1, I);
       end;
     49: // function TrimLeftLen(S: AnyString): Integer;
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
-          I := uPSUtils.TrimLeftLenU(Stack.GetUnicodeString(-2))
-        else
-        {$ENDIF UNICODE}
-        if SI.FType.BaseType in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}] then
-          I := uPSUtils.TrimLeftLenW(Stack.GetWideString(-2))
-        else // tsString, btChar
-        {$ENDIF !PS_NOWIDESTRING}
-          I := uPSUtils.TrimLeftLenA(Stack.GetAnsiString(-2));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            begin
+              {$if declared(TrimLeftLenU)}
+              I := uPSUtils.TrimLeftLenU(Stack.GetUnicodeString(-2));
+              {$else}
+              I := uPSUtils.TrimLeftLenW(Stack.GetUnicodeString(-2));
+              {$ifend}
+            end;
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString, btWideChar:
+            I := uPSUtils.TrimLeftLenW(Stack.GetWideString(-2));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+              {$if declared(TrimLeftLenU)}
+              I := uPSUtils.TrimLeftLenU(Stack.GetUnicodeString(-2))
+              {$else}
+              I := uPSUtils.TrimLeftLenW(Stack.GetUnicodeString(-2))
+              {$ifend}
+            {$else}
+            I := uPSUtils.TrimLeftLenA(Stack.GetAnsiString(-2));
+            {$ifend}
+          end;
+        end; // case
         Stack.SetInt(-1, I);
       end;
     50: // function TrimRightLen(S: AnyString): Integer;
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
-          I := uPSUtils.TrimRightLenU(Stack.GetUnicodeString(-2))
-        else
-        {$ENDIF UNICODE}
-        if SI.FType.BaseType in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}] then
-          I := uPSUtils.TrimRightLenW(Stack.GetWideString(-2))
-        else // tsString, btChar
-        {$ENDIF !PS_NOWIDESTRING}
-          I := uPSUtils.TrimRightLenA(Stack.GetAnsiString(-2));
+        case SI.FType.BaseType of
+          btUnicodeString:
+            begin
+              {$if declared(TrimRightLenU)}
+              I := uPSUtils.TrimRightLenU(Stack.GetUnicodeString(-2));
+              {$else}
+              I := uPSUtils.TrimRightLenW(Stack.GetUnicodeString(-2));
+              {$ifend}
+            end;
+          {$IFNDEF PS_NOWIDESTRING}
+          btWideString, btWideChar:
+            I := uPSUtils.TrimRightLenW(Stack.GetWideString(-2));
+          {$ENDIF !PS_NOWIDESTRING}
+          else begin // tsString, btChar
+            {$if btCharIsWide}
+              {$if declared(TrimRightLenU)}
+              I := uPSUtils.TrimRightLenU(Stack.GetUnicodeString(-2));
+              {$else}
+              I := uPSUtils.TrimRightLenW(Stack.GetUnicodeString(-2));
+              {$ifend}
+            {$else}
+            I := uPSUtils.TrimRightLenA(Stack.GetAnsiString(-2));
+            {$ifend}
+          end;
+        end; // case
         Stack.SetInt(-1, I);
       end;
     {.$if declared(SameText)}
     51: // function SameText(S1, S2 : AnyString) : Boolean;
       begin
-        {$IFNDEF PS_NOWIDESTRING}
         SI := Stack.GetItem(Stack.Count-2);
         SI2 := Stack.GetItem(Stack.Count-3);
-        {$IFDEF UNICODE}
         if (SI.FType.BaseType = btUnicodeString) or (SI2.FType.BaseType = btUnicodeString) then
-          b := SameTextU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3))
-        else
-        {$ENDIF UNICODE}
-        if (SI.FType.BaseType in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}])
-          or (SI2.FType.BaseType in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}]) then
-          b := SameTextW(Stack.GetWideString(-2), Stack.GetWideString(-3))
-        else // tsString, btChar
-        {$ENDIF !PS_NOWIDESTRING}
-          b := {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Stack.GetAnsiString(-2), Stack.GetAnsiString(-3));
-        Stack.SetBool(-1, b);
-      end;
-    52: // function AnsiSameText(S1, S2 : AnyString) : Boolean;
-      begin
+        begin
+          {$if declared(SameTextU)}
+          b := uPSUtils.SameTextU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+          {$else}
+          b := uPSUtils.SameTextW(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+          {$ifend}
+        end
         {$IFNDEF PS_NOWIDESTRING}
-        SI := Stack.GetItem(Stack.Count-2);
-        SI2 := Stack.GetItem(Stack.Count-3);
-        {$IFDEF UNICODE}
-        if (SI.FType.BaseType = btUnicodeString) or (SI2.FType.BaseType = btUnicodeString) then
-          b := AnsiSameTextU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3))
-        else
-        {$ENDIF UNICODE}
-        if (SI.FType.BaseType in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}])
-          or (SI2.FType.BaseType in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}]) then
-        begin
-          b := AnsiSameTextW(Stack.GetWideString(-2), Stack.GetWideString(-3));
-        end else // tsString, btChar
+        else if (SI.FType.BaseType in [btWideString, btWideChar])
+          or (SI2.FType.BaseType in [btWideString, btWideChar]) then
+          b := uPSUtils.SameTextW(Stack.GetWideString(-2), Stack.GetWideString(-3))
         {$ENDIF !PS_NOWIDESTRING}
-        begin
-          {$if declared(AnsiSameText)}
-          b := {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}AnsiSameText(Stack.GetAnsiString(-2), Stack.GetAnsiString(-3));
+        else begin // tsString, btChar
+          {$if btCharIsWide}
+            {$if declared(SameTextU)}
+            b := uPSUtils.SameTextU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+            {$else}
+            b := uPSUtils.SameTextW(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+            {$ifend}
           {$else}
           b := {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Stack.GetAnsiString(-2), Stack.GetAnsiString(-3));
           {$ifend}
         end;
         Stack.SetBool(-1, b);
       end;
+    52: // function AnsiSameText(S1, S2 : AnyString) : Boolean;
+      begin
+        SI := Stack.GetItem(Stack.Count-2);
+        SI2 := Stack.GetItem(Stack.Count-3);
+        if (SI.FType.BaseType = btUnicodeString) or (SI2.FType.BaseType = btUnicodeString) then
+        begin
+          {$if declared(AnsiSameTextU)}
+          b := uPSUtils.AnsiSameTextU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+          {$else}
+          b := uPSUtils.AnsiSameTextW(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+          {$ifend}
+        end
+        {$IFNDEF PS_NOWIDESTRING}
+        else if (SI.FType.BaseType in [btWideString, btWideChar])
+          or (SI2.FType.BaseType in [btWideString, btWideChar]) then
+          b := uPSUtils.AnsiSameTextW(Stack.GetWideString(-2), Stack.GetWideString(-3))
+        {$ENDIF !PS_NOWIDESTRING}
+        else // tsString, btChar
+        begin
+          {$if btCharIsWide}
+            {$if declared(AnsiSameTextU)}
+            b := uPSUtils.AnsiSameTextU(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+            {$else}
+            b := uPSUtils.AnsiSameTextW(Stack.GetUnicodeString(-2), Stack.GetUnicodeString(-3));
+            {$ifend}
+          {$else}
+            {$if declared(AnsiSameText)}
+            b := {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}AnsiSameText(
+              Stack.GetAnsiString(-2), Stack.GetAnsiString(-3));
+            {$else}
+            b := {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(
+              Stack.GetAnsiString(-2), Stack.GetAnsiString(-3));
+            {$ifend}
+          {$ifend !btCharIsWide}
+        end;
+        Stack.SetBool(-1, b);
+      end;
     {.$ifend} // declared(SameText)
     53: // function StringReplace_(Source, OldPattern, NewPattern: AnyString; Flags : TReplaceFlags_): AnyString;
       begin // NB: !!!: "StringReplace" may be busy, so "sysStringReplace" !!!
-        C := Stack.GetUInt(-5); // sample: writeln( sysStringReplace('a___a', 'a', 'x,', [srfReplaceAll,srfIgnoreCase]) );
-        if C > 256 then C := 0;
-        {$IFNDEF PS_NOWIDESTRING}
+        C := Stack.GetUInt(-5); // Flag. Sample: writeln( sysStringReplace('a___a', 'a', 'x,', [srfReplaceAll,srfIgnoreCase]) );
+        if C > 256 then C := 0; // Check Flag.
         SI := Stack.GetItem(Stack.Count-2);
-        {$IFDEF UNICODE}
-        if SI.FType.BaseType = btUnicodeString then
+        if (SI.FType.BaseType = btUnicodeString) then
+          Stack.SetUnicodeString(-1, {$IFDEF FPC}StrUtils.{$ELSE}SysUtils.{$ENDIF}StringReplace(
+            Stack.GetUnicodestring(-2),
+            Stack.GetUnicodestring(-3),
+            Stack.GetUnicodestring(-4),
+            AReplaceFlags))
+        {$IFNDEF PS_NOWIDESTRING}
+        else if (SI.FType.BaseType in [btWideString, btWideChar]) then
+          Stack.SetWideString(-1, {$IFDEF FPC}StrUtils.{$ELSE}SysUtils.{$ENDIF}StringReplace(
+            Stack.GetWideString(-2),
+            Stack.GetWideString(-3),
+            Stack.GetWideString(-4),
+            AReplaceFlags))
+        {$ENDIF !PS_NOWIDESTRING}
+        else // tsString, btChar
+        begin
+          {$if btCharIsWide}
             Stack.SetUnicodeString(-1, {$IFDEF FPC}StrUtils.{$ELSE}SysUtils.{$ENDIF}StringReplace(
               Stack.GetUnicodestring(-2),
               Stack.GetUnicodestring(-3),
               Stack.GetUnicodestring(-4),
-              AReplaceFlags))
-        else
-        {$ENDIF UNICODE}
-        if SI.FType.BaseType {+}in [btWideString, btWideChar {$IFNDEF UNICODE},btUnicodeString{$ENDIF}]{+.} then
-            Stack.SetWideString(-1, {$IFDEF FPC}StrUtils.{$ELSE}SysUtils.{$ENDIF}StringReplace(
-              Stack.GetWideString(-2),
-              Stack.GetWideString(-3),
-              Stack.GetWideString(-4),
-              AReplaceFlags))
-        else // tsString, btChar
-        {$ENDIF !PS_NOWIDESTRING}
-        begin
-          {$IFDEF UNICODE}
-            Stack.SetUnicodeString(-1, {$IFDEF FPC}StrUtils.{$ELSE}SysUtils.{$ENDIF}StringReplace(
-              Stack.GetUnicodeString(-2),
-              Stack.GetUnicodeString(-3),
-              Stack.GetUnicodeString(-4),
               AReplaceFlags));
-          {$ELSE  !UNICODE}
-          Stack.SetAnsiString(-1, AnsiString(SysUtils.StringReplace(
-            string(Stack.GetAnsiString(-2)),
-            string(Stack.GetAnsiString(-3)),
-            string(Stack.GetAnsiString(-4)),
-            AReplaceFlags)));
-          {$ENDIF UNICODE}
+          {$else}
+            {$IFDEF UNICODE}
+              Stack.SetUnicodeString(-1, {$IFDEF FPC}StrUtils.{$ELSE}SysUtils.{$ENDIF}StringReplace(
+                Stack.GetUnicodeString(-2),
+                Stack.GetUnicodeString(-3),
+                Stack.GetUnicodeString(-4),
+                AReplaceFlags));
+            {$ELSE  !UNICODE}
+            Stack.SetAnsiString(-1, AnsiString(SysUtils.StringReplace(
+              string(Stack.GetAnsiString(-2)),
+              string(Stack.GetAnsiString(-3)),
+              string(Stack.GetAnsiString(-4)),
+              AReplaceFlags)));
+            {$ENDIF UNICODE}
+          {$ifend}
         end;
       end;
 //
@@ -11675,8 +12030,13 @@ begin
           TVarRec(p^).VVariant := cp;
         end;
         btChar: begin
+          {$if btCharIsWide}
+          TVarRec(p^).VType := vtPWideChar;
+          TVarRec(p^).VPWideChar := Pointer(cp^);
+          {$else}
           TVarRec(p^).VType := vtChar;
           TVarRec(p^).VChar := tbtChar(tbtChar(cp^));
+          {$ifend}
         end;
         btSingle: begin
           TVarRec(p^).VType := vtExtended;
@@ -11901,25 +12261,29 @@ end; // procedure DestroyOpenArray
   //
   // DELPHI:
   //
-  {$UNDEF _INVOKECALL_IMPL_} { not change }
+  //{$IFNDEF _INVOKECALL_IMPL_}
+  //  {$IFDEF DELPHI23UP}    // DELPHI2010UP == DELPHI14UP // TODO: not compiled for all delphi compilers
+  //    //{$IFDEF AUTOREFCOUNT}
+  //    //  {$MESSAGE FATAL 'Pascal Script does not supports compilation with AUTOREFCOUNT at the moment!'}
+  //    //{$ENDIF !AUTOREFCOUNT}
+  //
+  //    {$DEFINE _INVOKECALL_IMPL_} { not change }
+  //  {$ENDIF DELPHI23UP}
+  //{$ENDIF _INVOKECALL_IMPL_}
 
-  {$IFDEF DELPHI23UP}    // DELPHI2010UP == DELPHI14UP // TODO: not compiled for all delphi compilers
-    {$IFDEF AUTOREFCOUNT}
-      {$MESSAGE FATAL 'Pascal Script does not supports compilation with AUTOREFCOUNT at the moment!'}
-    {$ENDIF !AUTOREFCOUNT}
-
-    {$DEFINE _INVOKECALL_IMPL_} { not change }
-  {$ENDIF DELPHI23UP}
-
-  {$IFDEF _INVOKECALL_IMPL_}
-    {$if defined(CPUX64)}
-      {--$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
-    {$elseif defined(CPUX86)}
-      {--$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
-    {$else}
-      {$DEFINE _INVOKECALL_INC_}  { not change } // TODO: currentry not all parameter types supported
-    {$ifend}
-  {$ENDIF _INVOKECALL_IMPL_}
+  {$IFNDEF PS_USECLASSICINVOKE}
+    {$IFDEF _INVOKECALL_IMPL_}
+      {$IFDEF USEINVOKECALL}
+        //{$if defined(CPUX64)}
+        //  {--$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
+        //{$elseif defined(CPUX86)}
+        //  {--$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
+        //{$else}
+          {$DEFINE _INVOKECALL_INC_}  { not change } // TODO: currentry not all parameter types supported
+        //{$ifend}
+      {$ENDIF USEINVOKECALL}
+    {$ENDIF _INVOKECALL_IMPL_}
+  {$ENDIF !PS_USECLASSICINVOKE}
 
   {$IFNDEF _INVOKECALL_INC_}
     {$IFDEF DELPHI16UP} // DELPHI16UP == DELPHIXE2UP
@@ -11939,21 +12303,38 @@ end; // procedure DestroyOpenArray
   //
   // FPC:
   //
-  {$if defined(cpu86) or defined(CPUX86)}
-    {$include x86.inc}
-  {$elseif defined(cpux86_64) or defined(CPUX64)}
-    {$include x64.inc}
-  {$elseif defined(cpupowerpc)}
-    {$include powerpc.inc}
-  {$elseif defined(cpuarm)}
-    //{$ifdef cpu64} // TODO: FPC check for ARM64
-    {$include arm.inc}
-    //{$else}
-    //{$include arm64.inc}
-    //{$endif}
-  {$else}
-    {$fatal Pascal Script is not supported for your architecture at the moment!}
-  {$ifend}
+  {$IFNDEF _INVOKECALL_IMPL_}
+    {-$DEFINE _INVOKECALL_IMPL_} { optional }
+  {$ENDIF !_INVOKECALL_IMPL_}
+
+  {$IFDEF PS_USECLASSICINVOKE}
+    {$UNDEF _INVOKECALL_INC_}
+  {$ELSE}
+    {$IFDEF USEINVOKECALL}
+      {$IFDEF _INVOKECALL_IMPL_}
+        {$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
+      {$ENDIF _INVOKECALL_IMPL_}
+    {$ENDIF USEINVOKECALL}
+  {$ENDIF !PS_USECLASSICINVOKE}
+
+  {$IFNDEF _INVOKECALL_INC_}
+    {$if defined(cpu86) or defined(CPUX86)}
+      {$include x86.inc}
+    {$elseif defined(cpux86_64) or defined(CPUX64)}
+      {$include x64.inc}
+    {$elseif defined(cpupowerpc)}
+      {$include powerpc.inc}
+    {$elseif defined(cpuarm)}
+      //{$ifdef cpu64} // TODO: FPC check for ARM64
+      {$include arm.inc}
+      //{$else}
+      //{$include arm64.inc}
+      //{$endif}
+    {$else}
+      {$fatal Pascal Script is not supported for your architecture at the moment!}
+    {$ifend}
+  {$ENDIF !_INVOKECALL_INC_}
+
 {$ENDIF FPC}
 {$IFDEF _INVOKECALL_INC_}
   {$include InvokeCall.inc}
@@ -13948,10 +14329,13 @@ begin
 end;
 {$else !empty_methods_handler}
 
-function MyAllMethodsHandler2(Self: PScriptMethodInfo; const Stack: PPointer; _EDX, _ECX: Pointer): Integer; forward;
+function MyAllMethodsHandler2({RCX:}Self: PScriptMethodInfo; const {RDX:}Stack: PPointer;
+  {R8:}_EDX, {R9:}_ECX: Pointer): Integer; forward;
 
 procedure MyAllMethodsHandler;
+// TODO: describe the logic
 {$ifdef CPUX64}
+{$IFDEF FPC}{$ASMMODE INTEL}{$ENDIF}
 //  On entry:
 //  RCX = Self pointer
 //  RDX, R8, R9 = param1 .. param3
@@ -14084,9 +14468,16 @@ begin
 end;
 
 procedure PutOnFPUStackExtended(ft: extended);
+{$if defined(FPC) and defined(CPU64)}
+  {$ASMMODE ATT}
+{$ifend}
 asm
   //fstp tbyte ptr [ft]
+  {$if defined(FPC) and defined(CPU64)}
+  fld %st(1) //TODO: FPC Test
+  {$else}
   fld tbyte ptr [ft]
+  {$ifend}
 end;
 
 function MyAllMethodsHandler2(Self: PScriptMethodInfo; const Stack: PPointer; _EDX, _ECX: Pointer): Integer;
@@ -14467,9 +14858,13 @@ destructor TPSRuntimeAttributes.Destroy;
 var
   i: Longint;
 begin
-  for i := FAttributes.Count-1 downto 0 do
-    TPSRuntimeAttribute(FAttributes[i]).Free;
-  FAttributes.Free;
+  if Assigned(FAttributes) then begin
+    for i := FAttributes.Count-1 downto 0 do begin
+      TPSRuntimeAttribute(FAttributes[i]).Free;
+      FAttributes[i] := nil;
+    end;
+    FreeAndNil(FAttributes);
+  end;
   inherited;
 end;
 
@@ -14504,8 +14899,10 @@ end;
 
 destructor TPSInternalProcRec.Destroy;
 begin
-  if FData <> nil then
-    Freemem(Fdata, FLength);
+  if Assigned(FData) then begin
+    FreeMem(FData, FLength);
+    FData := nil;
+  end;
   inherited;
 end;
 
@@ -14603,7 +15000,10 @@ begin
       end;
     end;
   end; // for i
-  FreeMem(FDataPtr, FCapacity);
+  if Assigned(FDataPtr) then begin
+    FreeMem(FDataPtr, FCapacity);
+    FDataPtr := nil;
+  end;
   inherited;
 end;
 
@@ -14720,8 +15120,7 @@ begin
   Result := PSGetUInt(@PPSVariantData(val).Data, val.FType);
 end;
 
-{$IFNDEF PS_NOWIDESTRING}
-function TPSStack.GetUnicodeString(ItemNo: Integer): tbtunicodestring;
+function TPSStack.GetUnicodeString(ItemNo: Integer): TbtUnicodeString;
 var
   val: PPSVariant;
 begin
@@ -14732,6 +15131,7 @@ begin
   Result := PSGetUnicodeString(@PPSVariantData(val).Data, val.FType);
 end;
 
+{$IFNDEF PS_NOWIDESTRING}
 function TPSStack.GetWideString(ItemNo: Longint): tbtWideString;
 var
   val: PPSVariant;
@@ -14969,7 +15369,6 @@ begin
     raise Exception.Create(RPS_TypeMismatch);
 end;
 
-{$IFNDEF PS_NOWIDESTRING}
 procedure TPSStack.SetUnicodeString(ItemNo: Integer;
   const Data: TbtUnicodeString);
 var
@@ -14984,6 +15383,7 @@ begin
   PSSetUnicodeString(@PPSVariantData(val).Data, val.FType, ok, Data);
 end;
 
+{$IFNDEF PS_NOWIDESTRING}
 procedure TPSStack.SetWideString(ItemNo: Longint;
   const Data: tbtWideString);
 var
@@ -15074,7 +15474,7 @@ type
 {$ENDIF CPU64}{$ENDIF FPC}
 {+.}
 
-function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: tbtString;
+function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string;
   const Par: array of Variant): Variant;
 var
   Param: Word;
@@ -15082,9 +15482,10 @@ var
   DispatchId: Longint;
   DispParam: TDispParams;
   ExceptInfo: TExcepInfo;
-  aName: PWideChar;
-  WSFreeList: TPSList;
   {+}
+  sName: TbtString;
+  pName: PWideChar;
+  WSFreeList: TPSList;
   ArgType: Longint;
   DispArg: {ActiveX.pas:}PVariantArg;
 const
@@ -15099,17 +15500,44 @@ begin
   FillChar({%H-}ExceptInfo, SizeOf(ExceptInfo), 0);
   if Name = '' then begin
     DispatchId:=0;
-  end else begin
-   aName := StringToOleStr(Name);
-   try
-     if Self = nil then
-      raise Exception.Create(RPS_NILInterfaceException);
-     if Self.GetIDsOfNames(GUID_NULL, @aName, 1, LOCALE_SYSTEM_DEFAULT, @DispatchId) <> S_OK then
-      raise Exception.Create(RPS_UnknownMethod);
-   finally
-     SysFreeString(aName);
-   end;
+  end else begin // @dbg: pansichar(pointer(name)) ; pwidechar(pointer(name))
+    {+}
+    (* Notes: ------------------------------------------------------------------
+
+       {$if btCharIsWide}
+         Name == UnicodeString(always) == string == TbtString
+         Bug: but when name declared as AnsiString method wrapper not converted parameter to declared type
+       {$else}
+         Name == AnsiString(always) == TbtString
+         Bug: but when name declared as UnicodeString or 'string is unicode' method wrapper not converted parameter to declared type
+       {$ifend}
+
+       @debug code stack:
+         function TPSExec.RunScript
+           ...
+           Cm_C:
+           ...
+             if u.ClassType = TPSExternalProcRec then begin
+             ...
+               TPSExternalProcRec(u).ProcPtr(Self, TPSExternalProcRec(u), FGlobalVars, FStack);
+                 => function DelphiFunctionProc
+                       Evaluate Windows: enter text:
+                         Stack[2].FType,r
+                           value is differ with base type
+      Notes. ------------------------------------------------------------------
+    *)
+    sName := PTbtString(@Name)^;
+    pName := StringToOleStr(sName);
+    try
+      if Self = nil then
+        raise Exception.Create(RPS_NILInterfaceException);
+      if Self.GetIDsOfNames(GUID_NULL, @pName, 1, LOCALE_SYSTEM_DEFAULT, @DispatchId) <> S_OK then
+        raise Exception.Create(RPS_UnknownMethod);
+    finally
+      SysFreeString(pName);
+    end;
   end;
+  {+.}
   DispParam.cNamedArgs := 0;
   DispParam.rgdispidNamedArgs := nil;
   DispParam.cArgs := (High(Par) + 1);

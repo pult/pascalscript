@@ -1,4 +1,4 @@
-{ uPSCompiler.pas } // version: 2020.0722.0808
+{ uPSCompiler.pas } // version: 2020.1010.1009
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -1923,31 +1923,36 @@ begin
       Parser.Next;
       if (Parser.CurrTokenId = CSTI_Identifier) then
       begin
-        if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'safecall') then
+        if {$if btCharIsAnsi}{$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}{$ifend}
+          SameText(Parser.OriginalToken, 'safecall') then
         begin
           CC := cdSafecall;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'stdcall') then
+        else if {$if btCharIsAnsi}{$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}{$ifend}
+          SameText(Parser.OriginalToken, 'stdcall') then
         begin
           CC := cdStdCall;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'pascal') then
+        else if {$if btCharIsAnsi}{$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}{$ifend}
+          SameText(Parser.OriginalToken, 'pascal') then
         begin
           CC := cdPascal;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'cdecl') then
+        else if {$if btCharIsAnsi}{$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}{$ifend}
+          SameText(Parser.OriginalToken, 'cdecl') then
         begin
           CC := cdCdecl;
           Parser.StateSave(AParserState, pslMini);
           Parser.Next;
         end
-        else if {$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}SameText(Parser.OriginalToken, 'register') then
+        else if {$if btCharIsAnsi}{$IFDEF _ANSISTRINGS_}AnsiStrings.{$ENDIF}{$ifend}
+          SameText(Parser.OriginalToken, 'register') then
         begin
           CC := cdRegister;
           Parser.StateSave(AParserState, pslMini);
@@ -2413,6 +2418,7 @@ procedure DisposeVariant(p: PIfRVariant);
 begin
   if Assigned(p) then begin
     FinalizeVariant(p^);
+    p^.FType := nil;
     Dispose(p);
   end;
 end;
@@ -4999,7 +5005,7 @@ begin
     b := FOnWriteLine(Self, FParser.CurrTokenPos);
     {$ELSE}
     b := FOnWriteLine(Self, FModule, FParser.CurrTokenPos);
-    {$ENDIF}
+    {$ENDIF PS_USESSUPPORT}
   end else
     b := True;
   if b then
@@ -5060,12 +5066,19 @@ function TPSPascalCompiler.ReadString: PIfRVariant;
         if UTF8Decode then
         begin
         temp3 := temp3
-          + {$IFNDEF PS_NOWIDESTRING}
+          + {.$IFNDEF PS_NOWIDESTRING}
                {$IFDEF DELPHI6UP}{.$IFNDEF FPC}System.{.$ENDIF}
                  {$IFDEF DELPHI2009UP}UTF8ToWideString{$ELSE}UTF8Decode{$ENDIF}
                {$ENDIF}
-            {$ENDIF}
-            (PString(FParser.GetToken))
+            {.$ENDIF}
+            (
+              //-PString(FParser.GetToken)
+              {$if btCharIsWide}
+              RawByteString(FParser.GetToken)
+              {$else}
+              FParser.GetToken
+              {$ifend}
+            )
         ;
         {$IFNDEF PS_NOWIDESTRING}
         wChar := True;
@@ -10727,9 +10740,15 @@ var
       l: Longint;
     begin
       if Len < 0 then Len := 0;
-      l := Length(FOutput);
-      SetLength(FOutput, l + Len);
-      Move(Data, FOutput[l + 1], Len);
+      if Len > 0 then begin
+        l := Length(FOutput);
+        SetLength(FOutput, l + Len);
+        {$if btCharIsWide}
+        if (Len mod 2) = 1 then
+          FOutput[l + Len] := TbtChar(#0);
+        {$ifend}
+        Move(Data, FOutput[l + 1], Len);
+      end;
     end;
 
     procedure WriteLong(l: Cardinal);
@@ -10759,17 +10778,17 @@ var
         btDouble: WriteData(p^.tsingle, sizeof(tbtDouble));
         btExtended: WriteData(p^.tsingle, sizeof(tbtExtended));
         btCurrency: WriteData(p^.tsingle, sizeof(tbtCurrency));
-        btChar: WriteData(p^.tchar, 1);
+        btChar: WriteData(p^.tChar, btCharSize);
         btSet:
           begin
-            WriteData(tbtString(p^.tstring)[1], Length(tbtString(p^.tstring)));
+            WriteData(tbtString(p^.tstring)[1], Length(tbtString(p^.tstring))*btCharSize);
           end;
         btString:
           begin
-            WriteLong(Length(tbtString(p^.tstring)));
-            WriteData(tbtString(p^.tstring)[1], Length(tbtString(p^.tstring)));
+            WriteLong(Length(tbtString(p^.tString)));
+            WriteData(tbtString(p^.tstring)[1], Length(tbtString(p^.tstring))*btCharSize);
           end;
-        btenum:
+        btEnum:
           begin
             if TPSEnumType(p^.FType).HighValue <= 256 then
               WriteData(p^.tu32, 1)
@@ -10800,7 +10819,7 @@ var
       for i := 0 to Attr.Count-1 do begin
         j := Length(attr[i].FAttribType.Name);
         WriteLong(j);
-        WriteData(Attr[i].FAttribType.Name[1], j);
+        WriteData(Attr[i].FAttribType.Name[1], j*btCharSize);
         WriteLong(Attr[i].Count);
         for j := 0 to Attr[i].Count-1 do
           WriteVariant(Attr[i][j]);
@@ -10866,11 +10885,11 @@ var
           {$ENDIF}
           if x.BaseType = btClass then begin
             WriteLong(Length(TPSClassType(X).Cl.FClassName));
-            WriteData(TPSClassType(X).Cl.FClassName[1], Length(TPSClassType(X).Cl.FClassName));
+            WriteData(TPSClassType(X).Cl.FClassName[1], Length(TPSClassType(X).Cl.FClassName)*btCharSize);
           end else if (x.BaseType = btProcPtr) then begin
             s := DeclToBits(TPSProceduralType(x).ProcDef);
             WriteLong(Length(s));
-            WriteData(s[1], Length(s));
+            WriteData(s[1], Length(s)*btCharSize);
           end else
           if (x.BaseType = btSet) then begin
             WriteLong(TPSSetType(x).BitSize);
@@ -10888,7 +10907,7 @@ var
           end;
           if FExportName <> '' then begin
             WriteLong(Length(FExportName));
-            WriteData(FExportName[1], length(FExportName));
+            WriteData(FExportName[1], Length(FExportName)*btCharSize);
           end;
           WriteAttributes(x.Attributes);
         end;
@@ -10916,7 +10935,7 @@ var
         if x.exportname <> '' then begin
           WriteByte( 1);
           WriteLong(Length(X.ExportName));
-          WriteData( X.ExportName[1], length(X.ExportName));
+          WriteData( X.ExportName[1], Length(X.ExportName)*btCharSize);
         end else
           WriteByte( 0);
       end;
@@ -10941,26 +10960,26 @@ var
           WriteLong(0); // offset is unknown at this time
           WriteLong(0); // length is also unknown at this time
           WriteLong(Length(xo.Name));
-          WriteData( xo.Name[1], length(xo.Name));
+          WriteData( xo.Name[1], Length(xo.Name)*btCharSize);
           s := MakeExportDecl(xo.Decl);
-          WriteLong(Length(s));
-          WriteData( s[1], length(S));
+          WriteLong(Length(S));
+          WriteData(S[1], length(S)*btCharSize);
         end else begin
           xe := TPSExternalProcedure(xp);
           if xe.RegProc.ImportDecl <> '' then begin
             WriteByte( att or 3); // imported
             if xe.RegProc.FExportName then begin
               WriteByte(Length(xe.RegProc.Name));
-              WriteData(xe.RegProc.Name[1], Length(xe.RegProc.Name) and $FF);
+              WriteData(xe.RegProc.Name[1], (Length(xe.RegProc.Name) and $FF) * btCharSize);
             end else begin
               WriteByte(0);
             end;
             WriteLong(Length(xe.RegProc.ImportDecl));
-            WriteData(xe.RegProc.ImportDecl[1], Length(xe.RegProc.ImportDecl));
+            WriteData(xe.RegProc.ImportDecl[1], Length(xe.RegProc.ImportDecl)*btCharSize);
           end else begin
             WriteByte(att or 1); // imported
             WriteByte(Length(xe.RegProc.Name));
-            WriteData(xe.RegProc.Name[1], Length(xe.RegProc.Name) and $FF);
+            WriteData(xe.RegProc.Name[1], (Length(xe.RegProc.Name) and $FF)*btCharSize);
           end;
         end;
         if xp.Attributes.Count <> 0 then
@@ -10982,7 +11001,7 @@ var
           L2 := Length(FOutput);
           Move(L2, FOutput[TPSInternalProcedure(x).OutputDeclPosition + 2], 4);
           // write position
-          WriteData(TPSInternalProcedure(x).Data[1], Length(TPSInternalProcedure(x).Data));
+          WriteData(TPSInternalProcedure(x).Data[1], Length(TPSInternalProcedure(x).Data)*btCharSize);
           L2 := Cardinal(Length(FOutput)) - L2;
           Move(L2, FOutput[TPSInternalProcedure(x).OutputDeclPosition + 6], 4); // write length
         end;
@@ -11077,6 +11096,8 @@ var
 
   var                       //nvds
     MainProc : Cardinal;    //nvds
+  var
+    HDR: TPSHeader;
   begin // function MakeOutput
     if (@FOnBeforeOutput <> nil) then begin
       if not FOnBeforeOutput(Self) then begin
@@ -11086,19 +11107,23 @@ var
     end;
     MainProc := FindMainProc; //NvdS (need it here becose FindMainProc can create a New proc.
     CreateDebugData;
-    WriteLong(PSValidHeader);
-    WriteLong(PSCurrentBuildNo);
-    WriteLong(FCurrUsedTypeNo);
-    WriteLong(FProcs.Count);
-    WriteLong(FVars.Count);
-    WriteLong(MainProc);  //nvds
-    WriteLong(0);
+
+    //-FillChar(HDR, SizeOf(HDR), 32); // @dbg: FOutput; Length(FOutput)
+    HDR.HDR := PSValidHeader;
+    HDR.PSBuildNo := PSCurrentBuildNo;
+    HDR.TypeCount := FCurrUsedTypeNo;
+    HDR.ProcCount := FProcs.Count;
+    HDR.VarCount := FVars.Count;
+    HDR.MainProcNo := MainProc;
+    HDR.ImportTableSize := 0;
+    WriteData(HDR, SizeOf(HDR));
+
     WriteTypes;
     WriteProcs;
     WriteVars;
     WriteProcs2;
 
-    Result := True;
+    Result := True; // @dbg: FOutput; Length(FOutput)
   end; // function MakeOutput
 
   function CheckExports: Boolean;
@@ -13376,8 +13401,11 @@ end;
 
 destructor TPSConstant.Destroy;
 begin
-  DisposeVariant(Value);
-  inherited Destroy;
+  if Assigned(FValue) then begin
+    DisposeVariant(FValue);
+    FValue := nil;
+  end;
+  inherited;
 end;
 
 procedure TPSConstant.SetChar(c: tbtChar);
@@ -14679,6 +14707,7 @@ begin
   if Assigned(FValues) then begin
     for i := FValues.Count-1 downto 0 do begin
       DisposeVariant(FValues.Data[i]);
+      FValues.Data[i] := nil;
     end;
     FreeAndNil(FValues);
   end;
@@ -14692,6 +14721,7 @@ var
 begin
   for i := FValues.Count-1 downto 0 do begin
     DisposeVariant(FValues[i]);
+    FValues[i] := nil;
   end;
   FValues.Clear;
   FAttribType := Item.FAttribType;

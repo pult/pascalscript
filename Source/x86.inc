@@ -1,4 +1,4 @@
-{ x86.inc } // version: 2020.0628.1040
+{ x86.inc } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -884,7 +884,7 @@ begin
             {$IFNDEF PS_NOINT64}bts64:
               begin
                 EAX := RealCall_CDecl(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
-                tbts64(res^.Dta^) := Int64(EAX) shl 32 or EDX;
+                tbts64(res^.Dta^) := Int64(EDX) shl 32 or EAX;
               end;
             {$ENDIF !PS_NOINT64}
             btVariant, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString, {$ENDIF}
@@ -938,7 +938,7 @@ begin
             {$IFNDEF PS_NOINT64}
             bts64: begin
               EAX := RealCall_Other(Address, @Stack[Length(Stack)-3], Length(Stack) div 4, 4, @EDX);
-              TbtS64(res^.dta^) := Int64(EAX) shl 32 or EDX;
+              TbtS64(res^.dta^) := Int64(EDX) shl 32 or EAX;
             end;
             {$ENDIF !PS_NOINT64}
             btVariant, {$IFNDEF PS_NOWIDESTRING}btUnicodeString, btWideString,{$ENDIF}

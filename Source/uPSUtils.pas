@@ -1,4 +1,4 @@
-{ uPSUtils.pas } // version: 2020.0722.0808
+{ uPSUtils.pas } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -8,6 +8,8 @@ unit uPSUtils;
 interface
 
 uses
+  {$IFDEF DELPHI7UP}Types,{$ENDIF}
+  //{$IFDEF DELPHI17UP}System.UITypes,{$ENDIF}
   Classes, SysUtils
   {$IFNDEF FPC}
   {$IFDEF MSWINDOWS}
@@ -18,7 +20,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202006281040; // format: yyyymmddhhnn
+  uPSVersion = 202010101010; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -26,7 +28,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202006281040)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202010101010)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -40,7 +42,7 @@ const
   PSLowBuildSupport        = 12;
   PSCurrentBuildNo         = 23;
   PSCurrentversion         = '1.31';
-  PSValidHeader            = 1397769801;
+  PSValidHeader            = 1397769801; // == "IFPS"
   PSAddrStackStart         = 1610612736;
   PSAddrNegativeStackStart = 1073741824;
 
@@ -66,16 +68,44 @@ type
     {.$ifend}
   {$ENDIF !NEXTGEN}
   //
+  {$IFDEF PS_BTSTRINGNATIVE}
+  TbtChar = Char;
+  PTbtChar = PChar;
+  TbtString = {$IFDEF UNICODE_OR_FPC}type {$ENDIF} string;
+  PTbtString = PString;
+  {$ELSE !PS_PS_BTSTRINGNATIVE}
   TbtChar = AnsiChar;
   PTbtChar = PAnsiChar;
   TbtString = {$IFDEF UNICODE_OR_FPC}type {$ENDIF} AnsiString;
   PTbtString = PAnsiString;
+  {$ENDIF !PS_BTSTRINGNATIVE}
   //
   TPSBaseType = Byte;
   TPSVariableType = (ivtGlobal, ivtParam, ivtVariable);
 
 const
   btCharSize = SizeOf(TbtChar);
+  {$EXTERNALSYM btCharSize}
+  {$IFNDEF FPC}{$warn comparison_true off}{$ENDIF}
+  btCharIsWide = {$if btCharSize=2}True{$else}False{$ifend};
+  {$EXTERNALSYM btCharIsWide}
+  btCharIsAnsi = not btCharIsWide;
+  {$EXTERNALSYM btCharIsAnsi}
+  btCharSizeNative = SizeOf(Char);
+  btCharIsNative = {$if btCharSize=btCharSizeNative}True{$else}False{$ifend};
+  {$EXTERNALSYM btCharIsNative}
+{$IFDEF _DCC_MSG_}
+  {$if btCharIsWide}
+    {$MESSAGE 'Note: RPS btChar is Wide'}
+  {$else}
+    {$MESSAGE 'Note: RPS btChar is Ansi'}
+  {$ifend}
+  {$if btCharIsNative}
+    {$MESSAGE 'Note: RPS btChar == System.Char'}
+  {$else}
+    {$MESSAGE 'Note: RPS btChar <> System.Char (==Ansi)'}
+  {$ifend}
+{$ENDIF}
 
 const
   btReturnAddress       = 0;
@@ -105,6 +135,10 @@ const
 {$IFNDEF PS_NOWIDESTRING}
   btWideString          = 19;
   btWideChar            = 20;
+{$ELSE}
+  {$IFDEF UNICODE}
+  btWideChar            = 20;
+  {$ENDIF}
 {$ENDIF}
   btProcPtr             = 21;
   btStaticArray         = 22;
@@ -122,7 +156,12 @@ const
   btEnum                = 129;
   btExtClass            = 131;
 
-function MakeHash(const s:  TbtString): Longint;
+// Small hash maker:
+function MakeHash(const S: ShortString): Longint; overload;
+function MakeHash(const S: AnsiString): Longint; overload;
+{$if btCharIsWide}
+function MakeHash(const V: TbtString): Longint; overload;
+{$ifend}
 
 const
 { Script internal command: Assign command<br>
@@ -325,7 +364,7 @@ type
   {$if not declared(ShortString)}
   ShortString = AnsiString;
   {$ifend}
-{$IFNDEF PS_NOWIDESTRING}
+{.$IFNDEF PS_NOWIDESTRING}
   TbtWideString = WideString;
   {$if not declared(UnicodeString)}
   {-IFNDEF UNICODE}
@@ -335,7 +374,7 @@ type
   TbtUnicodeString = UnicodeString;
   TbtWideChar = WideChar;
   TbtNativeString = {$IFDEF UNICODE}tbtUnicodeString{$ELSE}tbtString{$ENDIF};
-{$ENDIF !PS_NOWIDESTRING}
+{.$ENDIF !PS_NOWIDESTRING}
 {+}
 {$IFDEF FPC}
   {$if not declared(NativeUInt)}
@@ -356,6 +395,7 @@ type
   {.$ifend}
   IPointer = NativeUInt;
 {$ENDIF !FPC}
+  PIPointer = ^IPointer;
   PNativeInt = ^NativeInt;
   PNativeUInt = ^NativeUInt;
 {+.}
@@ -369,7 +409,24 @@ const
 type
   {+}
   EPSError = class(Exception);
+
+  TPSHeader = packed record
+    HDR: Cardinal;
+    PSBuildNo: Cardinal;
+    TypeCount: Cardinal;
+    ProcCount: Cardinal;
+    VarCount: Cardinal;
+    MainProcNo: Cardinal;
+    ImportTableSize: Cardinal;
+  end;
+
+  {TPSExportItem = packed record
+    ProcNo: Cardinal;
+    NameLength: Cardinal;
+    DeclLength: Cardinal;
+  end;}
   {+.}
+
   PPointerList = ^TPointerList;
 
   TPointerList = array[0..MaxListSize - 1] of Pointer;
@@ -584,7 +641,7 @@ type
   TPSPascalParser = class
   protected
     FData: TbtString;
-    FText: {$IFDEF DELPHI4UP}PAnsiChar{$ELSE}PChar{$ENDIF};
+    FText: PTbtChar;
     FLastEnterPos, FRow, FRealPosition, FTokenLength: Cardinal;
     FTokenId: TPSPasToken;
     FToken: TbtString;
@@ -617,11 +674,14 @@ function FloatToStr(E: Extended): TbtString; {$ifdef INLINE_SUPPORT} inline; {$e
 function FastLowerCase(const s: TbtString): TbtString;
 function Fw(const S: TbtString): TbtString;
 function IntToStr(I: LongInt): TbtString;
+{$if not declared(UIntToStr)}
+function UIntToStr(I: Cardinal): string; {$define _UIntToStr_}
+{$ifend}
 function StrToIntDef(const S: TbtString; Def: LongInt): LongInt;
 function StrToInt(const S: TbtString): LongInt;
 function StrToFloat(const s: TbtString): Extended;
 
-function FastUpperCase(const s: TbtString): TbtString;
+function FastUpperCase(const S: TbtString): TbtString; {$ifdef _inline_}{$if btCharIsWide} inline;{$ifend}{$endif}
 
 function GRFW(var s: TbtString): TbtString;
 function GRLW(var s: TbtString): TbtString;
@@ -719,6 +779,12 @@ function AnsiSameTextU(const s1,s2: UnicodeString): Boolean;
   {$ifdef INLINE_SUPPORT} inline; {$endif}
 {$ENDIF UNICODE}
 
+{$IFDEF FPC}
+  {$IFNDEF PS_NOWIDESTRING}
+function StringOfChar(Ch: WideChar; Count: Integer): UnicodeString; overload;
+  {$ENDIF !PS_NOWIDESTRING}
+{$ENDIF FPC}
+
 implementation
 
 uses
@@ -732,7 +798,7 @@ uses
   {$IFEND}
   ;
 
-{$if (defined(DELPHI3UP) or defined(FPC))} // {+} TODO: check "resourcestring" for modern FPC {+.}
+{$if (defined(DELPHI3UP) or defined(FPC))}
 resourcestring
 {$else}
 const
@@ -1222,15 +1288,82 @@ begin
 end;{$IFDEF FPC}{$pop}{$ENDIF}
 {$ENDIF UNICODE}
 
-function MakeHash(const s: TbtString): Longint;
-{small hash maker}
+{$IFDEF FPC}
+  {$IFNDEF PS_NOWIDESTRING}
+function StringOfChar(Ch: WideChar; Count: Integer): UnicodeString; overload;
+var
+  R: PWideChar; // Result buffer pointer
+  S: PWideChar; // Source buffer pointer
+  C: Integer;   // Source chars count
+  D: Integer;   // Result buffer count dupes (of AText)
+begin
+  if Count < 0  then
+    Count := 0;
+  C := Count;
+  {$IFDEF FPC}{$push}
+    {$warn 5094 off}  // FPC: Hint: Function result variable of a managed type does not seem to be initialized
+  {$ENDIF}
+  //Result := '';
+  SetLength(Result, Count);
+  {$IFDEF FPC}{$pop}{$ENDIF}
+  if Count = 0  then
+    Exit;
+  R := PWideChar(Result);
+  R^ := Ch;
+  Dec(Count);
+  if Count = 0 then
+    Exit;
+  S := R;
+  Inc(R, C);
+  D := 1;
+  while Count > 0 do
+  begin
+    Move(S^, R^, C * SizeOf(WideChar));
+    Inc(R, C);
+    Dec(Count, D);
+    Inc(D, D);
+    if D < Count then
+      Inc(C, C)
+    else if Count > 0 then
+      C := Count;
+  end;
+end;
+  {$ENDIF !PS_NOWIDESTRING}
+{$ENDIF FPC}
+
+//
+// Small hash maker:
+//
+function MakeHash(const S: ShortString): Longint;
 var
   I: Integer;
 begin
   Result := 0;
-  for I := 1 to Length(s) do
-    Result := ((Result shl 7) or (Result shr 25)) + Ord(s[I]);
+  for I := 1 to Length(S) do
+    Result := ((Result shl 7) or (Result shr 25)) + Ord(S[I]);
 end;
+
+function MakeHash(const S: AnsiString): Longint;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to Length(S) do
+    Result := ((Result shl 7) or (Result shr 25)) + Ord(S[I]);
+end;
+
+{$if btCharIsWide}
+function MakeHash(const V: TbtString): Longint;
+var
+  I: Integer;
+  S: AnsiString;
+begin
+  Result := 0;
+  S := AnsiString(V);
+  for I := 1 to Length(S) do
+    Result := ((Result shl 7) or (Result shr 25)) + Ord(S[I]);
+end;
+{$ifend}
 
 function GRFW(var s: TbtString): TbtString;
 var l: Longint;
@@ -1266,7 +1399,7 @@ end;
 
 {+}
 function PointerShift(Ptr: Pointer; Offset: NativeInt): Pointer; overload;
-{$IFDEF FPC}{$push} // FPC: https://wiki.freepascal.org/Turn_warnings_and_hints_on_or_off
+{$IFDEF FPC}{$push}
   {$warn 4055 off}  // FPC: Hint: Conversion between ordinals and pointers is not portable
   {$warn 4082 off}  // FPC: Warning: Converting pointers to signed integers may result in wrong comparison results and range errors, use an unsigned type instead.
 {$ENDIF}
@@ -1283,22 +1416,27 @@ begin
   Result := Pointer(NativeUInt(NativeInt(Ptr) + NativeInt(Offset)));
 end; {$IFDEF FPC}{$pop}{$ENDIF}
 
-function string_starts_with(const S, Look: tbtString): Boolean; overload;
-var len: integer; p1,p2: PAnsiChar;
+function string_starts_with(const S, Look: TbtString): Boolean; overload;
+var len: integer; p1,p2: PTbtChar;
 begin
   //Result := Copy(S, 1, Length(S)) = Look;
 
   len := Length(Look);
 
 //[1]
-  //Result := ( Length(S) >= len )
-  //  and ( {$IFDEF DELPHI18UP}AnsiStrings.{$ENDIF}AnsiStrLComp(PAnsiChar(S), PAnsiChar(Look), len) = 0 );
+  (*Result := ( Length(S) >= len )
+    {$if btCharIsNative}
+    and ( {$if btCharIsAnsi}{$IFDEF DELPHI18UP}AnsiStrings.{$ENDIF}Ansi{$ifend}StrLComp(PTbtChar(S), PTbtChar(Look), len) = 0 )
+    {$else} // ansi
+    and ( {$IFDEF DELPHI18UP}AnsiStrings.{$ENDIF}AnsiStrLComp(PAnsiChar(S), PAnsiChar(Look), len) = 0 )
+    {$ifend}
+  ;//*)
 
 //[2] // best for small strings
   Result := ( Length(S) >= len );
   if Result then begin
-    p1 := PAnsiChar(S);
-    p2 := PAnsiChar(Look);
+    p1 := PTbtChar(S);
+    p2 := PTbtChar(Look);
     while len > 0 do begin
       Result := p1^ = p2^;
       if not Result then
@@ -1335,34 +1473,38 @@ begin
   end;
 end;
 {$ENDIF UNICODE}//*)
-
-type
-  EPSConvertError = class(Exception); // TODO: ?EPSConvertError = class(EPSError);
-  Exception = EPSConvertError;
 {+.}
 
 function StrToFloat(const s: TbtString): Extended;
-var
-  i: longint;
+var E: Longint;
 begin
-  Val(string(s), Result, i);
-  if i <> 0 then raise Exception.Create(RPS_InvalidFloat);
+  Val(string(s), Result, E);
+  if E <> 0 then
+    raise {SysUtils.}EConvertError.Create(RPS_InvalidFloat);
 end;
 
 function IntToStr(I: LongInt): TbtString;
-var
-  s: tbtstring;
+var S: ShortString;
 begin
-  Str(i, s);
-  IntToStr := s;
+  Str(i, S);
+  Result := TbtString(S);
 end;
+
+{$ifdef _UIntToStr_}
+function UIntToStr(I: Cardinal): string;
+var S: ShortString;
+begin
+  Str(i, S);
+  Result := string(S);
+end;
+{$endif}
 
 function FloatToStr(E: Extended): TbtString;
 {+}
 begin
   Result := TbtString(SysUtils.FloatToStr(E));
 end;
-{var s: TbtString;
+{var S: string;
 begin
   Str(e:0:12, s);
   Result := s;
@@ -1547,8 +1689,11 @@ end;
 
 destructor TPSList.Destroy;
 begin
-  FreeMem(FData, FCapacity * PointerSize);
-  inherited Destroy;
+  if Assigned(FData) then begin
+    FreeMem(FData, FCapacity * PointerSize);
+    FData := nil;
+  end;
+  inherited;
 end;
 
 procedure TPSList.SetItem(Nr: Cardinal; P: Pointer);
@@ -1641,12 +1786,11 @@ end;
 
 destructor TPSStringList.Destroy;
 begin
-  if Assigned(List) then
-  begin
+  if Assigned(List) then begin
     Clear();
     FreeAndNil(List);
   end;
-  inherited Destroy;
+  inherited;
 end;
 
 function Fw(const S: TbtString): TbtString; //  First word
@@ -1660,39 +1804,57 @@ begin
     Fw := S;
 end;
 
-function FastUpperCase(const s: TbtString): TbtString;
+function FastUpperCase(const S: TbtString): TbtString;
+{$if btCharIsWide}
+begin
+  Result := UpperCase(S);
+end;
+{$else}
 {Fast uppercase}
-var
-  I: Integer;
-  C: tbtChar;
+var p: PTbtChar;
 begin
   Result := S;
-  I := Length(Result);
-  while I > 0 do
+  if Length(Result) > 0 then
   begin
-    C := Result[I];
-    if C in [#97..#122] then
-      Result[I] := tbtChar(Ord(C) - 32);
-    Dec(I);
+    p := PTbtChar(Result);
+    while p^ <> #0 do begin
+      {$if declared(CharInSet)}
+      if CharInSet(p^,   [#97..#122]) then
+      {$else}
+      if (         p^ in [#97..#122]) then
+      {$ifend}
+        p^ := TbtChar(Ord(p^) - 32);
+      Inc(p);
+    end;
   end;
 end;
+{$ifend}
 
 function FastLowerCase(const s: TbtString): TbtString;
+{$if btCharIsWide}
+begin
+  Result := LowerCase(S);
+end;
+{$else}
 {Fast lowercase}
-var
-  I: Integer;
-  C: tbtChar;
+var p: PTbtChar;
 begin
   Result := S;
-  I := Length(Result);
-  while I > 0 do
+  if Length(Result) > 0 then
   begin
-    C := Result[I];
-    if C in [#65..#90] then
-      Result[I] := tbtChar(Ord(C) + 32);
-    Dec(I);
+    p := PTbtChar(Result);
+    while p^ <> #0 do begin
+      {$if declared(CharInSet)}
+      if CharInSet(p^,   [#65..#90]) then
+      {$else}
+      if (         p^ in [#65..#90]) then
+      {$ifend}
+        p^ := TbtChar(Ord(p^) + 32);
+      Inc(p);
+    end;
   end;
 end;
+{$ifend}
 
 type
   TRTab = record
@@ -1818,11 +1980,10 @@ var
   Err: TPSParserErrorKind;
   FLastUpToken: TbtString;
 
-  function CheckReserved(Const S: ShortString; var CurrTokenId: TPSPasToken): Boolean;
+  function CheckReserved(Const S: TbtString; var CurrTokenId: TPSPasToken): Boolean;
   var
-    L, H, I: LongInt;
-    J: SmallInt;
-    SName: ShortString;
+    L, H, I, J: LongInt;
+    SName: TbtString;
   begin
     L := 0;
     J := Length(S);
@@ -1835,7 +1996,7 @@ var
       begin
         if S = SName then
         begin
-          CheckReserved := True;
+          Result := True;
           CurrTokenId := LookupTable[I].c;
           Exit;
         end;
@@ -1849,18 +2010,18 @@ var
         else
           H := I - 1;
     end;
-    CheckReserved := False;
+    Result := False;
   end;
 
   function _GetToken(CurrTokenPos, CurrTokenLen: Cardinal): TbtString;
   var
-    s: tbtString;
+    S: tbtString;
   begin
     {$hints off}
-    SetLength(s, CurrTokenLen);
+    SetLength(S, CurrTokenLen);
     {$hints on}
-    Move(FText[CurrTokenPos], S[1], CurrtokenLen);
-    Result := s;
+    Move(FText[CurrTokenPos], S[1], CurrtokenLen*btCharSize);
+    Result := S;
   end;
 
   function ParseToken(var CurrTokenPos, CurrTokenLen: Cardinal; var CurrTokenId: TPSPasToken): TPSParserErrorKind;
@@ -1868,9 +2029,11 @@ var
   var
     ct, ci: Cardinal;
     hs: Boolean;
+    {$if btCharIsAnsi}
     p: PTbtChar;
+    {$ifend}
   begin
-    ParseToken := iNoError;
+    Result := iNoError;
     ct := CurrTokenPos;
     case FText[ct] of
       #0: begin
@@ -1880,18 +2043,31 @@ var
 
       'A'..'Z', 'a'..'z', '_': begin
         ci := ct + 1;
-        while (FText[ci] in ['_', '0'..'9', 'a'..'z', 'A'..'Z']) do begin
+        while {$if declared(CharInSet)}
+              CharInSet(FText[ci],   ['_', '0'..'9', 'a'..'z', 'A'..'Z'])
+              {$else}
+              (         FText[ci] in ['_', '0'..'9', 'a'..'z', 'A'..'Z'])
+              {$ifend}
+        do begin
           Inc(ci);
         end;
         CurrTokenLen := ci - ct;
 
         FLastUpToken := _GetToken(CurrTokenPos, CurrtokenLen);
+        {$if btCharIsWide}
+        FLastUpToken := FastUpperCase(FLastUpToken);
+        {$else} // FastUpperCase
         p := PTbtChar(FLastUpToken);
         while p^ <> #0 do begin
-          if p^ in [#97..#122] then
-            p^ := TbtChar(Ord(p^) - 32); // //Dec(Byte(p^), 32);
+          {$if declared(CharInSet)}
+          if CharInSet(p^,   [#97..#122]) then
+          {$else}
+          if (         p^ in [#97..#122]) then
+          {$ifend}
+            p^ := TbtChar(Ord(p^) - 32);
           Inc(p);
         end;
+        {$ifend}
         if not CheckReserved(FLastUpToken, CurrTokenId) then begin
           CurrTokenId := CSTI_Identifier;
         end;
@@ -1900,7 +2076,12 @@ var
       '$': begin
         ci := ct + 1;
 
-        while (FText[ci] in ['0'..'9', 'a'..'f', 'A'..'F']) do
+        while {$if declared(CharInSet)}
+              CharInSet(FText[ci],   ['0'..'9', 'a'..'f', 'A'..'F'])
+              {$else}
+              (         FText[ci] in ['0'..'9', 'a'..'f', 'A'..'F'])
+              {$ifend}
+        do
           Inc(ci);
 
         CurrTokenId := CSTI_HexInt;
@@ -1910,25 +2091,73 @@ var
       '0'..'9': begin
         hs := False;
         ci := ct;
-        while (FText[ci] in ['0'..'9']) do begin
+        while {$if declared(CharInSet)}
+              CharInSet(FText[ci],   ['0'..'9'])
+              {$else}
+              (         FText[ci] in ['0'..'9'])
+              {$ifend}
+        do begin
           Inc(ci);
           if (FText[ci] = '.') and (not hs) then begin
-            if FText[ci+1] = '.' then
+            if (FText[ci+1] = '.') then
               Break;
             hs := True;
             Inc(ci);
           end;
         end;
-        if (FText[ci] in ['E','e']) and ((FText[ci+1] in ['0'..'9'])
-          or ((FText[ci+1] in ['+','-']) and (FText[ci+2] in ['0'..'9']))) then
+
+        if {$if declared(CharInSet)}
+           CharInSet(FText[ci],   ['E','e'])
+           {$else}
+           (         FText[ci] in ['E','e'])
+           {$ifend}
+           //
+           and
+           //
+           (
+             {$if declared(CharInSet)}
+             CharInSet(FText[ci+1],  ['0'..'9'])
+             {$else}
+             (         FText[ci+1] in ['0'..'9'])
+             {$ifend}
+             //
+             or
+             //
+             (
+               {$if declared(CharInSet)}
+               CharInSet(FText[ci+1],   ['+','-'])
+               {$else}
+               (         FText[ci+1] in ['+','-'])
+               {$ifend}
+               //
+               and
+               //
+               {$if declared(CharInSet)}
+               CharInSet(FText[ci+2],   ['0'..'9'])
+               {$else}
+               (         FText[ci+2] in ['0'..'9'])
+               {$ifend}
+             )
+           ) then
         begin
           hs := True;
           Inc(ci);
-          if FText[ci] in ['+','-'] then
+          if {$if declared(CharInSet)}
+             CharInSet(FText[ci],   ['+','-'])
+             {$else}
+             (         FText[ci] in ['+','-'])
+             {$ifend}
+          then
             Inc(ci);
           repeat
             Inc(ci);
-          until not (FText[ci] in ['0'..'9']);
+          until (not
+            {$if declared(CharInSet)}
+            CharInSet(FText[ci],   ['0'..'9'])
+            {$else}
+            (         FText[ci] in ['0'..'9'])
+            {$ifend}
+          );
         end;
 
         if hs then
@@ -1952,30 +2181,45 @@ var
           end;
           Inc(ci);
         end;
-        if FText[ci] = #39 then
+        if (FText[ci] = #39) then
           CurrTokenId := CSTI_String
         else begin
           CurrTokenId := CSTI_String;
-          ParseToken := iStringError;
+          Result := iStringError;
         end;
         CurrTokenLen := ci - ct + 1;
       end;
 
       '#': begin
         ci := ct + 1;
-        if FText[ci] = '$' then begin
+        if (FText[ci] = '$') then begin
           inc(ci);
-          while (FText[ci] in ['A'..'F', 'a'..'f', '0'..'9']) do begin
+          while  {$if declared(CharInSet)}
+                 CharInSet(FText[ci],   ['A'..'F', 'a'..'f', '0'..'9'])
+                 {$else}
+                 (         FText[ci] in ['A'..'F', 'a'..'f', '0'..'9'])
+                 {$ifend}
+          do begin
             Inc(ci);
           end;
           CurrTokenId := CSTI_Char;
           CurrTokenLen := ci - ct;
         end else begin
-          while (FText[ci] in ['0'..'9']) do begin
+          while  {$if declared(CharInSet)}
+                 CharInSet(FText[ci],   ['0'..'9'])
+                 {$else}
+                 (         FText[ci] in ['0'..'9'])
+                 {$ifend}
+          do begin
             Inc(ci);
           end;
-          if FText[ci] in ['A'..'Z', 'a'..'z', '_'] then begin
-            ParseToken := iCharError;
+          if {$if declared(CharInSet)}
+             CharInSet(FText[ci],   ['A'..'Z', 'a'..'z', '_'])
+             {$else}
+             (         FText[ci] in ['A'..'Z', 'a'..'z', '_'])
+             {$ifend}
+          then begin
+            Result := iCharError;
             CurrTokenId := CSTI_Char;
           end else
             CurrTokenId := CSTI_Char;
@@ -1989,7 +2233,7 @@ var
       end;
 
       '>': begin
-        if FText[ct + 1] = '=' then begin
+        if (FText[ct + 1] = '=') then begin
           CurrTokenid := CSTI_GreaterEqual;
           CurrTokenLen := 2;
         end else begin
@@ -1999,11 +2243,11 @@ var
       end;
 
       '<': begin
-        if FText[ct + 1] = '=' then begin
+        if (FText[ct + 1] = '=') then begin
           CurrTokenId := CSTI_LessEqual;
           CurrTokenLen := 2;
         end else begin
-          if FText[ct + 1] = '>' then begin
+          if (FText[ct + 1] = '>') then begin
             CurrTokenId := CSTI_NotEqual;
             CurrTokenLen := 2;
           end else begin
@@ -2019,7 +2263,7 @@ var
       end;
 
       '(': begin
-        if FText[ct + 1] = '*' then begin
+        if (FText[ct + 1] = '*') then begin
           ci := ct + 1;
           while (FText[ci] <> #0) do begin
             if (FText[ci] = '*') and (FText[ci + 1] = ')') then
@@ -2037,7 +2281,7 @@ var
           end;
           CurrTokenId := CSTIINT_Comment;
           if (FText[ci] = #0) then
-            ParseToken := iCommentError
+            Result := iCommentError
           else
             Inc(ci, 2);
           CurrTokenLen := ci - ct;
@@ -2063,7 +2307,7 @@ var
       end;
 
       '.': begin
-        if FText[ct + 1] = '.' then begin
+        if (FText[ct + 1] = '.') then begin
           CurrTokenLen := 2;
           CurrTokenId := CSTI_TwoDots;
         end else begin
@@ -2088,7 +2332,7 @@ var
       end;
 
       ':': begin
-        if FText[ct + 1] = '=' then begin
+        if (FText[ct + 1] = '=') then begin
           CurrTokenId := CSTI_Assignment;
           CurrTokenLen := 2;
         end else begin
@@ -2113,7 +2357,7 @@ var
       end;
 
       '/': begin
-        if FText[ct + 1] = '/' then begin
+        if (FText[ct + 1] = '/') then begin
           ci := ct + 1;
           while (FText[ci] <> #0) and (FText[ci] <> #13) and (FText[ci] <> #10) do begin
             Inc(ci);
@@ -2132,13 +2376,19 @@ var
 
       #32, #9, #13, #10: begin
         ci := ct;
-        while (FText[ci] in [#32, #9, #13, #10]) do begin
-          if FText[ci] = #13 then begin
+        while
+          {$if declared(CharInSet)}
+          CharInSet(FText[ci],   [#32, #9, #13, #10])
+          {$else}
+          (         FText[ci] in [#32, #9, #13, #10])
+          {$ifend}
+        do begin
+          if (FText[ci] = #13) then begin
             inc(FRow);
-            if FText[ci+1] = #10 then
+            if (FText[ci+1] = #10) then
               inc(ci);
             FLastEnterPos := ci +1;
-          end else if FText[ci] = #10 then begin
+          end else if (FText[ci] = #10) then begin
             inc(FRow);
             FLastEnterPos := ci +1;
           end;
@@ -2151,12 +2401,12 @@ var
       '{': begin
         ci := ct + 1;
         while (FText[ci] <> #0) and (FText[ci] <> '}') do begin
-          if FText[ci] = #13 then begin
+          if (FText[ci] = #13) then begin
             inc(FRow);
-            if FText[ci+1] = #10 then
+            if (FText[ci+1] = #10) then
               Inc(ci);
             FLastEnterPos := ci + 1;
-          end else if FText[ci] = #10 then begin
+          end else if (FText[ci] = #10) then begin
             Inc(FRow);
             FLastEnterPos := ci + 1;
           end;
@@ -2164,11 +2414,11 @@ var
         end;
         CurrTokenId := CSTIINT_Comment;
         if (FText[ci] = #0) then
-          ParseToken := iCommentError;
+          Result := iCommentError;
         CurrTokenLen := ci - ct + 1;
       end;
       else begin
-        ParseToken := iSyntaxError;
+        Result := iSyntaxError;
         CurrTokenId := CSTIINT_Comment;
         CurrTokenLen := 1;
       end;
@@ -2202,7 +2452,7 @@ begin // procedure TPSPascalParser.Next
          Continue
         else begin
           SetLength(FOriginalToken, FTokenLength);
-          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength*btCharSize);
           FToken := FOriginalToken;
         end;
       end;
@@ -2212,27 +2462,27 @@ begin // procedure TPSPascalParser.Next
           Continue
         else begin
           SetLength(FOriginalToken, FTokenLength);
-          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength*btCharSize);
           FToken := FOriginalToken;
         end;
       end;
 
       CSTI_Integer, CSTI_Real, CSTI_String, CSTI_Char, CSTI_HexInt: begin
         SetLength(FOriginalToken, FTokenLength);
-        Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+        Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength*btCharSize);
         FToken := FOriginalToken;
       end;
 
       CSTI_Identifier: begin
         SetLength(FOriginalToken, FTokenLength);
-        Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+        Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength*btCharSize);
         FToken := FLastUpToken;
       end;
       else begin
         {+}
         if FTokenID >= CSTII_and then begin // NEW: allow variant/interface call like: vOutlook.Class or vOutlook.Type
           SetLength(FOriginalToken, FTokenLength);
-          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength);
+          Move(FText[CurrTokenPos], FOriginalToken[1], FTokenLength*btCharSize);
         end
         else begin
           FOriginalToken := '';

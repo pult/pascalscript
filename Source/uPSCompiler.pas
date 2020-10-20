@@ -1,4 +1,4 @@
-{ uPSCompiler.pas } // version: 2020.1010.1009
+{ uPSCompiler.pas } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -739,9 +739,11 @@ type
 
   {$IFNDEF PS_USESSUPPORT}
   TPSOnWriteLineEvent = function (Sender: TPSPascalCompiler; Position: Cardinal): Boolean;
+  TPSOnWriteLine2Event = function (Sender: TPSPascalCompiler; Position: Cardinal; IsProcExit: Boolean): Boolean;
   {$ELSE}
   TPSOnWriteLineEvent = function (Sender: TPSPascalCompiler; FileName: tbtString; Position: Cardinal): Boolean;
-  {$ENDIF}
+  TPSOnWriteLine2Event = function (Sender: TPSPascalCompiler; FileName: tbtString; Position: Cardinal; IsProcExit: Boolean): Boolean;
+  {$ENDIF PS_USESSUPPORT}
 
   TPSOnExternalProc = function (Sender: TPSPascalCompiler; Decl: TPSParametersDecl; const Name, FExternal: tbtString): TPSRegProc;
 
@@ -783,6 +785,7 @@ type
     FOnBeforeOutput: TPSOnNotify;
     FOnBeforeCleanup: TPSOnNotify;
     FOnWriteLine: TPSOnWriteLineEvent;
+    FOnWriteLine2: TPSOnWriteLine2Event;
     FContinueOffsets, FBreakOffsets: TPSList;
     FOnTranslateLineInfo: TPSOnTranslateLineInfoProc;
     FAutoFreeList: TPSList;
@@ -862,6 +865,7 @@ type
     procedure Debug_WriteParams(ProcNo: Cardinal; Proc: TPSInternalProcedure);
 
     procedure Debug_WriteLine(BlockInfo: TPSBlockInfo);
+    procedure Debug_WriteLine2(BlockInfo: TPSBlockInfo; IsProcExit: Boolean);
 
     function IsCompatibleType(p1, p2: TPSType; Cast: Boolean): Boolean;
 
@@ -960,6 +964,7 @@ type
     property OnUses: TPSOnUses read FOnUses write FOnUses;
     property OnExportCheck: TPSOnExportCheck read FOnExportCheck write FOnExportCheck;
     property OnWriteLine: TPSOnWriteLineEvent read FOnWriteLine write FOnWriteLine;
+    property OnWriteLine2: TPSOnWriteLine2Event read FOnWriteLine2 write FOnWriteLine2;
     property OnExternalProc: TPSOnExternalProc read FOnExternalProc write FOnExternalProc;
     property OnUseVariable: TPSOnUseVariable read FOnUseVariable write FOnUseVariable;
     property OnUseRegProc: TPSOnUseRegProc read FOnUseRegProc write FOnUseRegProc;
@@ -4997,10 +5002,21 @@ begin
 end;
 
 procedure TPSPascalCompiler.Debug_WriteLine(BlockInfo: TPSBlockInfo);
+begin
+  Debug_WriteLine2(BlockInfo, False);
+end;
+
+procedure TPSPascalCompiler.Debug_WriteLine2(BlockInfo: TPSBlockInfo; IsProcExit: Boolean);
 var
   b: Boolean;
 begin
-  if @FOnWriteLine <> nil then begin
+  if @FOnWriteLine2 <> nil then begin
+    {$IFNDEF PS_USESSUPPORT}
+    b := FOnWriteLine2(Self, FParser.CurrTokenPos, IsProcExit);
+    {$ELSE}
+    b := FOnWriteLine2(Self, FModule, FParser.CurrTokenPos, IsProcExit);
+    {$ENDIF PS_USESSUPPORT}
+  end else if @FOnWriteLine <> nil then begin
     {$IFNDEF PS_USESSUPPORT}
     b := FOnWriteLine(Self, FParser.CurrTokenPos);
     {$ELSE}
@@ -10408,7 +10424,7 @@ begin // function TPSPascalCompiler.ProcessSub
           Break;
       end;
       CSTII_Exit: begin
-        Debug_WriteLine(BlockInfo);
+        Debug_WriteLine2(BlockInfo, BlockInfo.SubType = tProcBegin);
         BlockWriteByte(BlockInfo, Cm_R);
         FParser.Next;
         if (BlockInfo.SubType = tifOneliner) or (BlockInfo.SubType = TOneLiner) then
@@ -10539,7 +10555,7 @@ begin // function TPSPascalCompiler.ProcessSub
     or (BlockInfo.SubType = tUnitInit) or (BlockInfo.SubType = tUnitFinish) // nvds
     {$ENDIF} then
   begin
-    Debug_WriteLine(BlockInfo);
+    Debug_WriteLine2(BlockInfo, BlockInfo.SubType = tProcBegin);
     BlockWriteByte(BlockInfo, Cm_R);
     {$IFDEF PS_USESSUPPORT}
     if FParser.CurrTokenId = CSTII_End then // nvds

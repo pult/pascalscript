@@ -1,4 +1,4 @@
-{ uPSDebugger.pas }
+{ uPSDebugger.pas } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -517,7 +517,7 @@ function TPSCustomDebugExec.TranslatePositionEx(Proc, Position: Cardinal;
 // Made by Martijn Laan (mlaan@wintax.nl)
 var
   i: LongInt;
-  fi: PFunctionInfo;
+  fi, fitmp: PFunctionInfo;
   pt: TIfList;
   r: PPositionData;
   LastFn: TbtString;
@@ -533,16 +533,17 @@ begin
   if pp = nil then Exit;
   {+.}
   for i := 0 to FDebugDataForProcs.Count -1 do begin
-    fi := FDebugDataForProcs[i];
-    if fi^.Func = pp then
+    fitmp := FDebugDataForProcs[i];
+    if fitmp^.Func = pp then begin
+      fi := fitmp;
       Break;
-    fi := nil;
-  end;
-  LastPos := 0;
-  LastRow := 0;
-  LastCol := 0;
-  if (fi <> nil) then
-  begin
+    end;
+  end; // for
+  if Assigned(fi) then begin
+    LastFn := '';
+    LastPos := 0;
+    LastRow := 0;
+    LastCol := 0;
     pt := fi^.FPositionTable;
     for i := 0 to pt.Count-1 do begin // @dbg: PPositionData(pt[0]).Position    PPositionData(pt[0]).Row
       r := pt[I]; // TODO: ??? Position >= uPSRuntime.InvalidVal-1

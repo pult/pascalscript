@@ -245,7 +245,7 @@ var
   lModuleName: tbtstring;
 begin
   {+}
-  linepos := 0; //if linepos > 0 then;
+  linepos := 0; {$IFNDEF FPC}if linepos > 0 then;{$ENDIF}
   {+.}
   lModuleName := FastUpperCase(ModuleName);
   for i := FItems.Count-1 downto 0 do begin

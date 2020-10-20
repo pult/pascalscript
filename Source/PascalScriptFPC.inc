@@ -1,7 +1,18 @@
-{ PascalScriptFPC.inc } // version: 2020.0628.1040
+{ PascalScriptFPC.inc } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
+
+{--$DEFINE _INVOKECALL_IMPL_} // optional // TODO: currentry not all parameter types supported
+{$if ( defined(cpuaarch64) or defined(cpuarm) )}
+//{$if ( defined(cpuaarch64) or defined(cpuarm) ) or defined(cpu64) }
+//{$if ( defined(cpuaarch64) or defined(cpuarm) ) or ( defined(cpu64) and not defined(mswindows) )}
+  {$DEFINE _INVOKECALL_IMPL_}
+  // view:"C:\fpcupdeluxe\fpcsrc\packages\rtl-objpas\src\inc\rtti.pp"
+{$ifend}
+{$IFDEF _INVOKECALL_IMPL_}{$IFNDEF PS_USECLASSICINVOKE}{$IFNDEF MSWINDOWS}
+  {$DEFINE USEINVOKECALL} // optional
+{$ENDIF}{$ENDIF}{$ENDIF}
 
 {$DEFINE PS_HAVEVARIANT}
 {$DEFINE PS_DYNARRAY}

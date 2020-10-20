@@ -1,4 +1,4 @@
-{ PascalScript.inc } // version: 2020.0628.1520
+{ PascalScript.inc } // version: 2020.1010.1010
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {                                                                            }
@@ -17,12 +17,24 @@
   //{$MODE OBJFPC}{$H+}
 {$ENDIF FPC}
 
+{-$DEFINE _DCC_MSG_} // optional
 {$IFDEF DEBUG}
+  {-WARN MESSAGE_DIRECTIVE ON} // dcc+ fpc-
+  {-HINT MESSAGE_DIRECTIVE ON} // dcc- fpc+
+  {-NOTE MESSAGE_DIRECTIVE ON} // dcc- fpc+
+
   {$IFDEF DEBUG_IDE}
+    {$DEFINE _DCC_MSG_}  // optional
   {$ELSE}
+    {.$DEFINE _DCC_MSG_} // optional
   {$ENDIF}
+{$ENDIF}
+{$IFDEF _DCC_MSG_}
   {$IFDEF DELPHI}
+    {-$WARN MESSAGE_DIRECTIVE ON} // optional // dcc+ fpc-
   {$ELSE}
+    {-$HINT MESSAGE_DIRECTIVE ON} // optional // dcc- fpc+
+    {-$NOTE MESSAGE_DIRECTIVE ON} // optional // dcc- fpc+
   {$ENDIF}
 {$ENDIF}
 
@@ -68,8 +80,13 @@ Defines:
   PS_NOINT64
   PS_DELPHIDIV
   PS_USESSUPPORT
+  PS_PANSICHAR       ?
+  //+:
+  PS_BTSTRINGNATIVE - for unicode not use AnsiString type (tbtString mapped to string)
+  //+.
 }
 //+:
+{-$DEFINE PS_BTSTRINGNATIVE} { optional: default: not defined }
 {-$DEFINE PS_USESSUPPORT}    { optional: default: not defined } // TODO: Need test it ...
 
 {$UNDEF DEBUG} { optional }
@@ -87,6 +104,16 @@ Defines:
   {$I PascalScriptFPC.inc}
 {+}
 {$ELSE !FPC}
+  // DELPHI :
+  {$IFDEF DELPHI23UP}
+    {$DEFINE _INVOKECALL_IMPL_} // optional
+  {$ENDIF DELPHI23UP}
+  {$IFDEF _INVOKECALL_IMPL_}{$IFNDEF PS_USECLASSICINVOKE}
+    {--$DEFINE USEINVOKECALL} // optional // TODO: currentry not all parameter types supported
+    {$if not ( defined(CPUX86) or defined(CPUX64) )}
+      {$DEFINE USEINVOKECALL} // optional // TODO: currentry not all parameter types supported
+    {$ifend}
+  {$ENDIF}{$ENDIF}
 {+.}
 {$ENDIF !FPC}
 {+}

@@ -1,4 +1,4 @@
-# RemObjects Pascal Script for "Delphi / Free Pascal" ( RPS )
+# RemObjects Pascal Script (RPS) for "Delphi/Free Pascal" 
 
 ![Sample](Articles/ps-128.png?raw=true)
 

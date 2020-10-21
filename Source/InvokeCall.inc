@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1020.2105
+{ InvokeCall.inc } // version: 2020.1021.2151
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -141,11 +141,9 @@ begin
           {btArray,} {btVariant,} {btSet,} btStaticArray, btRecord, {btInterface,} btClass,
           {$IFNDEF PS_NOWIDESTRING}
           btWideString, btWideChar,
-
           {$if declared(btPWideChar)}
           btPWideChar,
           {$ifend}
-
           {$ENDIF !PS_NOWIDESTRING}
           btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency,
           btUnicodeString
@@ -176,7 +174,7 @@ begin
           btUnicodeString:                   Arg := TValue.From<UnicodeString>(PUnicodeString(fvar.Dta)^);
           {$ENDIF}
           {$if btCharIsWide}                 // unicode string
-          btString:                          Arg := TValue.From<string>(PUnicodeString(fvar.Dta)^);
+          btString:                          Arg := TValue.From<UnicodeString>(PUnicodeString(fvar.Dta)^);
           {$else}                            // ansi string
           btString:                          Arg := TValue.From<AnsiString>(PAnsiString(fvar.Dta)^);
           {$ifend}
@@ -216,10 +214,14 @@ begin
               if CallData = nil then
                 CallData := TPSList.Create;
               CallData.Add(p);
-              // Uncomment when Handler will be implemented
+
+              //{$ifndef EMPTY_METHODS_HANDLER}
+              TMethodCallData(p^).Data := MKMethod(Self, Longint(fVar.Dta^));
+              //{$else}
               //TMethodCallData(p^).Data.Code := nil;
               //TMethodCallData(p^).Data.Data := nil;
-              TMethodCallData(p^).Data := MKMethod(Self, Longint(fVar.Dta^)); // It requires the implementation of "Handled"
+              //{$endif}
+
               Arg := TValue.From<Pointer>( PPointer(@TMethodCallData(p^).Data) );
             end;
           btInterface: // TODO: ...
@@ -320,13 +322,13 @@ begin
                                  {$IFDEF FPC}
                                  TbtString(res.Dta^) := TbtString( ResValue.AsUnicodeString );
                                  {$ELSE}
-                                 TbtString(res.Dta^) := TbtString( ResValue.AsString );
+                                 TbtString(res.Dta^) := TbtString( ResValue.AsType<UnicodeString> );
                                  {$ENDIF}
                                end;
         {$else}
         btString:              begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(AnsiString),
-                                   False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(AnsiString), False,IsConstr);
                                  {$IFDEF FPC}
                                  TbtString(res.Dta^) := TbtString( ResValue.AsAnsiString );
                                  {$ELSE}
@@ -336,25 +338,27 @@ begin
         {$ifend}
         {$IFNDEF PS_NOWIDESTRING}
         btUnicodeString:       begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(String),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(UnicodeString),False,IsConstr);
                                  {$IFDEF FPC}
-                                 TbtUnicodeString(res.Dta^) := ResValue.AsUnicodeString;
+                                 {TbtUnicodeString}UnicodeString(res.Dta^) := ResValue.AsUnicodeString;
                                  {$ELSE}
-                                 TbtUnicodeString(res.Dta^) := ResValue.AsString;
+                                 {TbtUnicodeString}UnicodeString(res.Dta^) := ResValue.AsType<UnicodeString>;
                                  {$ENDIF}
                                end;
         btWideString:          begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(String),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(WideString),False,IsConstr);
                                  {$IFDEF FPC}
-                                 TbtWideString(res.Dta^) := ResValue.AsUnicodeString;
+                                 {TbtWideString}WideString(res.Dta^) := ResValue.AsUnicodeString;
                                  {$ELSE}
-                                 TbtWideString(res.Dta^) := ResValue.AsString;
-                                 //TbtWideString(res.Dta^) := ResValue.AsType<WideString>();
+                                 {TbtWideString}WideString(res.Dta^) := ResValue.AsType<WideString>;
                                  {$ENDIF}
                                end;
         {$ENDIF}
         btU8, btS8:            begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Byte),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Byte),False,IsConstr);
                                  {$IFDEF FPC}
                                  PByte(res.Dta)^ := Byte(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -362,7 +366,8 @@ begin
                                  {$ENDIF}
                                end;
         btU16, btS16:          begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Word),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Word),False,IsConstr);
                                  {$IFDEF FPC}
                                  PWord(res.Dta)^ := Word(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -370,7 +375,8 @@ begin
                                  {$ENDIF}
                                end;
         btU32, btS32:          begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Cardinal),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Cardinal),False,IsConstr);
                                  {$IFDEF FPC}
                                  PCardinal(res.Dta)^ := Cardinal(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -378,10 +384,14 @@ begin
                                  {$ENDIF}
                                end;
         {$IFNDEF PS_NOINT64}
-        btS64:                   PInt64(res.Dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Int64),False,IsConstr).AsInt64;
+        btS64:                 begin
+                                 PInt64(res.Dta)^ := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Int64),False,IsConstr).AsInt64;
+                               end;
         {$ENDIF}
         btCurrency:            begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Currency),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Currency),False,IsConstr);
                                  {$IFDEF FPC}
                                  PCurrency(res.Dta)^ := ResValue.AsCurrency;
                                  {$ELSE}
@@ -390,7 +400,8 @@ begin
                                end;
         //TODO: XE3: Error: E2089 Invalid typecast
         btSingle:              begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Single),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Single),False,IsConstr);
                                  {$IFDEF FPC}
                                  PSingle(res.Dta)^ := ResValue.AsExtended;
                                  {$ELSE}
@@ -399,76 +410,85 @@ begin
                                end;
         //TODO: XE3: Error: E2089 Invalid typecast
         btDouble:              begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Double),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Double),False,IsConstr);
                                  {$IFDEF FPC}
                                  PDouble(res.Dta)^ := ResValue.AsExtended;
                                  {$ELSE}
                                  PDouble(res.Dta)^ := ResValue.AsType<Double>;
                                  {$ENDIF}
                                end;
-        btExtended:              PExtended(res.Dta)^ := Invoke(Address,Args,SysCalConv,TypeInfo(Extended),False,IsConstr).AsExtended;
+        btExtended:            begin
+                                 PExtended(res.Dta)^ := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Extended),False,IsConstr).AsExtended;
+                               end;
         {$if btCharIsWide}     // unicode
         btPChar:               begin
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(PWideChar),False,IsConstr);
                                  {$IFDEF FPC}
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(PWideChar),False,IsConstr);
-                                 PPWideChar(res.Dta)^ := PWideChar(ResValue.AsOrdinal);
+                                 {PTbtChar}PWideChar(res.Dta^) := PWideChar(ResValue.AsOrdinal);
                                  {$ELSE}
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(PChar),False,IsConstr);
-                                 PPChar(res.Dta)^ := ResValue.AsType<PChar>;
+                                 {PTbtChar}PWideChar(res.Dta^) := ResValue.AsType<PWideChar>;
                                  {$ENDIF}
                                end;
         {$else}                // ansi
         btPChar:               begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(PAnsiChar),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(PAnsiChar),False,IsConstr);
                                  {$IFDEF FPC}
-                                 PPAnsiChar(res.Dta)^ := PAnsiChar(ResValue.AsOrdinal);
+                                 {PTbtChar}PAnsiChar(res.Dta^) := PAnsiChar(ResValue.AsOrdinal);
                                  {$ELSE}
-                                 PPAnsiChar(res.Dta)^ := ResValue.AsType<PAnsiChar>;
+                                 {PTbtChar}PAnsiChar(res.Dta^) := ResValue.AsType<PAnsiChar>;
                                  {$ENDIF}
                                end;
         {$ifend}
         {$if btCharIsWide}     // unicode
         btChar:                begin
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(WideChar),False,IsConstr);
                                  {$IFDEF FPC}
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(WideChar),False,IsConstr);
-                                 PWideChar(res.Dta)^ := ResValue.AsWideChar;
+                                 {TbtChar}WideChar(res.Dta^) := ResValue.AsWideChar;
                                  {$ELSE}
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Char),False,IsConstr);
-                                 PChar(res.Dta)^ := ResValue.AsType<Char>;
+                                 {TbtChar}WideChar(res.Dta^) := ResValue.AsType<WideChar>;
                                  {$ENDIF}
                                end;
         {$else}                // ansi
         btChar:                begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(AnsiChar),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(AnsiChar),False,IsConstr);
                                  {$IFDEF FPC}
-                                 PAnsiChar(res.Dta)^ := ResValue.AsAnsiChar;
+                                 {TbtChar}AnsiChar(res.Dta^) := ResValue.AsAnsiChar;
                                  {$ELSE}
-                                 PAnsiChar(res.Dta)^ := ResValue.AsType<AnsiChar>;
+                                 {TbtChar}AnsiChar(res.Dta^) := ResValue.AsType<AnsiChar>;
                                  {$ENDIF}
                                end;
         {$ifend}
         {$IFNDEF PS_NOWIDESTRING}
         btWideChar:            begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(WideChar),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(WideChar),False,IsConstr);
                                  {$IFDEF FPC}
-                                 PWideChar(res.Dta)^ := ResValue.AsWideChar;
+                                 {TbtWideChar}PWideChar(res.Dta)^ := ResValue.AsWideChar;
                                  {$ELSE}
-                                 PWideChar(res.Dta)^ := ResValue.AsType<WideChar>;
+                                 {TbtWideChar}PWideChar(res.Dta)^ := ResValue.AsType<WideChar>;
                                  {$ENDIF}
                                end;
           {$if declared(btPWideChar)}
         btPWideChar:           begin
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(PWideChar),False,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(PWideChar),False,IsConstr);
                                  {$IFDEF FPC}
-                                 PPWideChar(res.Dta)^ := PWideChar(ResValue.AsOrdinal);
+                                 {PTbtWideChar}PWideChar(res.Dta^) := PWideChar(ResValue.AsOrdinal);
                                  {$ELSE}
-                                 PPWideChar(res.Dta)^ := ResValue.AsType<PWideChar>;
+                                 {PTbtWideChar}PWideChar(res.Dta^) := ResValue.AsType<PWideChar>;
                                  {$ENDIF}
                                end;
           {$ifend}
         {$ENDIF}
         btInterface:           begin  // TODO: ... ?empty ; check RefCount
-                                 ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(IInterface),True,IsConstr);
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(IInterface),True,IsConstr);
                                  {$IFDEF FPC}
                                  IInterface(res.Dta^) := ResValue.AsInterface;
                                  {$ELSE}
@@ -595,8 +615,7 @@ begin
     Result := True;
   finally
     if Assigned(CallData) then begin
-      for i := CallData.Count-1 downto 0 do
-      begin
+      for i := CallData.Count-1 downto 0 do begin
         pp := CallData[i];
         case pp^ of
           0: begin
@@ -606,9 +625,28 @@ begin
             //FreeMem(Pointer(pp), sizeof(TMethodCallData)); // release TMethodCallData
             Dispose(PMethodCallData(pp));
           end;
-        end;
-      end;
+        end; // case
+      end; // for
       CallData.Free;
-    end;
-  end;
+    end; // if
+  end; // finally
 end; // function TPSExec.InnerfuseCall
+
+// optional:
+(*
+procedure PutOnFPUStackExtended(ft: extended);
+begin
+  ?
+end; // procedure PutOnFPUStackExtended
+
+function MyAllMethodsHandler2({RCX:}Self: PScriptMethodInfo; const {RDX:}Stack: PPointer;
+  {R8:}_EDX, {R9:}_ECX: Pointer): Integer;
+begin
+  ?
+end; // function MyAllMethodsHandler2
+
+procedure MyAllMethodsHandler;
+begin
+  ?
+end; // procedure MyAllMethodsHandler
+//*)

@@ -1,4 +1,4 @@
-{ uPSRuntime.pas } // version: 2020.1010.1010
+{ uPSRuntime.pas } // version: 2020.1021.2151
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -1095,7 +1095,7 @@ procedure SetVariantToClass(V: PIFVariant; Cl: TObject);
 procedure SetVariantToInterface(V: PIFVariant; Cl: IUnknown);
 {$ENDIF}
 
-procedure MyAllMethodsHandler;
+//--procedure MyAllMethodsHandler; // NB: when uncomment: broken code "declared(MyAllMethodsHandler)"
 function GetMethodInfoRec(SE: TPSExec; ProcNo: Cardinal): Pointer;
 function MkMethod(FSE: TPSExec; No: Cardinal): TMethod;
 
@@ -8943,9 +8943,9 @@ begin
     StartAt := Longint(FResources.Count)-1;
   for i := StartAt downto 0 do begin
     temp := FResources[I];
-    if temp^.Proc = proc then begin
-      Result := Temp^.P;
-      StartAt := i - 1;
+    if temp^.Proc = Proc then begin
+      Result := temp^.P;
+      StartAt := i-1;
       Exit;
     end;
   end;
@@ -12288,14 +12288,14 @@ end; // procedure DestroyOpenArray
   {$IFNDEF _INVOKECALL_INC_}
     {$IFDEF DELPHI16UP} // DELPHI16UP == DELPHIXE2UP
       {$if defined(CPUX64)}
-        {$include x64.inc}
+        {$include x64.inc} // can implement "MyAllMethodsHandler"
       {$elseif defined(CPU386) or defined(CPUX86)}
-        {$include x86.inc}
+        {$include x86.inc} // can implement "MyAllMethodsHandler"
       {$else}
         {$MESSAGE FATAL 'Pascal Script does not implemented "function TPSExec.InnerfuseCall" for selected CPU!'}
       {$ifend}
     {$ELSE DELPHI11UP}
-      {$include x86.inc}
+      {$include x86.inc} // can implement "MyAllMethodsHandler"
     {$ENDIF DELPHI11UP}
   {$ENDIF !_INVOKECALL_INC_}
 
@@ -12319,16 +12319,16 @@ end; // procedure DestroyOpenArray
 
   {$IFNDEF _INVOKECALL_INC_}
     {$if defined(cpu86) or defined(CPUX86)}
-      {$include x86.inc}
+      {$include x86.inc} // can implement "MyAllMethodsHandler"
     {$elseif defined(cpux86_64) or defined(CPUX64)}
-      {$include x64.inc}
+      {$include x64.inc} // can implement "MyAllMethodsHandler"
     {$elseif defined(cpupowerpc)}
-      {$include powerpc.inc}
+      {$include powerpc.inc} // can implement "MyAllMethodsHandler"
     {$elseif defined(cpuarm)}
       //{$ifdef cpu64} // TODO: FPC check for ARM64
-      {$include arm.inc}
+      {$include arm.inc} // can implement "MyAllMethodsHandler"
       //{$else}
-      //{$include arm64.inc}
+      //{$include arm64.inc} // can implement "MyAllMethodsHandler"
       //{$endif}
     {$else}
       {$fatal Pascal Script is not supported for your architecture at the moment!}
@@ -12336,9 +12336,6 @@ end; // procedure DestroyOpenArray
   {$ENDIF !_INVOKECALL_INC_}
 
 {$ENDIF FPC}
-{$IFDEF _INVOKECALL_INC_}
-  {$include InvokeCall.inc}
-{$ENDIF}
 {+.}
 
 type
@@ -12347,17 +12344,6 @@ type
     Se: TPSExec;
     ProcNo: Cardinal;
   end;
-
-function MkMethod(FSE: TPSExec; No: Cardinal): TMethod;
-begin
-  if (no = 0) or (no = InvalidVal) then begin
-    Result.Code := nil;
-    Result.Data := nil;
-  end else begin
-    Result.Code := @MyAllMethodsHandler;
-    Result.Data := GetMethodInfoRec(FSE, No);
-  end;
-end;
 
 procedure PFree(Sender: TPSExec; P: PScriptMethodInfo);
 begin
@@ -12375,17 +12361,466 @@ begin
   end;
   I := 2147483647;
   repeat
-    pp := Se.FindProcResource2(@PFree, I);
-    if (i <> -1) and (pp^.ProcNo = ProcNo) then begin
-      Result := Pp;
+    pp := SE.FindProcResource2(@PFree, I);
+    if (I <> -1) and Assigned(pp) and (pp^.ProcNo = ProcNo) then begin
+      Result := pp;
       Exit;
     end;
-  until i = -1;
+  until (I = -1);
   New(pp);
-  pp^.Se := TPSExec(Se);
-  pp^.ProcNo := Procno;
-  Se.AddResource(@PFree, pp);
+  pp^.SE := SE;
+  pp^.ProcNo := ProcNo;
+  SE.AddResource(@PFree, pp);
   Result := pp;
+end;
+
+{$UNDEF EMPTY_METHODS_HANDLER} { not change }
+{$ifdef CPUX64}
+{.$DEFINE EMPTY_METHODS_HANDLER}
+{$endif}
+{$ifdef fpc}
+  {+}
+  //{$if defined(cpupowerpc) or defined(cpuarm) or defined(cpu64)}
+  {$if defined(cpupowerpc) or defined(cpuarm)} // cpu64 include cpuX64
+    {$define EMPTY_METHODS_HANDLER}
+  {$ifend}
+  //{$if defined(cpu64)}
+  //  {$IFNDEF MSWINDOWS}
+  //    {$define EMPTY_METHODS_HANDLER}
+  //  {$ENDIF}
+  //{$ifend}
+  {+.}
+{$endif fpc}
+
+{$IFNDEF PS_NOINTERFACES}
+procedure SetVariantToInterface(V: PIFVariant; Cl: IUnknown);
+begin
+  if (v <> nil) and (v.FType.BaseType = btInterface) then begin
+    PPSVariantinterface(v).Data := cl;
+    {$IFNDEF Delphi3UP}
+    if PPSVariantinterface(v).Data <> nil then
+      PPSVariantinterface(v).Data.AddRef;
+    {$ENDIF}
+  end;
+end;
+{$ENDIF}
+
+procedure SetVariantToClass(V: PIFVariant; Cl: TObject);
+begin
+  if (v <> nil) and (v.FType.BaseType = btClass) then begin
+    PPSVariantClass(v).Data := cl;
+  end;
+end;
+
+function ResultAsRegister(b: TPSTypeRec): Boolean;
+begin
+  case b.BaseType of
+    btSingle,
+    btDouble,
+    btExtended,
+    btU8,
+    btS8,
+    btS16,
+    btU16,
+    btS32,
+    btU32,
+    {$IFDEF PS_FPCSTRINGWORKAROUND}
+    btString,
+    {$ENDIF}
+    {$IFNDEF PS_NOINT64}
+    btS64,
+    {$ENDIF}
+    btPChar,
+    {$IFNDEF PS_NOWIDESTRING}
+    {+}
+    {$if declared(btPWideChar)}btPWideChar,{$ifend}
+    {+.}
+    btWideChar,
+    {$ENDIF}
+    btChar,
+    btClass,
+    btEnum:
+      Result := True;
+    btSet:
+      Result := b.RealSize <= PointerSize;
+    btStaticArray:
+      Result := b.RealSize <= PointerSize;
+  else
+    Result := False;
+  end;
+end;
+
+function SupportsRegister(b: TPSTypeRec): Boolean;
+begin
+  case b.BaseType of
+    btU8,
+    btS8,
+    btS16,
+    btU16,
+    btS32,
+    btU32,
+    btString,
+    btClass,
+    {$IFNDEF PS_NOINTERFACES}
+    btInterface,
+    {$ENDIF}
+    btPChar,
+    {$IFNDEF PS_NOWIDESTRING}
+    {+}
+    {$if declared(btPWideChar)}btPWideChar,{$ifend}
+    {+.}
+    btWideString,
+    btUnicodeString,
+    btWideChar,
+    {$ENDIF}
+    btChar,
+    btArray,
+    btEnum:
+      Result := True;
+    btSet:
+      Result := b.RealSize <= PointerSize;
+    btStaticArray:
+      Result := b.RealSize <= PointerSize;
+  else
+    Result := False;
+  end;
+end;
+
+function AlwaysAsVariable(aType: TPSTypeRec): Boolean;
+begin
+  case atype.BaseType of
+    btVariant:
+      Result := True;
+    btSet:
+      Result := atype.RealSize > PointerSize;
+    btRecord:
+      Result := atype.RealSize > PointerSize;
+    btStaticArray:
+      Result := atype.RealSize > PointerSize;
+  else
+    Result := False;
+  end;
+end;
+
+{$IFDEF _INVOKECALL_INC_}
+  {$include InvokeCall.inc} // can implement "MyAllMethodsHandler", "PutOnFPUStackExtended", "MyAllMethodsHandler2"
+{$ENDIF}
+
+{$if declared(MyAllMethodsHandler)} // "MyAllMethodsHandler" can implemented by platform code "*.inc" (arm.ic ... )
+  {$UNDEF EMPTY_METHODS_HANDLER} { not change }
+{$ifend} // "not declared(MyAllMethodsHandler)"
+
+{$IFNDEF EMPTY_METHODS_HANDLER}
+{$if not declared(PutOnFPUStackExtended)}
+procedure PutOnFPUStackExtended(ft: extended);
+{$if defined(FPC) and defined(CPU64)}
+  //{$if defined(FPC) and not (defined(CPU386) or defined(CPUX6)) }
+    {$ASMMODE ATT}
+  //{$ifend}
+asm
+  fld %st(1) //TODO: FPC Test
+end;
+{.$else}
+{$elseif defined(CPU386) or defined(CPUX86)
+  or ( not (defined(DELPHI) and defined(DELPHI12UP)) )
+}
+asm
+    //fstp tbyte ptr [ft]
+    fld tbyte ptr [ft]
+end;
+{$else}
+//{$IFDEF FPC} {$ASMMODE ATT}
+//asm
+//  fld %st(1)
+//{$ELSE !FPC}
+begin
+  //{$IFDEF _DCC_MSG_}
+  //  {$MESSAGE 'Note: RPS not implemented "PutOnFPUStackExtended"'}
+  //{$ELSE}
+    ERROR: not implemented it
+  //{$ENDIF}
+//{$ENDIF !FPC}
+end;// procedure PutOnFPUStackExtended
+{$ifend}
+{$ifend} // "not declared(PutOnFPUStackExtended)"
+
+{$if not declared(MyAllMethodsHandler2)}
+function MyAllMethodsHandler2({RCX:}Self: PScriptMethodInfo; const {RDX:}Stack: PPointer;
+  {R8:}_EDX, {R9:}_ECX: Pointer): Integer;
+var
+  Decl: TbtString;
+  I, C, RegNo: Integer;
+  Params: TPSList;
+  Res, Tmp: PIFVariant;
+  cpt: PIFTypeRec;
+  fmod: TbtChar;
+  s,e: TbtString;
+  FStack: Pointer;
+  ex: TPSExceptionHandler;
+  sError: TbtString;
+begin
+  Result := 0;
+  Decl := TPSInternalProcRec(Self^.Se.FProcs[Self^.ProcNo]).ExportDecl;
+  FStack := Stack;
+  Params := TPSList.Create;
+  s := decl;
+  grfw(s);
+  while (Length(s) > 0) do begin
+    Params.Add(nil);
+    grfw(s);
+  end;
+  s := Decl;
+  grfw(s);
+  RegNo := 0;
+  C := Params.Count;
+  for i := C-1 downto 0 do begin
+    e := grfw(s);
+    fmod := e[1];
+    Delete(e, 1, 1);
+    cpt := Self.Se.GetTypeNo(StrToInt(e));
+    if ((fmod = '%') or (fmod = '!') or (AlwaysAsVariable(cpt))) and (RegNo < 2) then begin
+      tmp := CreateHeapVariant(self.Se.FindType2(btPointer));
+      PPSVariantPointer(tmp).DestType := cpt;
+      Params[i] := tmp;
+      case RegNo of
+        0: begin
+          PPSVariantPointer(tmp).DataDest := Pointer(_EDX);
+          Inc(RegNo);
+        end;
+        1: begin
+          PPSVariantPointer(tmp).DataDest := Pointer(_ECX);
+          Inc(RegNo);
+        end;
+        //else begin
+        //  PPSVariantPointer(tmp).DataDest := Pointer(FStack^);
+        //  FStack := Pointer(IPointer(FStack) + 4);
+        //end;
+      end;
+    end else if SupportsRegister(cpt) and (RegNo < 2) then begin
+      tmp := CreateHeapVariant(cpt);
+      Params[i] := tmp;
+      case RegNo of
+        0: begin
+          CopyArrayContents(@PPSVariantData(tmp)^.Data, @_EDX, 1, cpt);
+          Inc(RegNo);
+        end;
+        1: begin
+          CopyArrayContents(@PPSVariantData(tmp)^.Data, @_ECX, 1, cpt);
+          Inc(RegNo);
+        end;
+        //else begin
+        //  CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
+        //  FStack := Pointer(IPointer(FStack) + 4);
+        //end;
+      end;
+    //end else begin
+    //  tmp := CreateHeapVariant(cpt);
+    //  Params[i] := tmp;
+    //  CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
+    //  FStack := Pointer(IPointer(FStack) + cpt.RealSize + 3 and not 3);
+    end;
+  end; // for i
+  s := Decl;
+  e := grfw(s);
+
+  if e <> '-1' then begin
+    cpt := Self.Se.GetTypeNo(StrToInt(e));
+    if not ResultAsRegister(cpt) then begin
+      Res := CreateHeapVariant(Self.Se.FindType2(btPointer));
+      PPSVariantPointer(Res).DestType := cpt;
+      Params.Add(Res);
+      case RegNo of
+        0: begin
+          PPSVariantPointer(Res).DataDest := Pointer(_EDX);
+        end;
+        1: begin
+          PPSVariantPointer(Res).DataDest := Pointer(_ECX);
+        end;
+        else begin
+          PPSVariantPointer(Res).DataDest := Pointer(FStack^);
+          Inc(Result, PointerSize);
+        end;
+      end; // case
+    end else begin
+      Res := CreateHeapVariant(cpt);
+      Params.Add(Res);
+    end;
+  end else begin
+    Res := nil;
+  end;
+  s := decl;
+  grfw(s);
+  for i := 0 to c-1 do begin
+    e := grlw(s);
+    fmod := e[1];
+    Delete(e, 1, 1);
+    if Params[i] <> nil then
+      Continue;
+    cpt := Self.Se.GetTypeNo(StrToInt(e));
+    if (fmod = '%') or (fmod = '!') or (AlwaysAsVariable(cpt)) then begin
+      tmp := CreateHeapVariant(self.Se.FindType2(btPointer));
+      PPSVariantPointer(tmp).DestType := cpt;
+      Params[i] := tmp;
+      PPSVariantPointer(tmp).DataDest := Pointer(FStack^);
+      FStack := Pointer(IPointer(FStack) + PointerSize);
+      Inc(Result, PointerSize);
+    end
+    //else if SupportsRegister(cpt) then begin
+    //  tmp := CreateHeapVariant(cpt);
+    //  Params[i] := tmp;
+    //  CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
+    //  FStack := Pointer(IPointer(FStack) + 4);
+    //  end;
+    //end
+    else begin
+      tmp := CreateHeapVariant(cpt);
+      Params[i] := tmp;
+      CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
+      FStack := Pointer((IPointer(FStack) + cpt.RealSize + 3) and not 3);
+      Inc(Result, (cpt.RealSize + 3) and not 3);
+    end;
+  end; // for i
+  ex := TPSExceptionHandler.Create;
+  ex.FinallyOffset := InvalidVal;
+  ex.ExceptOffset := InvalidVal;
+  ex.Finally2Offset := InvalidVal;
+  ex.EndOfBlock := InvalidVal;
+  ex.CurrProc := nil;
+  ex.BasePtr := Self.Se.FCurrStackBase;
+  Ex.StackSize := Self.Se.FStack.Count;
+  i :=  Self.Se.FExceptionStack.Add(ex);
+  Self.Se.RunProc(Params, Self.ProcNo); //@dbg: Self.Se.LoadDebugInfo();  Self.Se.FCurrentRow;  Self.Se.FCurrentFile
+  if Self.Se.FExceptionStack[i] = ex then begin
+    Self.Se.FExceptionStack.Remove(ex);
+    ex.Free;
+  end;
+
+  if (Res <> nil) then begin
+    Params.DeleteLast;
+    if (ResultAsRegister(Res.FType)) then begin
+      if (res^.FType.BaseType = btSingle) or (res^.FType.BaseType = btDouble) or
+        (res^.FType.BaseType = btCurrency) or (res^.Ftype.BaseType = btExtended) then
+      begin
+        case Res^.FType.BaseType of
+          btSingle:
+            PutOnFPUStackExtended(PPSVariantSingle(res).Data);
+          btDouble:
+            PutOnFPUStackExtended(PPSVariantDouble(res).Data);
+          btExtended:
+            PutOnFPUStackExtended(PPSVariantExtended(res).Data);
+          btCurrency:
+            PutOnFPUStackExtended(PPSVariantCurrency(res).Data);
+        end;
+        DestroyHeapVariant(Res);
+        Res := nil;
+      end else begin
+        {$IFNDEF PS_NOINT64}
+        if res^.FType.BaseType <> btS64 then
+        {$ENDIF}
+        begin
+          //CopyArrayContents(Pointer(Longint(Stack)-PointerSize2), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          {+}
+          //CopyArrayContents(Pointer(Longint(Stack)-Longint(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          CopyArrayContents(PointerShift(Stack,-NativeInt(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
+          {+.}
+        end;
+      end;
+    end;
+    DestroyHeapVariant(res);
+  end;
+  for i := 0 to Params.Count-1 do
+    DestroyHeapVariant(Params[i]);
+  Params.Free;
+  if Self.Se.ExEx <> erNoError then begin
+    if Self.Se.ExObject <> nil then begin
+      FStack := Self.Se.ExObject;
+      Self.Se.ExObject := nil;
+      raise TObject(FStack);
+    end else begin
+      // @dbg: TPSInternalProcRec(Self^.Se.FProcs[Self^.ProcNo]).FExportName
+      // @dbg: TPSInternalProcRec(Self^.Se.FProcs[Self.Se.ExProc]).FExportName
+      // @dbg: TPSExceptionHandler(Self.Se.FExceptionStack.Data[Self.Se.FExceptionStack.Count-1]).ExceptionParam
+      sError := Self.Se.GetCurrentPositionDebugInfo('; ');
+      sError := PSErrorToString(Self.SE.ExceptionCode, Self.Se.ExceptionString) + sError;
+      raise EPSException.Create(sError, Self.Se, Self.Se.ExProc, Self.Se.ExPos);
+    end;
+  end;
+end; // function MyAllMethodsHandler2
+{$ifend} // "not declared(MyAllMethodsHandler2)"
+
+{$if not declared(MyAllMethodsHandler)}
+procedure MyAllMethodsHandler;
+// TODO: describe the logic
+{$if defined(CPUX64)}
+{$IFDEF FPC}{$ASMMODE INTEL}{$ENDIF}
+//  On entry:
+//  RCX = Self pointer
+//  RDX, R8, R9 = param1 .. param3
+//  STACK = param4... paramcount
+asm
+  PUSH  R9
+  MOV   R9,R8     // R9  := param: _ECX
+  MOV   R8,RDX    // R8  := param: _EDX
+  MOV   RDX, RSP  // RDX := param: Stack
+  SUB   RSP, 20h  // # 'stack' size: == $20 == 32 == "param count" * 8 = 4 *8
+  CALL  MyAllMethodsHandler2
+  ADD   RSP, 20h  // # Restore 'stack' == $20 == 32 == "param count" * 8 = 4 *8
+  POP   R9
+end;
+{$elseif defined(CPU386) or defined(CPUX86)
+  or ( not (defined(DELPHI) and defined(DELPHI12UP)) )
+}
+//  On entry:
+//     EAX = Self pointer
+//     EDX, ECX = param1 and param2
+//     STACK = param3... paramcount
+asm
+  {$IFDEF FPC}
+  push DWORD(0)
+  {$ELSE}
+  push 0
+  {$ENDIF}
+  push ecx
+  push edx
+  mov edx, esp
+  add edx, 16 // was 12
+  pop ecx
+  call MyAllMethodsHandler2
+  pop ecx
+  mov edx, [esp]
+  add esp, eax
+  mov [esp], edx
+  mov eax, ecx
+end;
+{$else}
+begin // ERROR: not supported it platform
+  {$DEFINE EMPTY_METHODS_HANDLER}
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS not implemented "MyAllMethodsHandler"'}
+  {$ENDIF}
+end;
+{$ifend} // end case CPU
+{$ifend} // "not declared(MyAllMethodsHandler)"
+{$ENDIF !EMPTY_METHODS_HANDLER}
+
+{$if not declared(MyAllMethodsHandler)}
+procedure MyAllMethodsHandler;
+begin
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS not implemented Methods Handler'}
+  {$ENDIF}
+end;
+{$ifend} // "not declared(MyAllMethodsHandler)"
+
+function MkMethod(FSE: TPSExec; No: Cardinal): TMethod;
+begin
+  if (no = 0) or (no = InvalidVal) then begin
+    Result.Code := nil;
+    Result.Data := nil;
+  end else begin
+    Result.Code := @MyAllMethodsHandler;
+    Result.Data := GetMethodInfoRec(FSE, No);
+  end;
 end;
 
 type
@@ -14264,423 +14699,6 @@ begin
   end;
   inherited;
 end;
-
-{$IFNDEF PS_NOINTERFACES}
-procedure SetVariantToInterface(V: PIFVariant; Cl: IUnknown);
-begin
-  if (v <> nil) and (v.FType.BaseType = btInterface) then
-  begin
-    PPSVariantinterface(v).Data := cl;
-    {$IFNDEF Delphi3UP}
-    if PPSVariantinterface(v).Data <> nil then
-      PPSVariantinterface(v).Data.AddRef;
-    {$ENDIF}
-  end;
-end;
-{$ENDIF}
-
-procedure SetVariantToClass(V: PIFVariant; Cl: TObject);
-begin
-  if (v <> nil) and (v.FType.BaseType = btClass) then
-  begin
-    PPSVariantclass(v).Data := cl;
-  end;
-end;
-
-function BGRFW(var s: TbtString): TbtString;
-var
-  l: Longint;
-begin
-  l := Length(s);
-  while l >0 do
-  begin
-    if s[l] = ' ' then
-    begin
-      Result := copy(s, l + 1, Length(s) - l);
-      Delete(s, l, Length(s) - l + 1);
-      exit;
-    end;
-    Dec(l);
-  end;
-  Result := s;
-  s := '';
-end;
-
-{$ifdef CPUX64}
-{.$DEFINE empty_methods_handler}
-{$endif}
-{$ifdef fpc}
-  {+}
-  //{$if defined(cpupowerpc) or defined(cpuarm) or defined(cpu64)}
-  {$if defined(cpupowerpc) or defined(cpuarm)} // cpu64 include cpuX64
-    {$define empty_methods_handler}
-  {$ifend}
-  //{$if defined(cpu64)}
-  //  {$IFNDEF MSWINDOWS}
-  //    {$define empty_methods_handler}
-  //  {$ENDIF}
-  //{$ifend}
-  {+.}
-{$endif fpc}
-
-{$ifdef empty_methods_handler}
-procedure MyAllMethodsHandler;
-begin
-end;
-{$else !empty_methods_handler}
-
-function MyAllMethodsHandler2({RCX:}Self: PScriptMethodInfo; const {RDX:}Stack: PPointer;
-  {R8:}_EDX, {R9:}_ECX: Pointer): Integer; forward;
-
-procedure MyAllMethodsHandler;
-// TODO: describe the logic
-{$ifdef CPUX64}
-{$IFDEF FPC}{$ASMMODE INTEL}{$ENDIF}
-//  On entry:
-//  RCX = Self pointer
-//  RDX, R8, R9 = param1 .. param3
-//  STACK = param4... paramcount
-asm
-  PUSH  R9
-  MOV   R9,R8     // R9  := param: _ECX
-  MOV   R8,RDX    // R8  := param: _EDX
-  MOV   RDX, RSP  // RDX := param: Stack
-  SUB   RSP, 20h  // # 'stack' size: == $20 == 32 == "param count" * 8 = 4 *8
-  CALL  MyAllMethodsHandler2
-  ADD   RSP, 20h  // # Restore 'stack' == $20 == 32 == "param count" * 8 = 4 *8
-  POP   R9
-end;
-{$else !CPUX64}
-//  On entry:
-//     EAX = Self pointer
-//     EDX, ECX = param1 and param2
-//     STACK = param3... paramcount
-asm
-  {+}
-  {$IFDEF FPC}
-  push DWORD(0)
-  {$ELSE}
-  push 0
-  {$ENDIF}
-  {+.}
-  push ecx
-  push edx
-  mov edx, esp
-  add edx, 16 // was 12
-  pop ecx
-  call MyAllMethodsHandler2
-  pop ecx
-  mov edx, [esp]
-  add esp, eax
-  mov [esp], edx
-  mov eax, ecx
-end;
-{$endif !CPUX64}
-
-function ResultAsRegister(b: TPSTypeRec): Boolean;
-begin
-  case b.BaseType of
-    btSingle,
-    btDouble,
-    btExtended,
-    btU8,
-    btS8,
-    btS16,
-    btU16,
-    btS32,
-    btU32,
-    {$IFDEF PS_FPCSTRINGWORKAROUND}
-    btString,
-    {$ENDIF}
-    {$IFNDEF PS_NOINT64}
-    btS64,
-    {$ENDIF}
-    btPChar,
-    {$IFNDEF PS_NOWIDESTRING}
-    {+}
-    {$if declared(btPWideChar)}btPWideChar,{$ifend}
-    {+.}
-    btWideChar,
-    {$ENDIF}
-    btChar,
-    btClass,
-    btEnum:
-      Result := True;
-    btSet:
-      Result := b.RealSize <= PointerSize;
-    btStaticArray:
-      Result := b.RealSize <= PointerSize;
-  else
-    Result := False;
-  end;
-end;
-
-function SupportsRegister(b: TPSTypeRec): Boolean;
-begin
-  case b.BaseType of
-    btU8,
-    btS8,
-    btS16,
-    btU16,
-    btS32,
-    btU32,
-    btString,
-    btClass,
-    {$IFNDEF PS_NOINTERFACES}
-    btInterface,
-    {$ENDIF}
-    btPChar,
-    {$IFNDEF PS_NOWIDESTRING}
-    {+}
-    {$if declared(btPWideChar)}btPWideChar,{$ifend}
-    {+.}
-    btWideString,
-    btUnicodeString,
-    btWideChar,
-    {$ENDIF}
-    btChar,
-    btArray,
-    btEnum:
-      Result := True;
-    btSet:
-      Result := b.RealSize <= PointerSize;
-    btStaticArray:
-      Result := b.RealSize <= PointerSize;
-  else
-    Result := False;
-  end;
-end;
-
-function AlwaysAsVariable(aType: TPSTypeRec): Boolean;
-begin
-  case atype.BaseType of
-    btVariant:
-      Result := True;
-    btSet:
-      Result := atype.RealSize > PointerSize;
-    btRecord:
-      Result := atype.RealSize > PointerSize;
-    btStaticArray:
-      Result := atype.RealSize > PointerSize;
-  else
-    Result := False;
-  end;
-end;
-
-procedure PutOnFPUStackExtended(ft: extended);
-{$if defined(FPC) and defined(CPU64)}
-  {$ASMMODE ATT}
-{$ifend}
-asm
-  //fstp tbyte ptr [ft]
-  {$if defined(FPC) and defined(CPU64)}
-  fld %st(1) //TODO: FPC Test
-  {$else}
-  fld tbyte ptr [ft]
-  {$ifend}
-end;
-
-function MyAllMethodsHandler2(Self: PScriptMethodInfo; const Stack: PPointer; _EDX, _ECX: Pointer): Integer;
-var
-  Decl: TbtString;
-  I, C, RegNo: Integer;
-  Params: TPSList;
-  Res, Tmp: PIFVariant;
-  cpt: PIFTypeRec;
-  fmod: TbtChar;
-  s,e: TbtString;
-  FStack: Pointer;
-  ex: TPSExceptionHandler;
-  sError: TbtString;
-begin
-  Result := 0;
-  Decl := TPSInternalProcRec(Self^.Se.FProcs[Self^.ProcNo]).ExportDecl;
-  FStack := Stack;
-  Params := TPSList.Create;
-  s := decl;
-  grfw(s);
-  while (Length(s) > 0) do begin
-    Params.Add(nil);
-    grfw(s);
-  end;
-  s := Decl;
-  grfw(s);
-  RegNo := 0;
-  C := Params.Count;
-  for i := C-1 downto 0 do begin
-    e := grfw(s);
-    fmod := e[1];
-    Delete(e, 1, 1);
-    cpt := Self.Se.GetTypeNo(StrToInt(e));
-    if ((fmod = '%') or (fmod = '!') or (AlwaysAsVariable(cpt))) and (RegNo < 2) then begin
-      tmp := CreateHeapVariant(self.Se.FindType2(btPointer));
-      PPSVariantPointer(tmp).DestType := cpt;
-      Params[i] := tmp;
-      case RegNo of
-        0: begin
-          PPSVariantPointer(tmp).DataDest := Pointer(_EDX);
-          Inc(RegNo);
-        end;
-        1: begin
-          PPSVariantPointer(tmp).DataDest := Pointer(_ECX);
-          Inc(RegNo);
-        end;
-        //else begin
-        //  PPSVariantPointer(tmp).DataDest := Pointer(FStack^);
-        //  FStack := Pointer(IPointer(FStack) + 4);
-        //end;
-      end;
-    end else if SupportsRegister(cpt) and (RegNo < 2) then begin
-      tmp := CreateHeapVariant(cpt);
-      Params[i] := tmp;
-      case RegNo of
-        0: begin
-          CopyArrayContents(@PPSVariantData(tmp)^.Data, @_EDX, 1, cpt);
-          Inc(RegNo);
-        end;
-        1: begin
-          CopyArrayContents(@PPSVariantData(tmp)^.Data, @_ECX, 1, cpt);
-          Inc(RegNo);
-        end;
-        //else begin
-        //  CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
-        //  FStack := Pointer(IPointer(FStack) + 4);
-        //end;
-      end;
-    //end else begin
-    //  tmp := CreateHeapVariant(cpt);
-    //  Params[i] := tmp;
-    //  CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
-    //  FStack := Pointer(IPointer(FStack) + cpt.RealSize + 3 and not 3);
-    end;
-  end; // for i
-  s := Decl;
-  e := grfw(s);
-
-  if e <> '-1' then begin
-    cpt := Self.Se.GetTypeNo(StrToInt(e));
-    if not ResultAsRegister(cpt) then begin
-      Res := CreateHeapVariant(Self.Se.FindType2(btPointer));
-      PPSVariantPointer(Res).DestType := cpt;
-      Params.Add(Res);
-      case RegNo of
-        0: begin
-          PPSVariantPointer(Res).DataDest := Pointer(_EDX);
-        end;
-        1: begin
-          PPSVariantPointer(Res).DataDest := Pointer(_ECX);
-        end;
-        else begin
-          PPSVariantPointer(Res).DataDest := Pointer(FStack^);
-          Inc(Result, PointerSize);
-        end;
-      end; // case
-    end else begin
-      Res := CreateHeapVariant(cpt);
-      Params.Add(Res);
-    end;
-  end else begin
-    Res := nil;
-  end;
-  s := decl;
-  grfw(s);
-  for i := 0 to c-1 do begin
-    e := grlw(s);
-    fmod := e[1];
-    Delete(e, 1, 1);
-    if Params[i] <> nil then
-      Continue;
-    cpt := Self.Se.GetTypeNo(StrToInt(e));
-    if (fmod = '%') or (fmod = '!') or (AlwaysAsVariable(cpt)) then begin
-      tmp := CreateHeapVariant(self.Se.FindType2(btPointer));
-      PPSVariantPointer(tmp).DestType := cpt;
-      Params[i] := tmp;
-      PPSVariantPointer(tmp).DataDest := Pointer(FStack^);
-      FStack := Pointer(IPointer(FStack) + PointerSize);
-      Inc(Result, PointerSize);
-    end
-    //else if SupportsRegister(cpt) then begin
-    //  tmp := CreateHeapVariant(cpt);
-    //  Params[i] := tmp;
-    //  CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
-    //  FStack := Pointer(IPointer(FStack) + 4);
-    //  end;
-    //end
-    else begin
-      tmp := CreateHeapVariant(cpt);
-      Params[i] := tmp;
-      CopyArrayContents(@PPSVariantData(tmp)^.Data, Pointer(FStack), 1, cpt);
-      FStack := Pointer((IPointer(FStack) + cpt.RealSize + 3) and not 3);
-      Inc(Result, (cpt.RealSize + 3) and not 3);
-    end;
-  end; // for i
-  ex := TPSExceptionHandler.Create;
-  ex.FinallyOffset := InvalidVal;
-  ex.ExceptOffset := InvalidVal;
-  ex.Finally2Offset := InvalidVal;
-  ex.EndOfBlock := InvalidVal;
-  ex.CurrProc := nil;
-  ex.BasePtr := Self.Se.FCurrStackBase;
-  Ex.StackSize := Self.Se.FStack.Count;
-  i :=  Self.Se.FExceptionStack.Add(ex);
-  Self.Se.RunProc(Params, Self.ProcNo); //@dbg: Self.Se.LoadDebugInfo();  Self.Se.FCurrentRow;  Self.Se.FCurrentFile
-  if Self.Se.FExceptionStack[i] = ex then begin
-    Self.Se.FExceptionStack.Remove(ex);
-    ex.Free;
-  end;
-
-  if (Res <> nil) then begin
-    Params.DeleteLast;
-    if (ResultAsRegister(Res.FType)) then begin
-      if (res^.FType.BaseType = btSingle) or (res^.FType.BaseType = btDouble) or
-        (res^.FType.BaseType = btCurrency) or (res^.Ftype.BaseType = btExtended) then
-      begin
-        case Res^.FType.BaseType of
-          btSingle:
-            PutOnFPUStackExtended(PPSVariantSingle(res).Data);
-          btDouble:
-            PutOnFPUStackExtended(PPSVariantDouble(res).Data);
-          btExtended:
-            PutOnFPUStackExtended(PPSVariantExtended(res).Data);
-          btCurrency:
-            PutOnFPUStackExtended(PPSVariantCurrency(res).Data);
-        end;
-        DestroyHeapVariant(Res);
-        Res := nil;
-      end else begin
-        {$IFNDEF PS_NOINT64}
-        if res^.FType.BaseType <> btS64 then
-        {$ENDIF}
-        begin
-          //CopyArrayContents(Pointer(Longint(Stack)-PointerSize2), @PPSVariantData(res)^.Data, 1, Res^.FType);
-          {+}
-          //CopyArrayContents(Pointer(Longint(Stack)-Longint(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
-          CopyArrayContents(PointerShift(Stack,-NativeInt(PointerSize2)), @PPSVariantData(res)^.Data, 1, Res^.FType);
-          {+.}
-        end;
-      end;
-    end;
-    DestroyHeapVariant(res);
-  end;
-  for i := 0 to Params.Count-1 do
-    DestroyHeapVariant(Params[i]);
-  Params.Free;
-  if Self.Se.ExEx <> erNoError then begin
-    if Self.Se.ExObject <> nil then begin
-      FStack := Self.Se.ExObject;
-      Self.Se.ExObject := nil;
-      raise TObject(FStack);
-    end else begin
-      // @dbg: TPSInternalProcRec(Self^.Se.FProcs[Self^.ProcNo]).FExportName
-      // @dbg: TPSInternalProcRec(Self^.Se.FProcs[Self.Se.ExProc]).FExportName
-      // @dbg: TPSExceptionHandler(Self.Se.FExceptionStack.Data[Self.Se.FExceptionStack.Count-1]).ExceptionParam
-      sError := Self.Se.GetCurrentPositionDebugInfo('; ');
-      sError := PSErrorToString(Self.SE.ExceptionCode, Self.Se.ExceptionString) + sError;
-      raise EPSException.Create(sError, Self.Se, Self.Se.ExProc, Self.Se.ExPos);
-    end;
-  end;
-end; // function MyAllMethodsHandler2
-{$endif !empty_methods_handler}
 
 function TPSRuntimeClassImporter.FindClass(const Name: TbtString): TPSRuntimeClass;
 var

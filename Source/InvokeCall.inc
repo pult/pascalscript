@@ -1,9 +1,9 @@
-{ InvokeCall.inc } // version: 2020.1021.2151
+{ InvokeCall.inc } // version: 2020.1030.1830
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
 
-// TODO: not supported parameter types: interface, disp, varriant, ?
+// TODO: not supported parameter types: btProcPtr(-x86, +x64), ... ?
 
 {$IFDEF _DCC_MSG_}
   {$MESSAGE 'Note: RPS use "InvokeCall.inc"'}
@@ -26,18 +26,160 @@ const
   {$ENDIF}
 {$ifend}
 
+{$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+
+{$if not declared(BoolToTxt)}
+function BoolToTxt(B: Boolean): string;
+begin
+  if B
+  then Result := 'True'
+  else Result := 'False';
+end;
+{$ifend}
+
+{$if not declared(PSBaseTypeToStr)}
+function PSBaseTypeToStr(Self: PIFTypeRec): string;
+var i: Longint;
+begin
+  case Self.BaseType of
+    btReturnAddress       : Result := 'ReturnAddress';
+    btU8                  : Result := 'U8';
+    btS8                  : Result := 'S8';
+    btU16                 : Result := 'U16';
+    btS16                 : Result := 'S16';
+    btU32                 : Result := 'U32';
+    btS32                 : Result := 'S32';
+    btSingle              : Result := 'Single';
+    btDouble              : Result := 'Double';
+    btExtended            : Result := 'Extended';
+    btString              : Result := {$if btCharIsWide}'UnicodeString'{$else}'AnsiString'{$ifend};
+    btRecord              : begin
+                              Result := 'Record';
+                              i := TPSTypeRec_Record(Self).FieldTypes.Count;
+                              if (i > 0) then begin
+                                Result := Result+'('
+                                  + PSBaseTypeToStr(PIFTypeRecBase(TPSTypeRec_Record(Self).FieldTypes[0]));
+                                for i := 1 to i-1 do
+                                  Result := Result+','
+                                    + PSBaseTypeToStr(PIFTypeRecBase(TPSTypeRec_Record(Self).FieldTypes[i]));
+                                Result := Result + ')';
+                              end;
+                            end;
+    btArray               : Result := 'Array of '+PSBaseTypeToStr(TPSTypeRec_Array(Self).ArrayType);
+    btPointer             : Result := 'Pointer';
+    btPChar               : Result := {$if btCharIsWide}'PWideChar'{$else}'PAnsiChar'{$ifend};
+    btResourcePointer     : Result := 'ResourcePointer';
+    btVariant             : Result := 'Variant';
+  {$IFNDEF PS_NOINT64}
+    btS64                 : Result := 'S64';
+    {+}
+  //{$if declared(btU64)}
+  //btU64                 : Result := 'U64';
+  //{$ifend}
+    {+.}
+  {$ENDIF}
+    btChar                : Result := {$if btCharIsWide}'WideChar'{$else}'AnsiChar'{$ifend};
+  {$IFNDEF PS_NOWIDESTRING}
+    btWideString          : Result := 'WideString';
+    btWideChar            : Result := 'WideChar';
+  {$ELSE}
+    {$IFDEF UNICODE}
+    btWideChar            : Result := 'WideChar';
+    {$ENDIF}
+  {$ENDIF}
+    btProcPtr             : Result := 'ProcPtr';
+    btStaticArray         : Result := 'StaticArray'
+                              + '['+IntToStr(TPSTypeRec_StaticArray(Self).Size)
+                              + '] of '+PSBaseTypeToStr(TPSTypeRec_Array(Self).ArrayType)
+                              ;
+    btSet                 : Result := 'Set';
+    btCurrency            : Result := 'Currency';
+    btClass               : Result := 'Class'
+                              //+ ': '+string(TPSTypeRec_Class(Self).CN)
+                              ;
+    btInterface           : Result := 'Interface';
+    btNotificationVariant : Result := 'NotificationVariant';
+    btUnicodeString       : Result := 'UnicodeString';
+    {$if declared(btPWideChar)}
+    btPWideChar           : Result := 'PWideChar';
+    {$ifend}
+    btType                : Result := 'Type';
+    btEnum                : Result := 'Enum';
+    btExtClass            : Result := 'ExtClass';
+    else                    Result := 'Unknown '+SysUtils.IntToStr(FBaseType);
+  end; // case
+end; // function PSBaseTypeToStr
+{$ifend}
+
+{$if not declared(PSParamTypeToStr)}
+function PSParamTypeToStr(P: PPSVariantIFC): string;
+begin
+   Result := '';
+   if P = nil then
+     Exit;
+  Result := 'type var: '+BoolToTxt(P.VarParam)+' "'
+    + 'BT: '+SysUtils.IntToStr(Integer(P.aType.BaseType))
+    + ', ' + PSBaseTypeToStr(P.aType)
+  ;
+  if P.aType.ExportName <> '' then
+    Result := Result
+    + '; EN: '+string(P.aType.ExportName);
+  Result := Result
+    + '; SZ: '+string(SysUtils.IntToStr(Integer(P.aType.RealSize)))
+    + '"'
+  ;
+end;
+{$ifend}
+
+{$if not declared(dbg)}
+procedure dbg(const S: string);
+begin
+  {$IFDEF MSWINDOWS}
+  begin
+    OutputDebugString(PChar('rps:> ' + S));
+    begin
+      //{$IFDEF _DCC_MSG_}
+      if IsConsole then
+        writeln('rps:> ', S);
+      //{$ENDIF}
+    end;
+  end;
+  {$ELSE !MSWINDOWS}
+  begin
+    //if IsConsole then
+    //  writeln(stderr, 'rps:> ', S);
+  end;
+  {$ENDIF !MSWINDOWS}
+end;
+{$ifend}
+{$ENDIF}{$ENDIF} // {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+
 type
   EInvocationError = class(Exception);
+
+const
+  EmptyPChar: array[0..1] of Byte = (0, 0);
 
 function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingConvention;
   Params: TPSList; res: PPSVariantIFC): Boolean;
 
-// TODO: currentry not all parameter types supported: interface, disp, variant
+  function rp(p: PPSVariantIFC): PPSVariantIFC;
+  begin
+    if (p = nil) or (p.aType = nil) then begin
+      Result := nil;
+      Exit;
+    end;
+    if (p.aType.BaseType = btPointer) then begin
+      p^.aType := Pointer(Pointer(IPointer(p^.Dta) + PointerSize)^);
+      p^.Dta := Pointer(p^.Dta^);
+    end;
+    Result := p;
+  end;
 
 type
   TMethodCallData = record
-    AType: Byte;
-    Data: TMethod;
+    MType: Byte;
+    MCallback: TMethod;
   end;
   PMethodCallData=^TMethodCallData;
 var
@@ -57,15 +199,21 @@ var
   {%H-}CallData: TPSList;
   {%H-}pp: ^Byte;
 begin
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "TPSExec.InnerfuseCall": *( Params['+SysUtils.IntToStr(Params.Count)+'] ): res{'+BoolToTxt(Assigned(res))+'}');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+  //
   Result := False; //if Result then ;
   case CallingConv of
-    cdRegister : SysCalConv := ccReg;
-    cdPascal   : SysCalConv := ccPascal;
-    cdCdecl    : SysCalConv := ccCdecl;
-    cdStdCall  : SysCalConv := ccStdCall;
-    cdSafeCall : SysCalConv := ccSafeCall;
+    cdRegister : begin SysCalConv := ccReg;       end;
+    cdPascal   : begin SysCalConv := ccPascal;    end;
+    cdCdecl    : begin SysCalConv := ccCdecl;     end;
+    cdStdCall  : begin SysCalConv := ccStdCall;   end;
+    cdSafeCall : begin SysCalConv := ccSafeCall;  end;
     {$IFNDEF FPC}
-    else         SysCalConv := ccReg; // to prevent warning "W1036 Variable might not have been initialized"
+    else         begin SysCalConv := ccReg;       end; // to prevent warning "W1036 Variable might not have been initialized"
     {$ENDIF}
   end;
 
@@ -73,7 +221,7 @@ begin
   begin
     Arg := TValue.From<Pointer>( _Self );
     {$if defined(FPC) or (not defined(DELPHI23UP))}
-    Args := {Args +} [Arg];
+    Args := [Arg];
     {$else}
     SetLength({%H-}Args, 1);
     Args[0] := Arg;
@@ -82,24 +230,63 @@ begin
 
   CallData := nil;
   try
-    for I := 0 to Params.Count - 1 do begin
+    for I := 0 to Params.Count-1 do begin
       fvar := Params[i];
-      if fvar = nil then begin
+      if (fvar = nil) then begin
         S := 'Unassigned parameter #"'
           + SysUtils.IntToStr(i)
           + '"!';
-        {$IFDEF MSWINDOWS}
-        OutputDebugString(PChar('rps:> ' + S));
-        {$ELSE}
-        //writeln(stderr, S);
-        {$ENDIF}
+
+        // ######### DEBUG: TRACE:
+        {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+        dbg(S);
+        {$ENDIF}{$ENDIF}
+        // ######### DEBUG: TRACE.
+
         raise EInvocationError.Create('Internal: ' + S); // optional
         Exit;
       end;
 
+      // ######### DEBUG: TRACE:
+      {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+      {$if declared(PSParamTypeToStr)}
+      S := 'INFO:    Param['+SysUtils.IntToStr(i)+']: '+PSParamTypeToStr(fvar);
+      dbg(S);
+      {$ifend}
+      {$ENDIF}{$ENDIF}
+      // ######### DEBUG: TRACE.
+
+      p := fvar;
+      fvar := rp(PPSVariantIFC(p));
+
+      if (fvar = nil) then begin
+        S := 'Unassigned parameter ref #"'
+          + SysUtils.IntToStr(i)
+          + '"!';
+
+        // ######### DEBUG: TRACE:
+        {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+        dbg(S);
+        {$ENDIF}{$ENDIF}
+        // ######### DEBUG: TRACE.
+
+        raise EInvocationError.Create('Internal: ' + S); // optional
+        Exit;
+      end;
+
+      // ######### DEBUG: TRACE:
+      if Assigned(fvar) then begin
+        {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+        {$if declared(PSParamTypeToStr)}
+        S := 'INFO: rp:Param['+SysUtils.IntToStr(i)+']: '+PSParamTypeToStr(fvar)+'; Same: '+BoolToTxt(fvar=p);
+        dbg(S);
+        {$ifend}
+        {$ENDIF}{$ENDIF}
+      end;
+      // ######### DEBUG: TRACE.
+
       Arg := nil;
-      if fvar.VarParam then
-      begin { var param }
+      if fvar.VarParam then begin { var param }
         case fvar.aType.BaseType of
           btArray: begin
               if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
@@ -118,17 +305,19 @@ begin
                 Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
               end;
             end;
-          btSet: begin // -- Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
-              case TPSTypeRec_Set(fvar.aType).aByteSize  of
-                1:       Arg := TValue.From<Byte>    (PByte    (fvar.Dta)^);
-                2:       Arg := TValue.From<Word>    (PWord    (fvar.Dta)^);
-                3,4:     Arg := TValue.From<Cardinal>(PCardinal(fvar.Dta)^);
-                //{$if defined(CPU64)} // CPU64: // or: "{$if SizeOf(Pointer) = 8}"
-                //5,6,7,8: Arg := TValue.From<Pointer>(PPointer  (fvar.Dta)^);
-                //{$ifend}
-                5,6,7,8: Arg := TValue.From<Int64>   (PInt64   (fvar.Dta)^);
-                else     Arg := TValue.From<Pointer> (Pointer  (fvar.Dta));
-              end; // case
+          (*
+          btSet: begin
+              Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
+              //case TPSTypeRec_Set(fvar.aType).aByteSize  of
+              //  1:       Arg := TValue.From<Byte>    (PByte    (fvar.Dta)^);
+              //  2:       Arg := TValue.From<Word>    (PWord    (fvar.Dta)^);
+              //  3,4:     Arg := TValue.From<Cardinal>(PCardinal(fvar.Dta)^);
+              //  //{$if defined(CPU64)} // CPU64: // or: "{$if SizeOf(Pointer) = 8}"
+              //  //5,6,7,8: Arg := TValue.From<Pointer>(PPointer  (fvar.Dta)^);
+              //  //{$ifend}
+              //  5,6,7,8: Arg := TValue.From<Int64>   (PInt64   (fvar.Dta)^);
+              //  else     Arg := TValue.From<Pointer> (Pointer  (fvar.Dta));
+              //end; // case
             end;
           btVariant: begin
            //??Arg := TValue.From<Variant> (PVariant  (fvar.Dta));
@@ -138,95 +327,172 @@ begin
            //??Arg := TValue.From<IInterface> (IInterface  (fvar.Dta));
               Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
             end;
-          {btArray,} {btVariant,} {btSet,} btStaticArray, btRecord, {btInterface,} btClass,
+          btStaticArray, btRecord, btClass,
           {$IFNDEF PS_NOWIDESTRING}
           btWideString, btWideChar,
           {$if declared(btPWideChar)}
           btPWideChar,
           {$ifend}
           {$ENDIF !PS_NOWIDESTRING}
-          btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency,
-          btUnicodeString
+          btU8, btS8, btU16, btS16, btU32, btS32, btSingle, btDouble, btExtended,
+          btString, btPChar, btChar, btCurrency, btUnicodeString, btPointer
+          //?, btResourcePointer
           {$IFNDEF PS_NOINT64}
           ,bts64
           {$ENDIF}:
             Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
+          //*)
+
+          btVariant,
+          btSet,
+          btStaticArray,
+          btRecord,
+          btInterface,
+          btClass,
+          {$IFNDEF PS_NOWIDESTRING}
+          btUnicodeString, btWideString, btWideChar,
+          {$if declared(btPWideChar)}
+          btPWideChar,
+          {$ifend}
+          {$ENDIF !PS_NOWIDESTRING}
+          btU8, btS8, btU16,
+          btS16, btU32, btS32, btSingle, btDouble, btExtended,
+          btString, btPChar, btChar, btCurrency
+          {$IFNDEF PS_NOINT64}
+          ,bts64
+          {$ENDIF}: begin
+              Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
+          end;
+
           else
             begin
-              S := 'Parameter type (var) "'
-                + SysUtils.IntToStr(Integer(fvar.aType.BaseType))
-                + ' EN: '+string(fvar.aType.ExportName)
-                + ' SZ: '+string(UIntToStr(fvar.aType.RealSize))
+              //Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
+              //(*
+              // invalid type
+              {$if declared(PSParamTypeToStr)}
+              S := '@Param: '+PSParamTypeToStr(fvar)
                 + '" not implemented!';
-              {$IFDEF MSWINDOWS}
-              OutputDebugString(PChar('rps:> ' + S));
-              {$ELSE}
-              //writeln(stderr, S);
-              {$ENDIF}
+
+              // ######### DEBUG: TRACE:
+              {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+              dbg(S);
+              {$ENDIF}{$ENDIF}
+              // ######### DEBUG: TRACE.
+
               raise EInvocationError.Create('Internal: ' + S); // optional
+              {$ifend} // "$if declared(PSParamTypeToStr)"
               Exit;
+              //*)
             end;
         end;
       end else begin  { not a var param }
         case fvar.aType.BaseType of { add normal params here }
           {$IFNDEF PS_NOWIDESTRING}
-          btWidestring:                      Arg := TValue.From<WideString>(PWideString(fvar.Dta)^);
-          btUnicodeString:                   Arg := TValue.From<UnicodeString>(PUnicodeString(fvar.Dta)^);
+          btWidestring:                      Arg := TValue.From<WideString>( PWideString(fvar.Dta)^ );
+          btUnicodeString:                   Arg := TValue.From<UnicodeString>( PUnicodeString(fvar.Dta)^ );
           {$ENDIF}
           {$if btCharIsWide}                 // unicode string
-          btString:                          Arg := TValue.From<UnicodeString>(PUnicodeString(fvar.Dta)^);
+          btString:                          Arg := TValue.From<UnicodeString>( PUnicodeString(fvar.Dta)^ );
           {$else}                            // ansi string
-          btString:                          Arg := TValue.From<AnsiString>(PAnsiString(fvar.Dta)^);
+          btString:                          Arg := TValue.From<AnsiString>( PAnsiString(fvar.Dta)^ );
           {$ifend}
-          btU8, btS8:                        Arg := TValue.From<Byte>(PByte(fvar.Dta)^);
-          btU16, BtS16:                      Arg := TValue.From<Word>(PWord(fvar.Dta)^);
-          btU32, btS32:                      Arg := TValue.From<Cardinal>(PCardinal(fvar.Dta)^);
+          btU8, btS8:                        Arg := TValue.From<Byte>( PByte(fvar.Dta)^ );
+          btU16, BtS16:                      Arg := TValue.From<Word>( PWord(fvar.Dta)^ );
+          btU32, btS32:                      Arg := TValue.From<Cardinal>( PCardinal(fvar.Dta)^ );
           {$IFNDEF PS_NOINT64}
-          btS64:                             Arg := TValue.From<Int64>(PInt64(fvar.Dta)^);
+          btS64:                             Arg := TValue.From<Int64>( PInt64(fvar.Dta)^ );
           {$ENDIF}
-          btSingle:                          Arg := TValue.From<Single>(PSingle(fvar.Dta)^);
-          btDouble:                          Arg := TValue.From<Double>(PDouble(fvar.Dta)^);
-          btExtended:                        Arg := TValue.From<Extended>(PExtended(fvar.Dta)^);
-          btCurrency:                        Arg := TValue.From<Currency>(PCurrency(fvar.Dta)^);
+          btSingle:                          Arg := TValue.From<Single>( PSingle(fvar.Dta)^ );
+          btDouble:                          Arg := TValue.From<Double>( PDouble(fvar.Dta)^ );
+          btExtended:                        Arg := TValue.From<Extended>( PExtended(fvar.Dta)^ );
+          btCurrency:                        Arg := TValue.From<Currency>( PCurrency(fvar.Dta)^ );
           {$if btCharIsWide}                 // unicode
-          btPChar:                           Arg := TValue.From<PWideChar>(PPWideChar(fvar.Dta)^);
+          btPChar:                        //-Arg := TValue.From<PWideChar>( PPWideChar(fvar.Dta)^ );
+                                           if Pointer(fVar.Dta^) = nil then
+                                             Arg := TValue.From<PWideChar>( PPWideChar(@EmptyPChar)^ )
+                                           else
+                                             Arg := TValue.From<PWideChar>( PPWideChar(fvar.Dta)^ );
           {$else}                            // ansi
-          btPChar:                           Arg := TValue.From<PAnsiChar>(PPAnsiChar(fvar.Dta)^);
+          btPChar:                        //-Arg := TValue.From<PAnsiChar>( PPAnsiChar(fvar.Dta)^ );
+                                           if Pointer(fVar.Dta^) = nil then
+                                             Arg := TValue.From<PAnsiChar>( PPAnsiChar(@EmptyPChar)^ )
+                                           else
+                                             Arg := TValue.From<PAnsiChar>( PPAnsiChar(fvar.Dta)^ );
           {$ifend}
           {$IFNDEF PS_NOWIDESTRING}
-          btWideChar:                        Arg := TValue.From<WideChar>(PWideChar(fvar.Dta)^);
+          btWideChar:                        Arg := TValue.From<WideChar>( PWideChar(fvar.Dta)^ );
             {$if declared(btPWideChar)}
-          btPWideChar:                       Arg := TValue.From<PWideChar>(PPWideChar(fvar.Dta)^);
+          btPWideChar:                    //-Arg := TValue.From<PWideChar>( PPWideChar(fvar.Dta)^ );
+                                           if Pointer(fVar.Dta^) = nil then
+                                             Arg := TValue.From<PWideChar>( PPWideChar(@EmptyPChar)^ )
+                                           else
+                                             Arg := TValue.From<PWideChar>( PPWideChar(fvar.Dta)^ );
             {$ifend}
           {$ENDIF !PS_NOWIDESTRING}
           {$if btCharIsWide}                 // unicode char
-          btChar:                            Arg := TValue.From<WideChar>(PWideChar(fvar.Dta)^);
+          btChar:                            Arg := TValue.From<WideChar>( PWideChar(fvar.Dta)^ );
           {$else}                            // ansi char
-          btChar:                            Arg := TValue.From<AnsiChar>(PAnsiChar(fvar.Dta)^);
+          btChar:                            Arg := TValue.From<AnsiChar>( PAnsiChar(fvar.Dta)^ );
           {$ifend}
-          btClass:                           Arg := TValue.From<TObject>(TObject(fvar.Dta^));
-          btPointer:                         Arg := TValue.From<Pointer>(fvar.Dta);
-       //?btResourcePointer:                 Arg := TValue.From<Pointer>(fvar.Dta);
+          btClass:                           Arg := TValue.From<TObject>( TObject(fvar.Dta^) );
+          btPointer:                         Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
+       //?btResourcePointer:                 Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
           btProcPtr:
             begin //--Arg := TValue.From<Pointer>(fvar.Dta);
+
+{$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}           //# temporary:
+dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
+{$ENDIF}{$ENDIF}                                      //# temporary:
+
+//#TODO: Failed work on x86, but fine on x64
+
+              Arg := TValue.From<TMethod>( MKMethod(Self, Longint(fVar.Dta^)) ); // +x64, -x86
+
+(*
+              //
+              // like "x86.inc":
+              //
               p := New(PMethodCallData);
-              TMethodCallData(p^).AType := 255;
+              TMethodCallData(p^).MType := 255;
               if CallData = nil then
                 CallData := TPSList.Create;
               CallData.Add(p);
-
               //{$ifndef EMPTY_METHODS_HANDLER}
-              TMethodCallData(p^).Data := MKMethod(Self, Longint(fVar.Dta^));
+              TMethodCallData(p^).MCallback := MKMethod(Self, Longint(fVar.Dta^));
               //{$else}
-              //TMethodCallData(p^).Data.Code := nil;
-              //TMethodCallData(p^).Data.Data := nil;
+              //TMethodCallData(p^).MCallback.Code := nil;
+              //TMethodCallData(p^).MCallback.Data := nil;
               //{$endif}
+              Arg := TValue.From<Pointer>( Pointer(@(TMethodCallData(p^).MCallback)) ); // +x64, -x86
+              //
+              //.
+//*)
 
-              Arg := TValue.From<Pointer>( PPointer(@TMethodCallData(p^).Data) );
+              // ######### DEBUG: TRACE:
+(*
+              {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+              S := ' # Ptr: Self:' + SysUtils.IntToStr(IPointer(Self))
+                 + '; ProcNo:' + SysUtils.IntToStr(Longint(fVar.Dta^))
+                 ;
+              dbg(S);
+
+              S := ' # CB: Code:' + SysUtils.IntToStr(IPointer(TMethodCallData(p^).MCallback.Code)) // == @MyAllMethodsHandler
+                 + '; @MyAllMethodsHandler:' + SysUtils.IntToStr(IPointer(MyAllMethodsHandlerPtr))
+                 + '; Data:' + SysUtils.IntToStr(IPointer(TMethodCallData(p^).MCallback.Data))
+                 + '; SE:' + SysUtils.IntToStr(IPointer( PScriptMethodInfo(TMethodCallData(p^).MCallback.Data).SE )) // == Self
+                 + '; ProcNo:' + SysUtils.IntToStr( PScriptMethodInfo(TMethodCallData(p^).MCallback.Data).ProcNo )
+                 ;
+              dbg(S);
+              {$ENDIF}{$ENDIF}
+//*)
+              // ######### DEBUG: TRACE.
+
             end;
-          btInterface: // TODO: ...
+          btInterface:
             begin
-              Arg := TValue.From<Pointer>(fvar.Dta);
+              Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
+            //??Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
+            //??Arg := TValue.From<IInterface>( PIInterface(fvar.Dta)^ );
             //??Arg := TValue.From<IInterface>( PIInterface(fvar.Dta) );
             //??Arg := TValue.From(Pointer(fvar.Dta^));
             //??Arg := TValue.From(IInterface(fvar.Dta^));
@@ -235,11 +501,11 @@ begin
             begin
               //Arg := TValue.From<Pointer>(fvar.Dta);
               if fVar.aType.RealSize <= SizeOf(Pointer) then
-                Arg := TValue.From<IPointer>(IPointer(fvar.Dta^))
+                Arg := TValue.From<IPointer>( IPointer(fvar.Dta^) )
               else
                 Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
             end;
-          btStaticArray:                     Arg := TValue.From<Pointer>(fvar.Dta);
+          btStaticArray:                     Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
                                            //Arg := TValue.From<Pointer>(fvar.Dta);
                                            //Arg := TValue.From(Pointer(fvar.Dta));
           btArray:
@@ -271,14 +537,15 @@ begin
                  //2nd - integer with arraylength - 1 (high)
                  Arg := TValue.From<Longint>( Longint(POpenArray(p)^.ItemCount-1) ); //?? type IPointer
                end else begin //dynarray = just push pointer:
-                 Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
+                 Arg := TValue.From<Pointer>( PPointer(fvar.Dta){$IFNDEF FPC}^{$ENDIF} );
                end;
             end;
-          btVariant: // TODO: ...
+          btVariant:
             begin
-              Arg := TValue.From<Pointer>(fvar.Dta);
-            //?Arg := TValue.From<Variant>(Variant(fvar.Dta^));
-            //?Arg := TValue.From<Variant>(PVariant(fvar.Dta)^);
+              Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
+            //?Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
+            //?Arg := TValue.From<Variant>( Variant(fvar.Dta^) );
+            //?Arg := TValue.From<Variant>( PVariant(fvar.Dta)^ );
             end;
           btSet:
             case TPSTypeRec_Set(fvar.aType).aByteSize  of
@@ -292,27 +559,80 @@ begin
               else     Arg := TValue.From<Pointer> (Pointer  (fvar.Dta));
             end; // case
           else begin
-            S := 'Parameter type (!var) "'
-              + SysUtils.IntToStr(Integer(fvar.aType.BaseType))
-              + ' EN: '+string(fvar.aType.ExportName)
-              + ' SZ: '+string(UIntToStr(fvar.aType.RealSize))
+            {$if declared(PSParamTypeToStr)}
+            S := '#Param '+PSParamTypeToStr(fvar)
               + '" not implemented!';
-            {$IFDEF MSWINDOWS}
-            OutputDebugString(PChar('rps:> ' + S));
-            {$ELSE}
-            //writeln(stderr, S);
-            {$ENDIF}
+
+            // ######### DEBUG: TRACE:
+            {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+            dbg(S);
+            {$ENDIF}{$ENDIF}
+            // ######### DEBUG: TRACE.
+
             raise EInvocationError.Create('Internal: ' + S); // optional
+            {$ifend} // "$if declared(PSParamTypeToStr)"
             Exit;
           end;
         end;  { case }
       end; { if "not a var param" }
+      if Arg.IsEmpty then begin
+        {$if declared(PSParamTypeToStr)}
+        S := '#Param '+PSParamTypeToStr(fvar)
+          + '" not detected!';
+
+        // ######### DEBUG: TRACE:
+        {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+        dbg(S);
+        {$ENDIF}{$ENDIF}
+        // ######### DEBUG: TRACE.
+
+        //raise EInvocationError.Create('Internal: ' + S); // optional
+        {$ifend} // "$if declared(PSParamTypeToStr)"
+        //Exit;
+      end;
       Args := Args + [Arg]; // TODO: XE3: Error: E2001 Ordinal type required
     end; // for I
 
-    IsConstr := (Integer(CallingConv) and 64) <> 0;
+    IsConstr := (Integer(CallingConv) and 64) <> 0; // TODO: FPC rtti currently not supported IsConstr
+
+    if Assigned(res) then begin
+      // ######### DEBUG: TRACE:
+      {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+      {$if declared(PSParamTypeToStr)}
+      S := 'INFO:    Result: '+PSParamTypeToStr(res);
+      dbg(S);
+      {$ifend}
+      {$ENDIF}{$ENDIF}
+      // ######### DEBUG: TRACE.
+
+      p := res;
+      res := rp(PPSVariantIFC(p));
+      if Assigned(res) then begin
+        res.VarParam := True;
+
+        // ######### DEBUG: TRACE:
+        {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+        {$if declared(PSParamTypeToStr)}
+        S := 'INFO: rp:Result: '+PSParamTypeToStr(res);
+        dbg(S);
+        {$ifend}
+        {$ENDIF}{$ENDIF}
+        // ######### DEBUG: TRACE.
+      end;
+
+    end; // if Assigned(res)
+
     if not Assigned(res) then begin
-      Invoke(Address,Args,SysCalConv,nil,False,IsConstr); { ignore return }
+      //XE3
+      //function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
+      //  CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean = False): TValue;
+
+      //DX10,3
+      //function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
+      //  CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean = False;
+      //  IsConstructor: Boolean = False ): TValue;
+
+      Invoke(Address,Args,SysCalConv,nil,False,IsConstr);  { ignore return }
     end else begin
       case res.aType.BaseType of { add result types here }
         {$if btCharIsWide}
@@ -487,6 +807,7 @@ begin
           {$ifend}
         {$ENDIF}
         btInterface:           begin  // TODO: ... ?empty ; check RefCount
+                                 //(* #0:
                                  ResValue := Invoke(Address,Args,SysCalConv,
                                    TypeInfo(IInterface),True,IsConstr);
                                  {$IFDEF FPC}
@@ -494,7 +815,17 @@ begin
                                  {$ELSE}
                                  IInterface(res.Dta^) := ResValue.AsType<IInterface>;
                                  {$ENDIF}
-                               end;
+                                 // #0. *)
+                                 (* #1:
+                                 ResValue := Invoke(Address,Args,SysCalConv,
+                                   TypeInfo(Pointer),True,IsConstr);
+                                 {$IFDEF FPC}
+                                 Pointer(res.Dta^) := Pointer(ResValue.AsOrdinal);
+                                 {$ELSE}
+                                 Pointer(res.Dta^) := Pointer(ResValue.AsType<Pointer>);
+                                 {$ENDIF}
+                                 // #1. *)
+                             end;
       btSet:
         begin
           case TPSTypeRec_Set(res.aType).aByteSize of
@@ -538,8 +869,13 @@ begin
         end;
         btVariant: // TODO: ... ? empty ; check RefCount
           begin
-            ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
-            Variant(res.Dta^) := PVariant(ResValue.AsOrdinal)^;
+            //OK:
+            ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(TVarData),False,IsConstr);
+            TVarData(res.Dta^) := ResValue.AsType<TVarData>;
+
+            //OK:
+            //ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Variant),False,IsConstr);
+            //Variant(res.Dta^) := ResValue.AsVariant;
           end;
         btStaticArray:
         begin
@@ -597,17 +933,18 @@ begin
           {$ENDIF !FPC}
         end;
         else begin
-          S := 'Result type "'
-            + SysUtils.IntToStr(Integer(res.aType.BaseType))
-            + ' EN: '+string(res.aType.ExportName)
-            + ' SZ: '+string(UIntToStr(res.aType.RealSize))
+          {$if declared(PSParamTypeToStr)}
+          S := '$Param '+PSParamTypeToStr(res)
             + '" not implemented!';
-          {$IFDEF MSWINDOWS}
-          OutputDebugString(PChar('rps:> ' + S));
-          {$ELSE}
-          //writeln(stderr, S);
-          {$ENDIF}
+
+          // ######### DEBUG: TRACE:
+          {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+          dbg(S);
+          {$ENDIF}{$ENDIF}
+          // ######### DEBUG: TRACE.
+
           raise EInvocationError.Create('Internal: ' + S); // optional
+          {$ifend} // "$if declared(PSParamTypeToStr)"
           Exit;
         end;
       end;  { case }

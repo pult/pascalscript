@@ -1,4 +1,4 @@
-{ uPSRuntime.pas } // version: 2020.1021.2151
+{ uPSRuntime.pas } // version: 2020.1030.1825
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -27,7 +27,7 @@ uses
   {$IFNDEF FPC}{$IFDEF DELPHI2010UP}
   System.Rtti,
   {$ENDIF}{$ENDIF !FPC}
-  {$IFDEF FPC}{$IFDEF _INVOKECALL_IMPL_}
+  {$IFDEF FPC}{$IFDEF PS_INVOK_RTTI_IMPL}
   {%H-}Rtti, // Warning: Unit "Rtti" is experimental
   {$ENDIF}{$ENDIF FPC}
   SysUtils,
@@ -168,14 +168,15 @@ type
     Position, StackBase: Cardinal;
   end;
 
-  TPSTypeRec = class
-  private
-    FExportNameHash: Longint;
-    FExportName: TbtString;
-    FBaseType: TPSBaseType;
-    FAttributes: TPSRuntimeAttributes;
+  TPSTypeRec = class(TPSTypeRecBase)
+  //private
   protected
-    FRealSize: Cardinal;
+    //FExportNameHash: Longint;
+    //FExportName: TbtString;
+    //FBaseType: TPSBaseType;
+    FAttributes: TPSRuntimeAttributes;
+  //protected
+  //  FRealSize: Cardinal;
   public
     constructor Create(Owner: TPSExec);
     destructor Destroy; override;
@@ -185,19 +186,19 @@ type
     {+.}
     procedure CalcSize; virtual;
 
-    property RealSize: Cardinal read FRealSize;
-    property BaseType: TPSBaseType read FBaseType write FBaseType;
-    property ExportName: TbtString read FExportName write FExportName;
-    property ExportNameHash: Longint read FExportNameHash write FExportNameHash;
+    //property RealSize: Cardinal read FRealSize;
+    //property BaseType: TPSBaseType read FBaseType write FBaseType;
+    //property ExportName: TbtString read FExportName write FExportName;
+    //property ExportNameHash: Longint read FExportNameHash write FExportNameHash;
     property Attributes: TPSRuntimeAttributes read FAttributes write FAttributes;
   end;
 
   {+}
   TPSTypeRec_Chars = class(TPSTypeRec)
-  private
-    FPChasrRefCount: Integer;
-  public
-    property PCharRefCount: Integer read FPChasrRefCount write FPChasrRefCount;
+  //private
+  //  FPCharRefCount: Integer;
+  //public
+  //  property PCharRefCount: Integer read FPCharRefCount write FPCharRefCount;
   end;
 
   TPSTypeRec_PChar = class(TPSTypeRec)
@@ -234,8 +235,9 @@ type
   private
     FParamInfo: TbtString;
   public
-    property ParamInfo: TbtString read FParamInfo write FParamInfo;
     procedure CalcSize; override;
+
+    property ParamInfo: TbtString read FParamInfo write FParamInfo;
   end;
   PIFTypeRec = TPSTypeRec;
 
@@ -243,24 +245,30 @@ type
   private
     FCN: TbtString;
   public
+    function BaseTypeToStr: string; override;
+
     property CN: TbtString read FCN write FCN;
   end;
-{$IFNDEF PS_NOINTERFACES}
 
+  {$IFNDEF PS_NOINTERFACES}
   TPSTypeRec_Interface = class(TPSTypeRec)
   private
     FGuid: TGUID;
   public
+    function BaseTypeToStr: string; override;
+
     property Guid: TGUID read FGuid write FGuid;
   end;
-{$ENDIF}
+  {$ENDIF PS_NOINTERFACES}
 
   TPSTypeRec_Array = class(TPSTypeRec)
   private
     FArrayType: TPSTypeRec;
   public
-    property ArrayType: TPSTypeRec read FArrayType write FArrayType;
+    function BaseTypeToStr: string; override;
     procedure CalcSize; override;
+
+    property ArrayType: TPSTypeRec read FArrayType write FArrayType;
   end;
 
   TPSTypeRec_StaticArray = class(TPSTypeRec_Array)
@@ -268,6 +276,7 @@ type
     FSize: Longint;
     FStartOffset: LongInt;
   public
+    function BaseTypeToStr: string; override;
     procedure CalcSize; override;
 
     property Size: Longint read FSize write FSize;
@@ -279,6 +288,7 @@ type
     FBitSize: Longint;
     FByteSize: Longint;
   public
+    function BaseTypeToStr: string; override;
     procedure CalcSize; override;
 
     {The number of bytes this would require (same as realsize)}
@@ -294,6 +304,7 @@ type
     constructor Create(Owner: TPSExec);
     destructor Destroy; override;
 
+    function BaseTypeToStr: string; override;
     procedure CalcSize; override;
 
     property FieldTypes: TPSList read FFieldTypes;
@@ -303,7 +314,7 @@ type
   PPSVariant = ^TPSVariant;
   PIFVariant = PPSVariant;
   TPSVariant = packed record
-    FType: TPSTypeRec;
+    FType: TPSTypeRec; // class
   end;
 
   PPSVariantData = ^TPSVariantData;
@@ -363,169 +374,159 @@ type
     //Data: TPSVarRec;
   end;
 
-  PPSVariantU8 = ^TPSVariantU8;
-
   TPSVariantU8 = packed record
     VI: TPSVariant;
     Data: tbtU8;
   end;
-
-  PPSVariantS8 = ^TPSVariantS8;
+  PPSVariantU8 = ^TPSVariantU8;
 
   TPSVariantS8 = packed record
     VI: TPSVariant;
     Data: tbts8;
   end;
-
-  PPSVariantU16 = ^TPSVariantU16;
+  PPSVariantS8 = ^TPSVariantS8;
 
   TPSVariantU16 = packed record
     VI: TPSVariant;
     Data: tbtU16;
   end;
-
-  PPSVariantS16 = ^TPSVariantS16;
+  PPSVariantU16 = ^TPSVariantU16;
 
   TPSVariantS16 = packed record
     VI: TPSVariant;
     Data: tbts16;
   end;
-
-  PPSVariantU32 = ^TPSVariantU32;
+  PPSVariantS16 = ^TPSVariantS16;
 
   TPSVariantU32 = packed record
     VI: TPSVariant;
     Data: tbtU32;
   end;
-
-  PPSVariantS32 = ^TPSVariantS32;
+  PPSVariantU32 = ^TPSVariantU32;
 
   TPSVariantS32 = packed record
     VI: TPSVariant;
-    Data: tbts32;
+    Data: TbtS32;
   end;
-{$IFNDEF PS_NOINT64}
+  PPSVariantS32 = ^TPSVariantS32;
 
-  PPSVariantS64 = ^TPSVariantS64;
-
+  {$IFNDEF PS_NOINT64}
   TPSVariantS64 = packed record
     VI: TPSVariant;
-    Data: tbts64;
+    Data: TbtS64;
   end;
-{$ENDIF}
+  PPSVariantS64 = ^TPSVariantS64;
+  {$ENDIF}
 
-  PPSVariantAChar = ^TPSVariantAChar;
+  {TODO: TPSVariantPtr = packed record
+    VI: TPSVariant;
+    Data: Pointer;
+  end;
+  PPSVariantPtr = ^TPSVariantPtr;}
 
   TPSVariantAChar = packed record
     VI: TPSVariant;
     Data: tbtChar;
   end;
+  PPSVariantAChar = ^TPSVariantAChar;
 
-{$IFNDEF PS_NOWIDESTRING}
-
-  PPSVariantWChar = ^TPSVariantWChar;
-
+  {$IFNDEF PS_NOWIDESTRING}
   TPSVariantWChar = packed record
     VI: TPSVariant;
     Data: TbtWideChar;
   end;
-{$ENDIF}
-
-  PPSVariantAString = ^TPSVariantAString;
+  PPSVariantWChar = ^TPSVariantWChar;
+  {$ENDIF}
 
   TPSVariantAString = packed record
     VI: TPSVariant;
     Data: TbtString;
   end;
+  PPSVariantAString = ^TPSVariantAString;
 
-{$IFNDEF PS_NOWIDESTRING}
-  TPSVariantWString = {$IFNDEF DELPHI2009UP}packed {$ENDIF}record
+  {$IFNDEF PS_NOWIDESTRING}
+  TPSVariantWString =
+    //{$IFNDEF DELPHI2009UP}
+    packed
+    //{$ENDIF}
+  record
     VI: TPSVariant;
     Data: TbtWideString;
   end;
   PPSVariantWString = ^TPSVariantWString;
 
-  TPSVariantUString = {$IFNDEF DELPHI2009UP}packed {$ENDIF}record
+  TPSVariantUString =
+    //{$IFNDEF DELPHI2009UP}
+    packed
+    //{$ENDIF}
+  record
     VI: TPSVariant;
     Data: TbtUnicodeString;
   end;
   PPSVariantUString = ^TPSVariantUString;
-{$ENDIF !PS_NOWIDESTRING}
-
-  PPSVariantSingle = ^TPSVariantSingle;
+  {$ENDIF !PS_NOWIDESTRING}
 
   TPSVariantSingle = packed record
     VI: TPSVariant;
     Data: tbtsingle;
   end;
-
-  PPSVariantDouble = ^TPSVariantDouble;
+  PPSVariantSingle = ^TPSVariantSingle;
 
   TPSVariantDouble = packed record
     VI: TPSVariant;
     Data: tbtDouble;
   end;
-
-  PPSVariantExtended = ^TPSVariantExtended;
+  PPSVariantDouble = ^TPSVariantDouble;
 
   TPSVariantExtended = packed record
     VI: TPSVariant;
     Data: tbtExtended;
   end;
-
-  PPSVariantCurrency = ^TPSVariantCurrency;
+  PPSVariantExtended = ^TPSVariantExtended;
 
   TPSVariantCurrency = packed record
     VI: TPSVariant;
     Data: tbtCurrency;
   end;
-
-  PPSVariantSet = ^TPSVariantSet;
+  PPSVariantCurrency = ^TPSVariantCurrency;
 
   TPSVariantSet = packed record
     VI: TPSVariant;
     Data: array[0..0] of Byte;
   end;
+  PPSVariantSet = ^TPSVariantSet;
 
-{$IFNDEF PS_NOINTERFACES}
-
-  PPSVariantInterface = ^TPSVariantInterface;
-
+  {$IFNDEF PS_NOINTERFACES}
   TPSVariantInterface = packed record
     VI: TPSVariant;
     Data: IUnknown;
   end;
-{$ENDIF}
-
-  PPSVariantClass = ^TPSVariantClass;
+  PPSVariantInterface = ^TPSVariantInterface;
+  {$ENDIF}
 
   TPSVariantClass = packed record
     VI: TPSVariant;
     Data: TObject;
   end;
-
-  PPSVariantRecord = ^TPSVariantRecord;
+  PPSVariantClass = ^TPSVariantClass;
 
   TPSVariantRecord = packed record
     VI: TPSVariant;
     Data: array[0..0] of byte;
   end;
-
-  PPSVariantDynamicArray = ^TPSVariantDynamicArray;
+  PPSVariantRecord = ^TPSVariantRecord;
 
   TPSVariantDynamicArray = packed record
     VI: TPSVariant;
     Data: Pointer;
   end;
-
-  PPSVariantStaticArray = ^TPSVariantStaticArray;
+  PPSVariantDynamicArray = ^TPSVariantDynamicArray;
 
   TPSVariantStaticArray = packed record
     VI: TPSVariant;
     Data: array[0..0] of byte;
   end;
-
-  PPSVariantPointer = ^TPSVariantPointer;
+  PPSVariantStaticArray = ^TPSVariantStaticArray;
 
   TPSVariantPointer = packed record
     VI: TPSVariant;
@@ -533,22 +534,20 @@ type
     DestType: TPSTypeRec;
     FreeIt: LongBool;
   end;
-
-  PPSVariantReturnAddress = ^TPSVariantReturnAddress;
+  PPSVariantPointer = ^TPSVariantPointer;
 
   TPSVariantReturnAddress = packed record
     VI: TPSVariant;
     Addr: TBTReturnAddress;
   end;
-
-  PPSVariantVariant = ^TPSVariantVariant;
+  PPSVariantReturnAddress = ^TPSVariantReturnAddress;
 
   TPSVariantVariant = packed record
     VI: TPSVariant;
     Data: Variant;
   end;
+  PPSVariantVariant = ^TPSVariantVariant;
 
-  PPSVariantProcPtr = ^TPSVariantProcPtr;
   TPSVariantProcPtr = packed record
     VI: TPSVariant;
     ProcNo: Cardinal;
@@ -558,11 +557,12 @@ type
       ProcNo = 0  means Self/Ptr become active (Ptr = nil means it's nil)
     }
   end;
+  PPSVariantProcPtr = ^TPSVariantProcPtr;
 
   TPSVarFreeType = (
     vtNone,
     vtTempVar
-    );
+  );
 
   TPSResultData = packed record
     P: Pointer;
@@ -580,7 +580,8 @@ type
     P: Pointer;
   end;
 
-  TPSAttributeUseProc = function (Sender: TPSExec; const AttribType: TbtString; Attr: TPSRuntimeAttribute): Boolean;
+  TPSAttributeUseProc = function (Sender: TPSExec;
+    const AttribType: TbtString; Attr: TPSRuntimeAttribute): Boolean;
 
   TPSAttributeType = class
   private
@@ -593,7 +594,6 @@ type
     property TypeNameHash: Longint read FTypeNameHash write FTypeNameHash;
   end;
 
-  PClassItem = ^TClassItem;
   TClassItem = record
     FName: TbtString;
     FNameHash: Longint;
@@ -624,14 +624,15 @@ type
         );}
       {+.}
   end;
+  PClassItem = ^TClassItem;
 
-  PPSVariantIFC = ^TPSVariantIFC;
   {Temporary variant into record}
   TPSVariantIFC = packed record
     Dta: Pointer;
     aType: TPSTypeRec;
     VarParam: Boolean;
   end;
+  PPSVariantIFC = ^TPSVariantIFC;
   PIFPSVariantIFC = PPSVariantIFC;
   TIFPSVariantIFC = TPSVariantIFC;
 
@@ -767,7 +768,7 @@ type
     function RunProcPVar(var Params: array of Variant; const Procno: Cardinal): Variant;
     function RunProcPN(const Params: array of Variant; const ProcName: TbtString): Variant;
 
-    function FindType(StartAt: Cardinal; BaseType: TPSBaseType; var l: Cardinal): PIFTypeRec;
+    function FindType(StartAt: Cardinal; BaseType: TPSBaseType; var L: Cardinal): PIFTypeRec;
     function FindType2(BaseType: TPSBaseType): PIFTypeRec;
 
     function GetTypeNo(l: Cardinal): PIFTypeRec;
@@ -898,13 +899,14 @@ type
     property Items[I: Longint]: PPSVariant read GetItem; default;
   end;
 
+function PSParamTypeToStr(P: PPSVariantIFC): string;
 function PSErrorToString(x: TPSError; const Param: TbtString): TbtString;
 function TIFErrorToString(x: TPSError; const Param: TbtString): TbtString;
 function CreateHeapVariant(aType: TPSTypeRec): PPSVariant;
 procedure DestroyHeapVariant(v: PPSVariant);
 
-procedure FreePIFVariantList(l: TPSList);
-procedure FreePSVariantList(l: TPSList);
+procedure FreePSVariantList(L: TPSList);
+procedure FreePIFVariantList(L: TPSList); {$ifdef _inline_}inline;{$endif}
 
 const
   ENoError = ERNoError;
@@ -912,9 +914,9 @@ const
 function PIFVariantToVariant(Src: PIFVariant; var Dest: Variant): Boolean;
 function VariantToPIFVariant(Exec: TPSExec; const Src: Variant; Dest: PIFVariant): Boolean;
 
-function PSGetRecField(const avar: TPSVariantIFC; Fieldno: Longint): TPSVariantIFC;
-function PSGetArrayField(const avar: TPSVariantIFC; Fieldno: Longint): TPSVariantIFC;
-function NewTPSVariantRecordIFC(avar: PPSVariant; Fieldno: Longint): TPSVariantIFC;
+function PSGetRecField(const avar: TPSVariantIFC; FieldNo: Longint): TPSVariantIFC;
+function PSGetArrayField(const avar: TPSVariantIFC; FieldNo: Longint): TPSVariantIFC;
+function NewTPSVariantRecordIFC(avar: PPSVariant; FieldNo: Longint): TPSVariantIFC;
 
 function NewTPSVariantIFC(avar: PPSVariant; VarParam: boolean): TPSVariantIFC;
 
@@ -922,7 +924,7 @@ function NewPPSVariantIFC(avar: PPSVariant; VarParam: boolean): PPSVariantIFC;
 
 procedure DisposePPSVariantIFC(aVar: PPSVariantIFC);
 
-procedure DisposePPSVariantIFCList(list: TPSList);
+procedure DisposePPSVariantIFCList(L: TPSList);
 
 function PSGetObject(Src: Pointer; aType: TPSTypeRec): TObject;
 function PSGetUInt(Src: Pointer; aType: TPSTypeRec): Cardinal;
@@ -2142,6 +2144,24 @@ begin
   Result := PSErrorToString(x,param);
 end;
 
+function PSParamTypeToStr(P: PPSVariantIFC): string;
+begin
+   Result := '';
+   if P = nil then
+     Exit;
+  Result := 'type var: '+BoolToTxt(P.VarParam)+' "'
+    + 'BT: '+SysUtils.IntToStr(Integer(P.aType.BaseType))
+    + ', ' + P.aType.BaseTypeToStr()
+  ;
+  if P.aType.ExportName <> '' then
+    Result := Result
+    + '; EN: '+string(P.aType.ExportName);
+  Result := Result
+    + '; SZ: '+string(UIntToStr(P.aType.RealSize))
+    + '"'
+  ;
+end;
+
 function PSErrorToString(x: TPSError; const Param: TbtString): TbtString;
 begin {+}{@dbg@:hook.error}{+.} // dbg.cond:
   Result := '';
@@ -2273,11 +2293,11 @@ begin
   {
   if Assigned(FTypeCharsRec) then
   begin
-    Dec(FTypeCharsRec.FPChasrRefCount);
-    if FTypeCharsRec.FPChasrRefCount <= 0 then
+    Dec(FTypeCharsRec.FPCharRefCount);
+    if FTypeCharsRec.FPCharRefCount <= 0 then
     begin
       FinalizeVariant(FTempData, FTypeCharsRec);
-      FTypeCharsRec.FPChasrRefCount := 0;
+      FTypeCharsRec.FPCharRefCount := 0;
     end;
     //FTempBaseType := 0;
     FTempData := nil;
@@ -2322,6 +2342,26 @@ end;//*)
 {+.}
 
 { TPSTypeRec_Record }
+
+function TPSTypeRec_Record.BaseTypeToStr: string;
+var i: Longint; t: TPSTypeRec_Record;
+begin
+  if Assigned(FFieldTypes) then begin
+    Result := 'Record';
+    i := FFieldTypes.Count;
+    if (i > 0) then begin
+      t := TPSTypeRec_Record(FFieldTypes[0]);
+      Result := Result+'('+ t.BaseTypeToStr();
+      for i := 1 to i-1 do begin
+        t := TPSTypeRec_Record(FFieldTypes[i]);
+        Result := Result+','+ t.BaseTypeToStr();
+      end;
+      Result := Result + ')';
+    end;
+  end else begin
+    Result := 'Record (<undefined>)';
+  end;
+end;
 
 procedure TPSTypeRec_Record.CalcSize;
 begin
@@ -2440,10 +2480,8 @@ var
   i, l: {+}NativeInt{+.};
   darr: PDynArrayRec;
 begin
-  {+}
-  if p = nil then
+  if (p = nil) then
     Exit;
-  {+.}
   case aType.BaseType of
     btString:
       TbtString(p^) := '';
@@ -2457,23 +2495,37 @@ begin
 
     {$IFNDEF PS_NOINTERFACES}
     btInterface: begin
-        {$IFNDEF DELPHI3UP}
-        if IUnknown(p^) <> nil then
+        if (IUnknown(p^) <> nil) then
+        try
+          {$IFNDEF DELPHI3UP}
           IUnknown(p^).Release;
-        {$ENDIF}
-        IUnknown(p^) := nil;
+          {$ENDIF}
+          IUnknown(p^) := nil;
+        except // safe:
+          {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+          dbg('ERROR: FinalizeVariant(btInterface)');
+          {$ENDIF}{$ENDIF}
+          Pointer(p^) := nil;
+          //raise;
+        end;
       end;
     {$ENDIF !PS_NOINTERFACES}
 
     btVariant: begin
       try
         Finalize(Variant(p^));
-      except
+      except // safe:
+        {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+        dbg('ERROR: FinalizeVariant(btVariant)');
+        {$ENDIF}{$ENDIF}
+        //?FillChar(p^, SizeOf(TVarData), 0);
+        raise;
       end;
     end;
 
     btPointer: begin
-      OK := Pointer(Pointer(IPointer(p)+PointerSize2)^) <> nil;
+      //-OK := (Pointer(Pointer(IPointer(p)+PointerSize2)^) <> nil);
+      OK := ( Pointer(PointerShift(p, PointerSize2)^) <> nil );
       if OK then begin
         DestroyHeapVariant2(Pointer(p^), Pointer(Pointer(IPointer(p)+PointerSize)^));
         Pointer(p^) := nil;
@@ -2481,7 +2533,7 @@ begin
     end;
 
     btArray: begin
-      if IPointer(P^) = 0 then
+      if (IPointer(P^) = 0) then
         Exit;
       {+}
       //darr := PDynArrayRec(IPointer(p^) - SizeOf(TDynArrayRecHeader));
@@ -2502,12 +2554,15 @@ begin
       darr := @darr^.datas;
       case t.BaseType of
         btString,
+        //
         {$IFNDEF PS_NOWIDESTRING}
         btUnicodeString, btWideString,
-        {$ENDIF}
+        {$ENDIF !PS_NOWIDESTRING}
+        //
         {$IFNDEF PS_NOINTERFACES}
         btInterface,
-        {$ENDIF}
+        {$ENDIF !PS_NOINTERFACES}
+        //
         btArray, btStaticArray, btRecord, btPointer, btVariant: begin
           for i := 0 to l-1 do begin
             FinalizeVariant(darr, t);
@@ -2528,8 +2583,7 @@ begin
     end; // btArray
 
     btRecord: begin
-      for i := 0 to TPSTypeRec_Record(aType).FFieldTypes.Count-1 do
-      begin
+      for i := 0 to (TPSTypeRec_Record(aType).FFieldTypes.Count-1) do begin
         t := TPSTypeRec_Record(aType).FieldTypes[i];
         case t.BaseType of
           btString,
@@ -2572,23 +2626,24 @@ begin
         {+.}
       end;
     end; // btStaticArray
-
   end; // case
 end; // procedure FinalizeVariant
 
 function CreateHeapVariant2(aType: TPSTypeRec): Pointer;
 begin
-  GetMem(Result, aType.RealSize);
+  GetMem(Result, aType.FRealSize);
+  FillChar(Result^, aType.FRealSize, 0); // safe
   InitializeVariant(Result, aType);
 end;
 
 procedure DestroyHeapVariant2(v: Pointer; aType: TPSTypeRec);
 begin
-  if v = nil then
-    Exit;
-  if atype.BaseType in NeedFinalization then
-    FinalizeVariant(v, aType);
-  FreeMem(v, aType.RealSize);
+  if (v <> nil) then begin
+    if (atype.BaseType in NeedFinalization) then begin
+      FinalizeVariant(v, aType);
+    end;
+    FreeMem(v, aType.FRealSize);
+  end;
 end;
 
 function CreateHeapVariant(aType: TPSTypeRec): PPSVariant;
@@ -2596,31 +2651,39 @@ var aSize: Longint;
 begin
   aSize := aType.RealSize + RTTISize;
   GetMem(Result, aSize);
+  FillChar(Result^, aSize, 0); // safe
   Result.FType := aType;
   InitializeVariant(Pointer(IPointer(Result)+PointerSize), aType);
 end;
 
 procedure DestroyHeapVariant(v: PPSVariant);
+var sz: Longint;
 begin
-  if v = nil then
-    Exit;
-  if v.FType.BaseType in NeedFinalization then begin
-    FinalizeVariant(Pointer(IPointer(v)+PointerSize), v.FType);
+  if (v <> nil) then begin
+    if (v.FType.BaseType in NeedFinalization) then begin
+      FinalizeVariant(Pointer(IPointer(v)+PointerSize), v.FType);
+    end;
+    sz := v.FType.RealSize + RTTISize;
+    v.FType := nil;
+    FreeMem(v, sz);
   end;
-  FreeMem(v, v.FType.RealSize + RTTISize);
 end;
 
-procedure FreePSVariantList(l: TPSList);
+procedure FreePSVariantList(L: TPSList);
 var i: Longint;
 begin
-  for i:= l.Count-1 downto 0 do
-    DestroyHeapVariant(l[i]);
-  l.free;
+  if Assigned(L) then begin
+    for i:= L.Count-1 downto 0 do begin
+      DestroyHeapVariant(L[i]);
+      L[i] := nil;
+    end;
+    L.Free;
+  end;
 end;
 
-procedure FreePIFVariantList(l: TPSList);
+procedure FreePIFVariantList(L: TPSList);
 begin
-  FreePsVariantList(l);
+  FreePSVariantList(L);
 end;
 
 { TPSExec }
@@ -3393,7 +3456,7 @@ var
             CMD_Err2(erUnexpectedEof, TbtString(RPS_UnexpectedEof));
             Exit;
           end;
-          Setlength(TPSTypeRec_ProcPtr(Curr).FParamInfo, d);
+          SetLength(TPSTypeRec_ProcPtr(Curr).FParamInfo, d);
           Result := Read(TPSTypeRec_ProcPtr(Curr).FParamInfo[1], d*btCharSize);
           if not Result then begin
             curr.Free;
@@ -5294,7 +5357,7 @@ end;
 
 procedure PSDynArraySetLength(var arr: Pointer; aType: TPSTypeRec; NewLength: Longint);
 var
-  elSize, i, OldLen: Longint;
+  aSize, elSize, i, OldLen: Longint;
   darr : PDynArrayRec;
 begin
   if aType.BaseType <> btArray then
@@ -5338,7 +5401,9 @@ begin
       arr := nil;
       Exit;
     end;
-    GetMem(darr, Longint(NewLength * elSize) + SizeOf(TDynArrayRecHeader));
+    aSize := Longint(NewLength * elSize) + SizeOf(TDynArrayRecHeader);
+    GetMem(darr, aSize);
+    //?FillChar(darr^, aSize, 0); // safe
     darr^.header.refCnt := 1;
     {$IFDEF FPC}
     darr^.header.high := NewLength-1;
@@ -5349,7 +5414,10 @@ begin
     darr^.header.length := NewLength;
     {$ENDIF FPC}
     for i := 0 to NewLength-1 do begin
-      InitializeVariant(Pointer(IPointer(@darr^.datas) + Cardinal(elsize * i)), TPSTypeRec_Array(aType).ArrayType);
+      InitializeVariant(
+        //-Pointer(IPointer(@darr^.datas) + Cardinal(elSize * i)),
+        PointerShift(@darr^.datas, elSize * i),
+        TPSTypeRec_Array(aType).ArrayType );
     end;
     if OldLen <> 0 then begin
       if OldLen > NewLength then
@@ -5637,7 +5705,7 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
               //FTempBaseType := TPSTypeRec_PChar(srctype).FTempBaseType;
               FTempData := TPSTypeRec_PChar(srctype).FTempData;
               //if Assigned(FTypeCharsRec) then
-              Inc(FTypeCharsRec.FPChasrRefCount);
+              Inc(FTypeCharsRec.FPCharRefCount);
             end;
           end;
         end;
@@ -8810,20 +8878,18 @@ begin
 end;
 
 function TPSExec.FindType2(BaseType: TPSBaseType): PIFTypeRec;
-var l: Cardinal;
+var L: Cardinal;
 begin
-  FindType2 := FindType(0, BaseType, {%H-}l);
+  FindType2 := FindType(0, BaseType, {%H-}L);
 end;
 
-function TPSExec.FindType(StartAt: Cardinal; BaseType: TPSBaseType; var l: Cardinal): PIFTypeRec;
-var
-  I: Integer;
-  n: PIFTypeRec;
+function TPSExec.FindType(StartAt: Cardinal; BaseType: TPSBaseType; var L: Cardinal): PIFTypeRec;
+var I: Integer; n: PIFTypeRec;
 begin
-  for I := StartAt to FTypes.Count - 1 do begin
+  for I := StartAt to FTypes.Count-1 do begin
     n := FTypes[I];
-    if n.BaseType = BaseType then begin
-      l := I;
+    if (n.BaseType = BaseType) then begin
+      L := I;
       Result := n;
       Exit;
     end;
@@ -9200,7 +9266,7 @@ begin
                 begin
                   if vs.aType.BaseType in NeedFinalization then
                   {+}
-//                  if (vs.aType.ClassType <> TPSTypeRec_Chars) or (TPSTypeRec_Chars(vs.aType).FPChasrRefCount = 0) then
+//                  if (vs.aType.ClassType <> TPSTypeRec_Chars) or (TPSTypeRec_Chars(vs.aType).FPCharRefCount = 0) then
                     FinalizeVariant(vs.P, vs.aType);
                   {+.}
                   p := IPointer(FTempVars.Data^[FtempVars.Count-1]) - IPointer(FtempVars.DataPtr);
@@ -9239,7 +9305,7 @@ end.
                     //if vs.aType.ClassType = TPSTypeRec_Chars then
                     begin
                       TPSTypeRec_PChar(vd.aType).FTypeCharsRec := TPSTypeRec_Chars(vs.aType);
-                      Inc(TPSTypeRec_Chars(vs.aType).FPChasrRefCount);
+                      Inc(TPSTypeRec_Chars(vs.aType).FPCharRefCount);
                       //TPSTypeRec_PChar(vd.aType).FTempBaseType := vs.aType.BaseType;
                       TPSTypeRec_PChar(vd.aType).FTempData := vs.P;
                     //end else begin
@@ -9251,7 +9317,7 @@ end.
                   end
                   else
                   begin
-                    if (vs.aType.ClassType <> TPSTypeRec_Chars) or (TPSTypeRec_Chars(vs.aType).FPChasrRefCount <= 0) then
+                    if (vs.aType.ClassType <> TPSTypeRec_Chars) or (TPSTypeRec_Chars(vs.aType).FPCharRefCount <= 0) then
                       FinalizeVariant(vs.P, vs.aType);
                   end; // dbg: PChar(@pstring(vs.P)^[1])[2]
                   //*)
@@ -10334,37 +10400,35 @@ function NVarProc(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TP
 var
   tmp: TPSVariantIFC;
 begin
+  Result := False;
   case {+}NativeUInt{+.}(p.Ext1) of
-    0:
-      begin
-        if @Caller.FOnSetNVariant = nil then begin
-          Result := False;
+    0:begin
+        if (@Caller.FOnSetNVariant = nil) then begin
           Exit;
         end;
-        tmp := NewTPSVariantIFC(Stack.Items[Stack.Count - 2], True);
+        tmp := NewTPSVariantIFC(Stack.Items[Stack.Count-2], True);
         if (Tmp.Dta = nil) or (tmp.aType.BaseType <> btVariant) then begin
-          Result := False;
           Exit;
         end;
         Caller.FOnSetNVariant(Caller, Stack.GetAnsiString(-1), Variant(tmp.Dta^));
         Result := True;
       end;
-    1:
-      begin
-        if @Caller.FOnGetNVariant = nil then begin
-          Result := False;
+    1:begin
+        if (@Caller.FOnGetNVariant = nil) then begin
           Exit;
         end;
-        tmp := NewTPSVariantIFC(Stack.Items[Stack.Count - 1], False);
+        tmp := NewTPSVariantIFC(Stack.Items[Stack.Count-1], False);
         if (Tmp.Dta = nil) or (tmp.aType.BaseType <> btVariant) then begin
-          Result := False;
           Exit;
         end;
         Variant(tmp.Dta^) := Caller.FOnGetNVariant(Caller, Stack.GetAnsiString(-2));
         Result := True;
       end;
-    else
-      Result := False;
+    else begin
+      //{$IFDEF DEBUG}
+      //Result := False; if Result then ;
+      //{$ENDIF}
+    end;
   end; // case
 end; // function NVarProc
 
@@ -12256,87 +12320,7 @@ begin
 end; // procedure DestroyOpenArray
 
 {+}
-{$UNDEF _INVOKECALL_INC_} { not change }
-{$IFNDEF FPC}
-  //
-  // DELPHI:
-  //
-  //{$IFNDEF _INVOKECALL_IMPL_}
-  //  {$IFDEF DELPHI23UP}    // DELPHI2010UP == DELPHI14UP // TODO: not compiled for all delphi compilers
-  //    //{$IFDEF AUTOREFCOUNT}
-  //    //  {$MESSAGE FATAL 'Pascal Script does not supports compilation with AUTOREFCOUNT at the moment!'}
-  //    //{$ENDIF !AUTOREFCOUNT}
-  //
-  //    {$DEFINE _INVOKECALL_IMPL_} { not change }
-  //  {$ENDIF DELPHI23UP}
-  //{$ENDIF _INVOKECALL_IMPL_}
-
-  {$IFNDEF PS_USECLASSICINVOKE}
-    {$IFDEF _INVOKECALL_IMPL_}
-      {$IFDEF USEINVOKECALL}
-        //{$if defined(CPUX64)}
-        //  {--$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
-        //{$elseif defined(CPUX86)}
-        //  {--$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
-        //{$else}
-          {$DEFINE _INVOKECALL_INC_}  { not change } // TODO: currentry not all parameter types supported
-        //{$ifend}
-      {$ENDIF USEINVOKECALL}
-    {$ENDIF _INVOKECALL_IMPL_}
-  {$ENDIF !PS_USECLASSICINVOKE}
-
-  {$IFNDEF _INVOKECALL_INC_}
-    {$IFDEF DELPHI16UP} // DELPHI16UP == DELPHIXE2UP
-      {$if defined(CPUX64)}
-        {$include x64.inc} // can implement "MyAllMethodsHandler"
-      {$elseif defined(CPU386) or defined(CPUX86)}
-        {$include x86.inc} // can implement "MyAllMethodsHandler"
-      {$else}
-        {$MESSAGE FATAL 'Pascal Script does not implemented "function TPSExec.InnerfuseCall" for selected CPU!'}
-      {$ifend}
-    {$ELSE DELPHI11UP}
-      {$include x86.inc} // can implement "MyAllMethodsHandler"
-    {$ENDIF DELPHI11UP}
-  {$ENDIF !_INVOKECALL_INC_}
-
-{$ELSE FPC}   //fpc includes left unchanged.
-  //
-  // FPC:
-  //
-  {$IFNDEF _INVOKECALL_IMPL_}
-    {-$DEFINE _INVOKECALL_IMPL_} { optional }
-  {$ENDIF !_INVOKECALL_IMPL_}
-
-  {$IFDEF PS_USECLASSICINVOKE}
-    {$UNDEF _INVOKECALL_INC_}
-  {$ELSE}
-    {$IFDEF USEINVOKECALL}
-      {$IFDEF _INVOKECALL_IMPL_}
-        {$DEFINE _INVOKECALL_INC_} { optional }  // TODO: currentry not all parameter types supported
-      {$ENDIF _INVOKECALL_IMPL_}
-    {$ENDIF USEINVOKECALL}
-  {$ENDIF !PS_USECLASSICINVOKE}
-
-  {$IFNDEF _INVOKECALL_INC_}
-    {$if defined(cpu86) or defined(CPUX86)}
-      {$include x86.inc} // can implement "MyAllMethodsHandler"
-    {$elseif defined(cpux86_64) or defined(CPUX64)}
-      {$include x64.inc} // can implement "MyAllMethodsHandler"
-    {$elseif defined(cpupowerpc)}
-      {$include powerpc.inc} // can implement "MyAllMethodsHandler"
-    {$elseif defined(cpuarm)}
-      //{$ifdef cpu64} // TODO: FPC check for ARM64
-      {$include arm.inc} // can implement "MyAllMethodsHandler"
-      //{$else}
-      //{$include arm64.inc} // can implement "MyAllMethodsHandler"
-      //{$endif}
-    {$else}
-      {$fatal Pascal Script is not supported for your architecture at the moment!}
-    {$ifend}
-  {$ENDIF !_INVOKECALL_INC_}
-
-{$ENDIF FPC}
-{+.}
+var MyAllMethodsHandlerPtr: Pointer; // == @MyAllMethodsHandler; possibility of access from platfom "*.inc"
 
 type
   PScriptMethodInfo = ^TScriptMethodInfo;
@@ -12373,6 +12357,88 @@ begin
   SE.AddResource(@PFree, pp);
   Result := pp;
 end;
+
+{$UNDEF _PS_INVOK_RTTI_INC_} { not change }
+{$IFNDEF FPC}
+  //
+  // DELPHI:
+  //
+  //{$IFNDEF PS_INVOK_RTTI_IMPL}
+  //  {$IFDEF DELPHI23UP}    // DELPHI2010UP == DELPHI14UP // TODO: not compiled for all delphi compilers
+  //    //{$IFDEF AUTOREFCOUNT}
+  //    //  {$MESSAGE FATAL 'Pascal Script does not supports compilation with AUTOREFCOUNT at the moment!'}
+  //    //{$ENDIF !AUTOREFCOUNT}
+  //
+  //    {$DEFINE PS_INVOK_RTTI_IMPL} { not change }
+  //  {$ENDIF DELPHI23UP}
+  //{$ENDIF PS_INVOK_RTTI_IMPL}
+
+  {$IFNDEF PS_USECLASSICINVOKE}
+    {$IFDEF PS_INVOK_RTTI_IMPL}
+      {$IFDEF PS_USE_INVOK_RTTI}
+        //{$if defined(CPUX64)}
+        //  {--$DEFINE _PS_INVOK_RTTI_INC_} { optional }  // TODO: currentry not all parameter types supported
+        //{$elseif defined(CPUX86)}
+        //  {--$DEFINE _PS_INVOK_RTTI_INC_} { optional }  // TODO: currentry not all parameter types supported
+        //{$else}
+          {$DEFINE _PS_INVOK_RTTI_INC_}  { not change } // TODO: currentry not all parameter types supported
+        //{$ifend}
+      {$ENDIF PS_USE_INVOK_RTTI}
+    {$ENDIF PS_INVOK_RTTI_IMPL}
+  {$ENDIF !PS_USECLASSICINVOKE}
+
+  {$IFNDEF _PS_INVOK_RTTI_INC_}
+    {$IFDEF DELPHI16UP} // DELPHI16UP == DELPHIXE2UP
+      {$if defined(CPUX64)}
+        {$include x64.inc} // can implement "MyAllMethodsHandler"
+      {$elseif defined(CPU386) or defined(CPUX86)}
+        {$include x86.inc} // can implement "MyAllMethodsHandler"
+      {$else}
+        {$MESSAGE FATAL 'Pascal Script does not implemented "function TPSExec.InnerfuseCall" for selected CPU!'}
+      {$ifend}
+    {$ELSE DELPHI11UP}
+      {$include x86.inc} // can implement "MyAllMethodsHandler"
+    {$ENDIF DELPHI11UP}
+  {$ENDIF !_PS_INVOK_RTTI_INC_}
+
+{$ELSE FPC}   //fpc includes left unchanged.
+  //
+  // FPC:
+  //
+  {$IFNDEF PS_INVOK_RTTI_IMPL}
+    {-$DEFINE PS_INVOK_RTTI_IMPL} { optional }
+  {$ENDIF !PS_INVOK_RTTI_IMPL}
+
+  {$IFDEF PS_USECLASSICINVOKE}
+    {$UNDEF _PS_INVOK_RTTI_INC_}
+  {$ELSE}
+    {$IFDEF PS_USE_INVOK_RTTI}
+      {$IFDEF PS_INVOK_RTTI_IMPL}
+        {$DEFINE _PS_INVOK_RTTI_INC_} { optional }  // TODO: currentry not all parameter types supported
+      {$ENDIF PS_INVOK_RTTI_IMPL}
+    {$ENDIF PS_USE_INVOK_RTTI}
+  {$ENDIF !PS_USECLASSICINVOKE}
+
+  {$IFNDEF _PS_INVOK_RTTI_INC_}
+    {$if defined(cpu86) or defined(CPUX86)}
+      {$include x86.inc} // can implement "MyAllMethodsHandler"
+    {$elseif defined(cpux86_64) or defined(CPUX64)}
+      {$include x64.inc} // can implement "MyAllMethodsHandler"
+    {$elseif defined(cpupowerpc)}
+      {$include powerpc.inc} // can implement "MyAllMethodsHandler"
+    {$elseif defined(cpuarm)}
+      //{$ifdef cpu64} // TODO: FPC check for ARM64
+      {$include arm.inc} // can implement "MyAllMethodsHandler"
+      //{$else}
+      //{$include arm64.inc} // can implement "MyAllMethodsHandler"
+      //{$endif}
+    {$else}
+      {$fatal Pascal Script is not supported for your architecture at the moment!}
+    {$ifend}
+  {$ENDIF !_PS_INVOK_RTTI_INC_}
+
+{$ENDIF FPC}
+{+.}
 
 {$UNDEF EMPTY_METHODS_HANDLER} { not change }
 {$ifdef CPUX64}
@@ -12502,18 +12568,27 @@ begin
   end;
 end;
 
-{$IFDEF _INVOKECALL_INC_}
+{$IFDEF _PS_INVOK_RTTI_INC_}
   {$include InvokeCall.inc} // can implement "MyAllMethodsHandler", "PutOnFPUStackExtended", "MyAllMethodsHandler2"
 {$ENDIF}
 
 {$if declared(MyAllMethodsHandler)} // "MyAllMethodsHandler" can implemented by platform code "*.inc" (arm.ic ... )
   {$UNDEF EMPTY_METHODS_HANDLER} { not change }
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS is other implemented "MyAllMethodsHandler"'}
+  {$ENDIF}
 {$ifend} // "not declared(MyAllMethodsHandler)"
 
 {$IFNDEF EMPTY_METHODS_HANDLER}
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS @DBG: -EMPTY_METHODS_HANDLER'}
+  {$ENDIF}
 {$if not declared(PutOnFPUStackExtended)}
 procedure PutOnFPUStackExtended(ft: extended);
 {$if defined(FPC) and defined(CPU64)}
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS @DBG: +PutOnFPUStackExtended FPC CPU64 ATT'}
+  {$ENDIF}
   //{$if defined(FPC) and not (defined(CPU386) or defined(CPUX6)) }
     {$ASMMODE ATT}
   //{$ifend}
@@ -12521,9 +12596,12 @@ asm
   fld %st(1) //TODO: FPC Test
 end;
 {.$else}
-{$elseif defined(CPU386) or defined(CPUX86)
+{$elseif defined(CPU386) or defined(CPUX86) or defined(CPUX64)
   or ( not (defined(DELPHI) and defined(DELPHI12UP)) )
 }
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS @DBG: +PutOnFPUStackExtended X86'}
+  {$ENDIF}
 asm
     //fstp tbyte ptr [ft]
     fld tbyte ptr [ft]
@@ -12534,17 +12612,22 @@ end;
 //  fld %st(1)
 //{$ELSE !FPC}
 begin
-  //{$IFDEF _DCC_MSG_}
-  //  {$MESSAGE 'Note: RPS not implemented "PutOnFPUStackExtended"'}
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS not implemented "PutOnFPUStackExtended"'}
   //{$ELSE}
-    ERROR: not implemented it
-  //{$ENDIF}
+  //  {$MESSAGE FATAL 'Note: RPS not implemented "PutOnFPUStackExtended"'}
+  //  ERROR: not implemented it
+  {$ENDIF}
+  {$DEFINE EMPTY_METHODS_HANDLER}
 //{$ENDIF !FPC}
 end;// procedure PutOnFPUStackExtended
 {$ifend}
 {$ifend} // "not declared(PutOnFPUStackExtended)"
 
-{$if not declared(MyAllMethodsHandler2)}
+{$if not (declared(MyAllMethodsHandler2) or declared(EMPTY_METHODS_HANDLER))}
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS @DBG: +MyAllMethodsHandler2'}
+  {$ENDIF}
 function MyAllMethodsHandler2({RCX:}Self: PScriptMethodInfo; const {RDX:}Stack: PPointer;
   {R8:}_EDX, {R9:}_ECX: Pointer): Integer;
 var
@@ -12748,11 +12831,14 @@ begin
 end; // function MyAllMethodsHandler2
 {$ifend} // "not declared(MyAllMethodsHandler2)"
 
-{$if not declared(MyAllMethodsHandler)}
+{$if not (declared(MyAllMethodsHandler) or declared(EMPTY_METHODS_HANDLER))}
 procedure MyAllMethodsHandler;
 // TODO: describe the logic
 {$if defined(CPUX64)}
 {$IFDEF FPC}{$ASMMODE INTEL}{$ENDIF}
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS @DBG: +MyAllMethodsHandler CPUX64'}
+  {$ENDIF}
 //  On entry:
 //  RCX = Self pointer
 //  RDX, R8, R9 = param1 .. param3
@@ -12770,6 +12856,9 @@ end;
 {$elseif defined(CPU386) or defined(CPUX86)
   or ( not (defined(DELPHI) and defined(DELPHI12UP)) )
 }
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS @DBG: +MyAllMethodsHandler CPUX86'}
+  {$ENDIF}
 //  On entry:
 //     EAX = Self pointer
 //     EDX, ECX = param1 and param2
@@ -12963,7 +13052,8 @@ begin
     Result.aType := avar.FType;
     Result.Dta := @PPSVariantData(avar).Data;
     if Result.aType.BaseType = btPointer then begin
-      Result.aType := Pointer(Pointer(IPointer(Result.dta)+ PointerSize)^);
+      //-Result.aType := Pointer(Pointer(IPointer(Result.dta)+PointerSize)^);
+      Result.aType := Pointer( PointerShift(Result.dta, PointerSize)^ );
       Result.Dta := Pointer(Result.dta^);
     end;
   end;
@@ -13026,7 +13116,7 @@ function PSGetRecField(const avar: TPSVariantIFC; Fieldno: Longint): TPSVariantI
 var offs: Cardinal;
 begin
   Result := aVar;
-  if Result.aType.BaseType = btRecord then begin
+  if (Result.aType.BaseType = btRecord) then begin
     Offs := Cardinal(TPSTypeRec_Record(Result.aType).RealFieldOffsets[FieldNo]);
     Result.aType := TPSTypeRec_Record(Result.aType).FieldTypes[FieldNo];
     {+}
@@ -13047,36 +13137,67 @@ end;
 
 procedure DisposePPSVariantIFC(aVar: PPSVariantIFC);
 begin
-  if avar <> nil then
+  if (avar <> nil) then begin
+    {.$IFDEF DEBUG}
+    avar.Dta := nil;
+    avar.aType := nil;
+    {.$ENDIF}
     Dispose(avar);
+  end;
 end;
 
-procedure DisposePPSVariantIFCList(list: TPSList);
+procedure DisposePPSVariantIFCList(L: TPSList);
 var i: Longint;
 begin
-  for i := list.Count-1 downto 0 do
-    DisposePPSVariantIFC(list[i]);
-  list.free;
+  if Assigned(L) then begin
+    for i := L.Count-1 downto 0 do begin
+      DisposePPSVariantIFC(L[i]);
+      L[i] := nil;
+    end;
+    L.Free;
+  end;
 end;
 
 function ClassCallProcMethod(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 var
-  i: Integer;
+  CurrStack, i, L: Longint;
+  //i: Integer;
   MyList: TPSList;
   n: PIFVariant;
   v: PPSVariantIFC;
   FSelf: Pointer;
-  CurrStack: Cardinal;
+  //CurrStack: Cardinal;
   cc: TPSCallingConvention;
   S: TbtString;
   MAddr: Pointer;
 begin
   Result := False;
-  S := p.Decl;
-  if Length(S) < 2 then
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcMethod" @Caller');
+    {$ENDIF}{$ENDIF}
     Exit;
+  end;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcMethod" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  S := p.Decl;
+  L := Length(S);
+  if (L < 2) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcMethod" @ProcRec.Decl; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
+    Exit;
+  end;
   cc := TPSCallingConvention(S[1]);
   Delete(S, 1, 1);
+  Dec(L);
   if S[1] = #0 then
     n := Stack[Stack.Count-1]
   else
@@ -13088,7 +13209,16 @@ begin
   then begin
     Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
     Exit;
-  end;
+  end; // ?? TODO: string(n^.FType.ExportName)
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "ClassCallProcMethod": "'
+   +string(PPSVariantClass(n).VI.FType.FExportName)+'.'
+   +string(p.FName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
   FSelf := PPSVariantClass(n).Data; // @dbg: TMBCSEncoding(PPSVariantClass(n).Data),r
   if (FSelf = nil)
     {.$IFDEF DELPHI} // ClassType == nil:  We need a new "correst uPSR_std.pas" with the corrected TObject_Free )
@@ -13099,168 +13229,273 @@ begin
       Result := True;
       Exit;
     end;
-    if (FSelf = nil) then
-      Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException))
-    else
-      raise EPSError.Create('Invalid Object Reference'); // EPSError InvalidPointer
+    if (FSelf = nil)
+    then Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException))
+    else raise EPSError.Create('Invalid Object Reference'); // EPSError InvalidPointer
     Exit;
   end;
   {+.}
   CurrStack := Cardinal(Stack.Count) - Cardinal(Length(S)) - 1;
-  if S[1] = #0 then
+  if (S[1] = #0) then
     Inc(CurrStack);
+  v := nil;
   MyList := TPSList.Create;
-  for i := 2 to Length(S) do begin
-    MyList.Add(nil);
-  end;
-  for i := Length(S) downto 2 do begin
-    n := Stack[CurrStack];
-    MyList[i - 2] := NewPPSVariantIFC(n, S[i] <> #0);
-    inc(CurrStack);
-  end;
-  if S[1] <> #0 then
-    v := NewPPSVariantIFC(Stack[CurrStack + 1], True)
-  else
-    v := nil;
   try
-    if p.Ext2 = nil then
-      MAddr := p.Ext1
-    else
-      MAddr := VirtualMethodPtrToPtr(p.Ext1, FSelf);
-    Result := Caller.InnerfuseCall(FSelf, MAddr, cc, MyList, v)
+    if (L > 1) then begin
+      for i := 2 to L do begin
+        MyList.Add(nil);
+      end;
+      for i := L downto 2 do begin
+        n := Stack[CurrStack];
+        MyList[i - 2] := NewPPSVariantIFC(n, S[i] <> #0);
+        inc(CurrStack);
+      end;
+    end;
+    if S[1] <> #0 then
+      v := NewPPSVariantIFC(Stack[CurrStack + 1], True);
+    if p.Ext2 = nil
+    then MAddr := p.Ext1
+    else MAddr := VirtualMethodPtrToPtr(p.Ext1, FSelf);
+    //
+    Result := Caller.InnerfuseCall(FSelf, MAddr, cc, MyList, v);
   finally
-    DisposePPSVariantIFC(v);
-    DisposePPSVariantIFCList(mylist);
+    if (not Result) then begin // InnerfuseCall Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('ERROR: ClassCallProcMethod: InnerfuseCall "'+string(p.FName)+'"');
+      {$ENDIF}{$ENDIF}
+      //
+      // duplicate release for comfortly debug
+      if Assigned(v) then
+        DisposePPSVariantIFC(v);
+      DisposePPSVariantIFCList(MyList);
+    end else begin
+      if Assigned(v) then
+        DisposePPSVariantIFC(v);
+      DisposePPSVariantIFCList(MyList);
+    end;
   end;
 end; // function ClassCallProcMethod
 
 function ClassCallProcConstructor(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 var
-  i, h: Longint;
+  CurrStack, i, h, L: Longint;
   v: PPSVariantIFC;
   MyList: TPSList;
   n: PIFVariant;
   FSelf: Pointer;
-  CurrStack: Cardinal;
+  //CurrStack: Cardinal;
   cc: TPSCallingConvention;
-  s: TbtString;
+  S: TbtString;
   FType: PIFTypeRec;
   x: TPSRuntimeClass;
   IntVal: PIFVariant;
 begin //@dbg: Caller.GetCurrentPositionDebugInfo()  ;  Caller.GetCallStack(CurrStack)
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcConstructor" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (p = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcConstructor" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcConstructor" @Stack; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
   n := Stack[Stack.Count -2];
-  if (n = nil) or (n^.FType.BaseType <> btU32) then begin
-    Result := False;
+  if (n = nil) or (
+    //{$IFDEF CPU32}
+    n^.FType.BaseType <> btU32
+    //{$ELSE}
+    //n^.FType.BaseType <> btS64 // TODO: check CPU64
+    //{$ENDIF}
+  ) then
+  begin
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcConstructor" @TypeNo; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
     Exit;
-  end;
-  FType := Caller.GetTypeNo(PPSVariantU32(N).Data);
+  end; // ??TODO: string(n^.FType.ExportName)
+  FType := Caller.GetTypeNo(PPSVariantU32(n).Data); // ^record // TODO: check CPU64
   if (FType = nil) then begin
-    Result := False;
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcConstructor" @FType; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
     Exit;
   end;
-  h := MakeHash(FType.ExportName);
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "ClassCallProcConstructor": "'+string(p.FName)+'.'+string(FType.ExportName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  h := FType.FExportNameHash; // == MakeHash(FType.ExportName);
   FSelf := nil;
   for i := 0 to TPSRuntimeClassImporter(p.Ext2).FClasses.Count-1 do begin
-    x:= TPSRuntimeClassImporter(p.Ext2).FClasses[i];
+    x := TPSRuntimeClassImporter(p.Ext2).FClasses[i];
     if (x.FClassNameHash = h) and (x.FClassName = FType.ExportName) then begin
       FSelf := x.FClass;
+      Break;
     end;
   end;
-  if FSelf = nil then begin
-    Result := False;
+  if (FSelf = nil) then begin
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcConstructor" @FSelf');
+    {$ENDIF}{$ENDIF}
     Exit;
   end;
-  s := p.Decl;
-  if length(S) < 2 then begin
-    Result := False;
+  S := p.Decl;
+  L := Length(S);
+  if (L < 2) then begin
     Exit;
   end;
-  cc := TPSCallingConvention(s[1]);
-  Delete(s, 1, 1);
-  CurrStack := Cardinal(Stack.Count) - Cardinal(length(s)) - 1;
-  if s[1] = #0 then inc(CurrStack);
-  {$IFDEF CPU64}
-  IntVal := CreateHeapVariant(Caller.FindType2(btS64));
-  {$ELSE}
-  IntVal := CreateHeapVariant(Caller.FindType2(btU32));
-  {$ENDIF}
-  if IntVal = nil then begin
-    Result := False;
-    Exit;
-  end;
+  cc := TPSCallingConvention(S[1]);
+  Delete(S, 1, 1);
+  Dec(L);
+  CurrStack := Cardinal(Stack.Count) - Cardinal(L) - 1;
+  if (S[1] = #0) then
+    Inc(CurrStack);
   {$IFDEF FPC}
-  // under FPC a constructor it's called with self=0 (EAX) and
-  // the VMT class pointer in EDX so they are effectively swaped
-  // using register calling convention
-  {+}
-  {$IFDEF CPU64}
-  PPSVariantS64(IntVal).Data := tbts64(FSelf); // TODO: unchecked
-  {$ELSE}
-  PPSVariantU32(IntVal).Data := {+}tbtU32{+.}(FSelf);
-  {$ENDIF !CPU64}
-  {+.}
-  FSelf := Pointer(1);
-  {$ELSE !FPC}
-  PPSVariantU32(IntVal).Data := 1;
-  {$ENDIF !FPC}
-  MyList := TPSList.Create;
-  MyList.Add(NewPPSVariantIFC(intval, False));
-  for i := 2 to length(s) do begin
-    MyList.Add(nil);
-  end;
-  for i := length(s) downto 2 do begin
-    n :=Stack[CurrStack];
-    //if s[i] <> #0 then MyList[i - 2] := NewPPSVariantIFC(n, s[i] <> #0);
-    MyList[i - 1] := NewPPSVariantIFC(n, s[i] <> #0);
-    inc(CurrStack);
-  end;
-  if s[1] <> #0 then begin
-    v := NewPPSVariantIFC(Stack[CurrStack + 1], True);
-  end else
-    v := nil;
-  try
-    {+}
-    {$IFDEF _INVOKECALL_INC_}
-    Result := Caller.InnerfuseCall(FSelf, p.Ext1, TPSCallingConvention(Integer(cc) or 64), MyList, v);
+  begin
+    {$IFDEF CPU64}
+    IntVal := CreateHeapVariant(Caller.FindType2(btS64)); // ?TODO: btS64 => btPointer
     {$ELSE}
-    Result := Caller.InnerfuseCall(FSelf, p.Ext1,
-      {$IFDEF FPC}TPSCallingConvention(Integer(cc) or 64){$ELSE}cc{$ENDIF}, MyList, v);
+    IntVal := CreateHeapVariant(Caller.FindType2(btU32)); // ?TODO: btU32 => btPointer
     {$ENDIF}
+  end;
+  {$ELSE !FPC}
+  begin
+    IntVal := CreateHeapVariant(Caller.FindType2(btU32));
+  end;
+  {$ENDIF !FPC}
+  if (IntVal = nil) then begin
+    Exit;
+  end;
+  v := nil;
+  MyList := nil;
+  try
+    {$IFDEF FPC}
+    begin
+      // under FPC a constructor it's called with self=0 (EAX) and
+      // the VMT class pointer in EDX so they are effectively swaped
+      // using register calling convention
+      {+}
+      {$IFDEF CPU64}
+      PPSVariantS64(IntVal).Data := TbtS64(FSelf); // TODO: unchecked // ?TODO: => PPSVariantPtr(IntVal).Data := FSelf;
+      {$ELSE}
+      PPSVariantU32(IntVal).Data := {+}TbtU32{+.}(FSelf);             // ?TODO: => PPSVariantPtr ...
+      {$ENDIF !CPU64}
+      {+.}
+      FSelf := Pointer(1);
+    end;
+    {$ELSE !FPC}
+    begin
+      PPSVariantU32(IntVal).Data := 1;
+    end;
+    {$ENDIF !FPC}
+    MyList := TPSList.Create;
+    MyList.Add(NewPPSVariantIFC(IntVal, False));
+    if (L > 1)  then begin
+      for i := 2 to L do
+        MyList.Add(nil);
+      for i := L downto 2 do begin
+        n :=Stack[CurrStack];
+        //if s[i] <> #0 then MyList[i - 2] := NewPPSVariantIFC(n, s[i] <> #0);
+        MyList[i - 1] := NewPPSVariantIFC(n, s[i] <> #0);
+        inc(CurrStack);
+      end;
+    end;
+    if s[1] <> #0 then
+      v := NewPPSVariantIFC(Stack[CurrStack + 1], True);
+    {+}
+    {$if defined(FPC) or defined(_PS_INVOK_RTTI_INC_)}
+    cc := TPSCallingConvention(IPointer(cc) or 64);
+    {$ifend}
+    Result := Caller.InnerfuseCall(FSelf, p.Ext1, cc, MyList, v);
     {+.}
   finally
-    DisposePPSVariantIFC(v);
-    DisposePPSVariantIFCList(mylist);
-    DestroyHeapVariant(intval);
+    if (not Result) then begin // InnerfuseCall Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('ERROR: ClassCallProcConstructor: InnerfuseCall "'+string(p.FName)+'.'+string(FType.ExportName)+'"');
+      {$ENDIF}{$ENDIF}
+      //
+      // duplicate release for comfortly debug
+      if Assigned(v) then
+        DisposePPSVariantIFC(v);
+      DisposePPSVariantIFCList(MyList);
+      DestroyHeapVariant(IntVal);
+    end else begin
+      if Assigned(v) then
+        DisposePPSVariantIFC(v);
+      DisposePPSVariantIFCList(MyList);
+      DestroyHeapVariant(IntVal);
+    end;
   end;
 end; // function ClassCallProcConstructor
 
 function ClassCallProcVirtualConstructor(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 var
-  i, h: Longint;
+  CurrStack, i, h, L: Longint;
   v: PPSVariantIFC;
   MyList: TPSList;
   n: PIFVariant;
   FSelf: TClass;
   FAddress: Pointer;
-  CurrStack: Cardinal;
+  //CurrStack: Cardinal;
   cc: TPSCallingConvention;
-  s: TbtString;
+  S: TbtString;
   FType: PIFTypeRec;
   x: TPSRuntimeClass;
   IntVal: PIFVariant;
 begin
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcVirtualConstructor" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcVirtualConstructor" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcProperty" @Stack; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
   n := Stack[Stack.Count-2];
-  if (n = nil) or (n^.FType.BaseType <> btU32) then begin
+  if (n = nil) or (n^.FType.BaseType <> btU32) then begin // TODO: check CPU64
     Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
     Result := False;
     Exit;
-  end;
-  FType := Caller.GetTypeNo(PPSVariantU32(n).Data);
+  end; // ??TODO: string(n^.FType.ExportName)
+  FType := Caller.GetTypeNo(PPSVariantU32(n).Data); // TODO: check CPU64
   if (FType = nil) then begin
     Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
     Result := False;
     Exit;
   end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "ClassCallProcVirtualConstructor": "'+string(FType.ExportName)+'.'+string(p.FName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
   {+}
   h := FType.FExportNameHash; // == MakeHash(FType.ExportName);
   FSelf := nil;
@@ -13272,73 +13507,110 @@ begin
     end;
   end;//}
   {+.}
-  if FSelf = nil then begin
-    Result := False;
+  if (FSelf = nil) then begin
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcVirtualConstructor" @FSelf');
+    {$ENDIF}{$ENDIF}
     Exit;
   end;
-  s := p.Decl;
-  if length(S) < 2 then begin
-    Result := False;
+  S := p.Decl;
+  L := Length(S);
+  if (L < 2) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcVirtualConstructor" @ProcRec.Decl');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
     Exit;
   end;
   cc := TPSCallingConvention(s[1]);
-  delete(s, 1, 1);
-  CurrStack := Cardinal(Stack.Count) - Cardinal(length(s)) - 1;
-  if s[1] = #0 then inc(CurrStack);
+  Delete(s, 1, 1);
+  Dec(L);
+  CurrStack := Cardinal(Stack.Count) - Cardinal(L) - 1;
+  if (s[1] = #0) then
+    Inc(CurrStack);
   IntVal := CreateHeapVariant(Caller.FindType2(btU32));
-  if IntVal = nil then begin // @dbg: IntVal^.FType,r
-    Result := False;
+  if (IntVal = nil) then begin // @dbg: IntVal^.FType,r
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcVirtualConstructor" @IntVal');
+    {$ENDIF}{$ENDIF}
     Exit;
   end;
-  PPSVariantU32(IntVal).Data := 1;
-  MyList := TPSList.Create;
-  MyList.Add(NewPPSVariantIFC(IntVal, False));
-  for i := 2 to length(s) do begin
-    MyList.Add(nil);
-  end;
-  for i := length(s) downto 2 do begin
-    n :=Stack[CurrStack];
-    MyList[i - 1] := NewPPSVariantIFC(n, s[i] <> #0);
-    inc(CurrStack);
-  end;
-  if s[1] <> #0 then
-    v := NewPPSVariantIFC(Stack[CurrStack + 1], True)
-  else
-    v := nil;
+  v := nil;
+  MyList := nil;
   try
+    PPSVariantU32(IntVal).Data := 1;
+    MyList := TPSList.Create;
+    MyList.Add(NewPPSVariantIFC(IntVal, False));
+    if (L > 1) then begin
+      for i := 2 to L do
+        MyList.Add(nil);
+      for i := L downto 2 do begin
+        n := Stack[CurrStack];
+        MyList[i - 1] := NewPPSVariantIFC(n, s[i] <> #0);
+        Inc(CurrStack);
+      end;
+    end;
+    if (s[1] <> #0) then
+      v := NewPPSVariantIFC(Stack[CurrStack + 1], True);
     {+}
-    if p.FWrap then // @dbg: TPSRuntimeClassImporter(p.FExt2).FClasses,r
-      FAddress := p.FExt1
-    else
-      FAddress := VirtualClassMethodPtrToPtr(p.Ext1, FSelf);
-    {$IFDEF _INVOKECALL_INC_}
-    Result := Caller.InnerfuseCall(FSelf, FAddress,
-      TPSCallingConvention(Integer(cc) or 128),
-      MyList, v);
-    {$ELSE}
-    Result := Caller.InnerfuseCall(FSelf, FAddress,
-      {$IFDEF FPC}TPSCallingConvention(Integer(cc) or 128){$ELSE}cc{$ENDIF},
-      MyList, v);
-    {$ENDIF} // @dbg: TObject(v^.Dta^).ClassName  ;  TMBCSEncoding(v^.Dta^),r
-    {+.}
+    if p.FWrap // @dbg: TPSRuntimeClassImporter(p.FExt2).FClasses,r
+    then FAddress := p.FExt1
+    else FAddress := VirtualClassMethodPtrToPtr(p.Ext1, FSelf);
+    {$if defined(FPC) or defined(_PS_INVOK_RTTI_INC_)}
+    cc := TPSCallingConvention(IPointer(cc) or 128);
+    {$ifend}
+    //
+    Result := Caller.InnerfuseCall(FSelf, FAddress, cc, MyList, v);
+    {+.} // @dbg: TObject(v^.Dta^).ClassName  ;  TMBCSEncoding(v^.Dta^),r
   finally
-    DisposePPSVariantIFC(v);
-    DisposePPSVariantIFCList(MyList);
-    DestroyHeapVariant(IntVal);
-  end;
+    if (not Result) then begin // InnerfuseCall Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('ERROR: ClassCallProcVirtualConstructor: InnerfuseCall "'+string(FType.ExportName)+'.'+string(p.FName)+'"');
+      {$ENDIF}{$ENDIF}
+      //
+      // duplicate release for comfortly debug
+      if Assigned(v) then
+        DisposePPSVariantIFC(v);
+      DisposePPSVariantIFCList(MyList);
+      DestroyHeapVariant(IntVal);
+    end else begin
+      if Assigned(v) then
+        DisposePPSVariantIFC(v);
+      DisposePPSVariantIFCList(MyList);
+      DestroyHeapVariant(IntVal);
+    end;
+  end; // finally
 end; // function ClassCallProcVirtualConstructor
 
 function CastProc(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 var
-  TypeNo, InVar, ResVar: TPSVariantIFC;
+  TypeNo, InVar, ResVar: TPSVariantIFC; // record's
   FSelf: TClass;
   FType: PIFTypeRec;
   H, I: Longint;
   x: TPSRuntimeClass;
-  {+}
   S: TbtString;
-  {+.}
 begin
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "CastProc" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (p = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "CastProc" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "CastProc" @Stack'); // +'; "'+string(p.FName)+'"'); // TODO: p.FName is Empty
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
   TypeNo := NewTPSVariantIFC(Stack[Stack.Count-3], False);
   InVar := NewTPSVariantIFC(Stack[Stack.Count-2], False);
   ResVar := NewTPSVariantIFC(Stack[Stack.Count-1], True);
@@ -13346,46 +13618,78 @@ begin
     or (TypeNo.aType.BaseType <> btu32)
     or (resvar.aType <> Caller.FTypes[tbtu32(Typeno.dta^)]) then
   begin
-    Result := False;
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "CastProc" @Params'); // +'; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
     Exit;
   end;
+
   {$IFNDEF PS_NOINTERFACES}
   if (invar.atype.BaseType = btInterface) and (resvar.aType.BaseType = btInterface) then begin
-    {$IFNDEF Delphi3UP}
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('#CALL: "CastProc": Intf -> Intf'); // +'; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
+
     if IUnknown(resvar.Dta^) <> nil then
-      IUnknown(resvar.Dta^).Release;
-    {$ENDIF}
-    IUnknown(resvar.Dta^) := nil;
-    if (IUnknown(invar.Dta^) = nil)
-      or (IUnknown(invar.Dta^).QueryInterface(TPSTypeRec_Interface(ResVar.aType).Guid,
-        IUnknown(resvar.Dta^)) <> 0) then
+    try
+      {$IFNDEF Delphi3UP}
+        IUnknown(resvar.Dta^).Release;
+      IUnknown(resvar.Dta^) := nil;
+      {$ENDIF}
+    except // safe
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "CastProc" @IUnknown.Release #1');
+      {$ENDIF}{$ENDIF}
+      Pointer(resvar.Dta^) := nil;
+      //raise;
+      //Exit;
+    end;
+    if ( IUnknown(invar.Dta^) = nil ) or
+       ( IUnknown(invar.Dta^).QueryInterface(TPSTypeRec_Interface(ResVar.aType).Guid,
+         IUnknown(resvar.Dta^)) <> 0 ) then
     begin
       {+}
       //Caller.CMD_Err2(erCustomError, TbtString(RPS_CannotCastInterface));
       S := TbtString(RPS_CannotCastInterface);
-      if ResVar.aType.FExportName <> '' then
-        S := S + TbtString(' ') + ResVar.aType.FExportName
-      else
-        S := S + TbtString(' ') + TbtString(GUIDToString(TPSTypeRec_Interface(ResVar.aType).Guid));
+      if ResVar.aType.FExportName <> ''
+      then S := S + TbtString(' ') + ResVar.aType.FExportName
+      else S := S + TbtString(' ') + TbtString(GUIDToString(TPSTypeRec_Interface(ResVar.aType).Guid));
       //
       raise EPSIntf.Create(S);
       //
       {Caller.CMD_Err2(erCustomError, S);
       //
-      Result := False;
       Exit;//}
       {+.}
     end;
+    Result := True;
   {$IFDEF Delphi3UP}
-  end else if (Invar.aType.BaseType = btclass) and (resvar.aType.BaseType = btInterface) then begin
-    {$IFNDEF Delphi3UP}
+  end else if (Invar.aType.BaseType = btClass) and (resvar.aType.BaseType = btInterface) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('#CALL: "CastProc": Class -> Intf'); // +'; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
+
     if IUnknown(resvar.Dta^) <> nil then
-      IUnknown(resvar.Dta^).Release;
-    {$ENDIF !PS_NOINTERFACES}
-    IUnknown(resvar.Dta^) := nil;
-    if (TObject(invar.Dta^)= nil)
-      or (not TObject(invar.dta^).GetInterface(TPSTypeRec_Interface(ResVar.aType).Guid,
-        IUnknown(resvar.Dta^))) then
+    try
+      {$IFNDEF Delphi3UP}
+        IUnknown(resvar.Dta^).Release;
+      {$ENDIF !PS_NOINTERFACES}
+      IUnknown(resvar.Dta^) := nil;
+    except // safe
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "CastProc" @IUnknown.Release #2');
+      {$ENDIF}{$ENDIF}
+      Pointer(resvar.Dta^) := nil;
+      //raise;
+      //Exit;
+    end;
+    if ( TObject(invar.Dta^)= nil ) or
+       ( not TObject(invar.dta^).GetInterface(TPSTypeRec_Interface(ResVar.aType).Guid,
+         IUnknown(resvar.Dta^)) ) then
     begin
       {+}
       //Caller.CMD_Err2(erCustomError, TbtString(RPS_CannotCastInterface));
@@ -13399,171 +13703,323 @@ begin
       //
       {Caller.CMD_Err2(erCustomError, S);
       //
-      Result := False;
       Exit;//}
       {+.}
     end;
+    Result := True;
   {$ENDIF !Delphi3UP}
   end else
   {$ENDIF !PS_NOINTERFACES}
+  //
   if (invar.aType.BaseType = btClass) and (resvar.aType.BaseType = btClass ) then begin
-    FType := Caller.GetTypeNo(tbtu32(TypeNo.Dta^));
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('#CALL: "CastProc": Class -> Class'); // +'; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
+
+    FType := Caller.GetTypeNo(TbtU32(TypeNo.Dta^)); // TODO: check CPU64
     if (FType = nil) then begin
-      Result := False;
+      // ######### DEBUG: TRACE:
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "CastProc" @TypeNo');
+      {$ENDIF}{$ENDIF}
+      // ######### DEBUG: TRACE.
       Exit;
     end;
-    h := MakeHash(FType.ExportName);
+    h := FType.FExportNameHash; // == MakeHash(FType.ExportName);
     FSelf := nil;
     for i := 0 to TPSRuntimeClassImporter(p.Ext2).FClasses.Count-1 do begin
       x:= TPSRuntimeClassImporter(p.Ext2).FClasses[i];
       if (x.FClassNameHash = h) and (x.FClassName = FType.ExportName) then begin
         FSelf := x.FClass;
+        Break; // ?? TODO: NEW LINE: test ...
       end;
     end;
-    if FSelf = nil then begin
-      Result := False;
+    if (FSelf = nil) then begin
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "CastProc" @Self');
+      {$ENDIF}{$ENDIF}
       Exit;
     end;
-    try
+
+    {try
       TObject(ResVar.Dta^) := TObject(InVar.Dta^) as FSelf;
     except
-      Result := False;
+      Caller.CMD_Err2(erCustomError, TbtString(RPS_CannotCastObject));
+      Exit;
+    end;}
+    // or:
+    if (Pointer(InVar.Dta^) = nil)
+      or (TObject(InVar.Dta^).InheritsFrom(FSelf)) then
+    begin
+      Pointer(ResVar.Dta^) := Pointer(InVar.Dta^);
+    end else begin
       Caller.CMD_Err2(erCustomError, TbtString(RPS_CannotCastObject));
       Exit;
     end;
+
+    Result := True;
   end else begin
-    Result := False;
-    Exit;
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    //-dbg('#CALL: "CastProc": ? -> ?'); // +'; "'+string(p.FName)+'"');
+    dbg('Internal Error "CastProc" @Types'); // +'; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
   end;
-  Result := True;
 end; // function CastProc
 
 function NilProc(Caller: TPSExec; {%H-}p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 var
   n: TPSVariantIFC;
 begin
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "NilProc" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  //-if Assigned(p)
+  //-then dbg('#CALL: NilProc: "'+string(p.FName)+'"') else // TODO: FName is Empty
+  dbg('#CALL: "NilProc":');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "NilProc" @Stack');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
   n := NewTPSVariantIFC(Stack[Stack.Count-1], True);
   if (n.Dta = nil) or ((n.aType.BaseType <> btClass) and (n.aType.BaseType <> btInterface)) then begin
-    Result := False;
     Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
     Exit;
   end;
   {$IFNDEF PS_NOINTERFACES}
-  if n.aType.BaseType = btInterface then begin
-    {$IFNDEF Delphi3UP}
+  if (n.aType.BaseType = btInterface) then begin
     if IUnknown(n.Dta^) <> nil then
+    try
+      {$IFNDEF Delphi3UP}
       IUnknown(n.Dta^).Release;
-    {$ENDIF}
-    IUnknown(n.Dta^) := nil;
+      {$ENDIF}
+      IUnknown(n.Dta^) := nil;
+    except // safe
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "NilProc" @IUnknown.Release');
+      {$ENDIF}{$ENDIF}
+      //
+      Pointer(n.Dta^) := nil;
+      //raise;
+    end;
   end else
   {$ENDIF !PS_NOINTERFACES}
+  begin
     Pointer(n.Dta^) := nil;
+  end;
   Result := True;
 end; // function NilProc
 
 function IntfCallProc(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 var
-  i: Integer;
+  CurrStack, i, L: Longint;
   MyList: TPSList;
   n: TPSVariantIFC;
   n2: PPSVariantIFC;
   FSelf, FAddress: Pointer;
-  CurrStack: Cardinal;
+  //CurrStack: Cardinal;
   cc: TPSCallingConvention;
-  s: TbtString;
+  S: TbtString;
 begin
-  s := p.Decl;
-  if Length(S) < 2 then begin
-    Result := False;
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "IntfCallProc" @Caller');
+    {$ENDIF}{$ENDIF}
     Exit;
   end;
-  cc := TPSCallingConvention(s[1]);
-  Delete(s, 1, 1);
-  if s[1] = #0 then
-    n := NewTPSVariantIFC(Stack[Stack.Count-1], False)
-  else
-    n := NewTPSVariantIFC(Stack[Stack.Count -2], False);
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "IntfCallProc" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "IntfCallProc": "'+string(p.FName)+'"; WRAP: '+BoolToTxt(p.FWrap)); // TODO: FName is empty
+  //--dbg('#        decl:"'+p.FDecl+'"'); //TODO: PSDeclToBinStr
+  if Assigned(p.FRCL) then begin
+    dbg('#        FRCL.CN:"'+string(TPSRuntimeClass(p.FRCL).FClassName)+'"');
+    //-dbg('#        FRCL.CCN: "'+TPSRuntimeClass(p.FRCL).FClass.ClassName+'"');
+  end;
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  S := p.Decl;
+  L := Length(S);
+  if (L < 2) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "IntfCallProc" @ProcRec.Decl'); // +'; "'+string(p.FName)+'"');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
+    Exit;
+  end;
+  cc := TPSCallingConvention(S[1]);
+  Delete(S, 1, 1);
+  Dec(L);
+  if (s[1] = #0)
+  then n := NewTPSVariantIFC(Stack[Stack.Count-1], False)
+  else n := NewTPSVariantIFC(Stack[Stack.Count-2], False);
   if (n.dta = nil) or (n.atype.BaseType <> btInterface) or (Pointer(n.Dta^) = nil) then begin
     Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-    Result := False;
     Exit;
   end;
   FSelf := Pointer(n.dta^);
-  CurrStack := Cardinal(Stack.Count) - Cardinal(length(s)) - 1;
-  if s[1] = #0 then
+  CurrStack := Cardinal(Stack.Count) - Cardinal(L) - 1;
+  if (s[1] = #0) then
     inc(CurrStack);
-  MyList := TPSList.Create;
   n2 := nil;
+  MyList := TPSList.Create;
   try
-    for i := 2 to Length(s) do
-      MyList.Add(nil);
-    for i := length(s) downto 2 do begin
-      MyList[i - 2] := NewPPSVariantIFC(Stack[CurrStack], s[i] <> #0);
-      inc(CurrStack);
+    if (L > 1) then begin
+      for i := 2 to L do
+        MyList.Add(nil);
+      for i := L downto 2 do begin
+        MyList[i - 2] := NewPPSVariantIFC(Stack[CurrStack], s[i] <> #0);
+        inc(CurrStack);
+      end;
     end;
-    if s[1] <> #0 then
+    if (s[1] <> #0) then
       n2 := NewPPSVariantIFC(Stack[CurrStack + 1], True);
     FAddress := Pointer(Pointer(IPointer(FSelf^) + (Cardinal(p.Ext1) * SizeOf(Pointer)))^);
+    //
     Caller.InnerfuseCall(FSelf, FAddress, cc, MyList, n2);
     Result := True;
   finally
-    DisposePPSVariantIFC(n2);
-    DisposePPSVariantIFCList(MyList);
+    if (not Result) then begin // InnerfuseCall Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('ERROR: IntfCallProc: InnerfuseCallProc'); // +'; "'+string(p.FName)+'"');
+      {$ENDIF}{$ENDIF}
+      //
+      // duplicate release for comfortly debug
+      if Assigned(n2) then
+        DisposePPSVariantIFC(n2);
+      DisposePPSVariantIFCList(MyList);
+    end else begin
+      if Assigned(n2) then
+        DisposePPSVariantIFC(n2);
+      DisposePPSVariantIFCList(MyList);
+    end;
   end;
 end; // function IntfCallProc
 
 function InterfaceProc(Sender: TPSExec; p: TPSExternalProcRec; Tag: Pointer): Boolean;
-var
-  s: TbtString;
+var S: TbtString;
 begin
-  s := p.Decl;
-  Delete(s,1,5); // delete 'intf:'
-  if s = '' then begin
-    Result := False;
+  Result := False;
+  if (Sender = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "InterfaceProc" @Sender');
+    {$ENDIF}{$ENDIF}
     Exit;
   end;
-  if s[1] = '.' then begin
-    Delete(s,1,1);
-    if Length(S) < 6 then begin
-      Result := False;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "InterfaceProc" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "InterfaceProc": "'+string(p.FName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  s := p.Decl;
+  Delete(S,1,5); // delete 'intf:'
+  if (Length(S) = 0) then begin
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "InterfaceProc" @Empty');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (S[1] = '.') then begin
+    Delete(S,1,1);
+    if (Length(S) < 6) then begin
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "InterfaceProc" @Small');
+      {$ENDIF}{$ENDIF}
       Exit;
     end;
-    p.ProcPtr := IntfCallProc;
-    p.Ext1 := Pointer((@s[1])^); // Proc Offset
-    Delete(s,1,4);
-    P.Decl := s;
+    p.ProcPtr := @IntfCallProc;
+    p.Ext1 := Pointer((@S[1])^); // Proc Offset
+    Delete(S,1,4);
+    P.Decl := S;
     Result := True;
-  end else
-    Result := False;
+  end;
 end; // function InterfaceProc
 
 function getMethodNo(P: TMethod; SE: TPSExec): Cardinal;
 begin
-  if (P.Code <> @MyAllMethodsHandler) or (P.Data = nil) or (PScriptMethodInfo(P.Data)^.SE <> SE)  then
-    Result := 0
-  else
-    Result := PScriptMethodInfo(P.Data)^.ProcNo;
+  if (P.Code <> @MyAllMethodsHandler) or (P.Data = nil) or (PScriptMethodInfo(P.Data)^.SE <> SE)
+  then Result := 0
+  else Result := PScriptMethodInfo(P.Data)^.ProcNo;
 end;
 
 function ClassCallProcProperty(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack): Boolean;
 var
-  n: TPSVariantIFC;
+  n: TPSVariantIFC; // record
   ltemp: Longint;
   FSelf: Pointer;
   m: TMethod;
 begin
-  try
-    if p.Ext2 = Pointer(0) then begin
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcProperty" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcProperty" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "ClassCallProcProperty": "'+string(p.FName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcProperty" @Stack');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  //try
+  begin
+    if (p.Ext2 = nil{==Pointer(0)}) then begin
       n := NewTPSVariantIFC(Stack[Stack.Count-1], False);
       if (n.Dta = nil) or (n.aType.BaseType <> btclass) then begin
-        Result := False;
         Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
         Exit;
       end;
       FSelf := Pointer(n.dta^);
-      if FSelf = nil then begin
+      if (FSelf = nil) then begin
         Caller.CMD_Err2(erCouldNotCallProc, TbtString(RPS_CouldNotCallProc));
-        Result := False;
         Exit;
       end;
       n := NewTPSVariantIFC(Stack[Stack.Count -2], False);
@@ -13576,7 +14032,7 @@ begin
         btSet: begin
           ltemp := 0;
           Move(Byte(n.Dta^), ltemp, TPSTypeRec_Set(n.aType).aByteSize);
-          SetOrdProp(TObject(FSelf), PPropInfo(p.Ext1), ltemp);
+          SetOrdProp(TObject(FSelf), PPropInfo(p.Ext1), {value:}ltemp);
         end;
         btChar, btU8: SetOrdProp(TObject(FSelf), PPropInfo(p.Ext1), TbtU8(n.Dta^));
         btS8: SetOrdProp(TObject(FSelf), PPropInfo(p.Ext1), tbts8(n.Dta^));
@@ -13593,8 +14049,7 @@ begin
         btString: SetStrProp(TObject(FSelf), p.Ext1, string(TbtString(n.Dta^)));
         btPChar: SetStrProp(TObject(FSelf), p.Ext1, string(PAnsiChar(n.Dta^)));
         btClass: SetOrdProp(TObject(FSelf), P.Ext1, Longint(n.Dta^));
-        {$IFDEF DELPHI6UP}
-          {$IFNDEF PS_NOWIDESTRING}
+        {$IFDEF DELPHI6UP}{$IFNDEF PS_NOWIDESTRING}
         {+}
             {$if declared(btPWideChar)}
         btPWideChar:
@@ -13605,36 +14060,35 @@ begin
               {$ENDIF}
             {$ifend declared(btPWideChar)}
         {+.}
-        {$IFNDEF UNICODE}
+          {$IFNDEF UNICODE}
         btUnicodeString,
-        {$ENDIF !UNICODE}
+          {$ENDIF !UNICODE}
         btWideString: SetWideStrProp(TObject(FSelf), P.Ext1, tbtWideString(n.dta^));
-        {$IFDEF UNICODE}
+          {$IFDEF UNICODE}
         btUnicodeString:
-        {$IFDEF DELPHI_TOKYO_UP}SetStrProp{$ELSE}SetUnicodeStrProp{$ENDIF}(TObject(FSelf),
-            P.Ext1, TbtUnicodeString(n.dta^));
-        {$ENDIF UNICODE}
-        {$ENDIF !PS_NOWIDESTRING}
-        {$ENDIF DELPHI6UP}
+            {$IFDEF DELPHI_TOKYO_UP}SetStrProp{$ELSE}SetUnicodeStrProp{$ENDIF}(TObject(FSelf),
+              P.Ext1, TbtUnicodeString(n.dta^));
+          {$ENDIF UNICODE}
+        {$ENDIF !PS_NOWIDESTRING}{$ENDIF DELPHI6UP}
         else begin
-          Result := False;
+          {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+          dbg('ERROR: ClassCallProcProperty: @Property.Type #1; "'+string(p.FName)+'"');
+          {$ENDIF}{$ENDIF}
+          //
           Exit;
         end;
       end; // case
       Result := True;
-    end else begin
+    end else // when "p.Ext2 <> nil":
+    begin
       n := NewTPSVariantIFC(Stack[Stack.Count -2], False);
-      if (n.dta = nil) or (n.aType.BaseType <> btClass)then
-      begin
-        Result := False;
+      if (n.dta = nil) or (n.aType.BaseType <> btClass) then begin
         Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
         Exit;
       end;
       FSelf := Pointer(n.dta^);
-      if FSelf = nil then
-      begin
+      if (FSelf = nil) then begin
         Caller.CMD_Err2(erCouldNotCallProc, TbtString(RPS_CouldNotCallProc));
-        Result := False;
         Exit;
       end;
       n := NewTPSVariantIFC(Stack[Stack.Count-1], False);
@@ -13642,19 +14096,15 @@ begin
       begin
         m := GetMethodProp(TObject(FSelf), PPropInfo(p.Ext1));
         Cardinal(n.Dta^) := GetMethodNo(m, Caller);
-        if Cardinal(n.dta^) = 0 then
-        begin
-          {+}
-          //Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := m.Data;
+        if (Cardinal(n.dta^) = 0) then begin
+          //-Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := m.Data;
           Pointer(PointerShift(n.dta, PointerSize)^) := m.Data;
-          //Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := m.Code;
+          //-Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := m.Code;
           Pointer(PointerShift(n.dta, PointerSize2)^) := m.Code;
-          {+.}
         end;
       end else
       case n.aType.BaseType of
-        btSet:
-          begin
+        btSet: begin
             ltemp := GetOrdProp(TObject(FSelf), PPropInfo(p.Ext1));
             Move(ltemp, Byte(n.Dta^), TPSTypeRec_Set(n.aType).aByteSize);
           end;
@@ -13669,25 +14119,27 @@ begin
         btExtended: tbtextended(n.Dta^) := GetFloatProp(TObject(FSelf), p.Ext1);
         btString: TbtString(n.Dta^) := TbtString(GetStrProp(TObject(FSelf), p.Ext1));
         btClass: Longint(n.dta^) := GetOrdProp(TObject(FSelf), p.Ext1);
-{$IFDEF DELPHI6UP}
-{$IFNDEF PS_NOWIDESTRING}
-        {$IFDEF UNICODE}
-        btUnicodeString: TbtUnicodeString(n.dta^) := {$IFDEF DELPHI_TOKYO_UP}GetStrProp{$ELSE}GetUnicodeStrProp{$ENDIF}(TObject(FSelf), P.Ext1);
-        {$ELSE}
+        {$IFDEF DELPHI6UP}{$IFNDEF PS_NOWIDESTRING}
+          {$IFDEF UNICODE}
+        btUnicodeString: TbtUnicodeString(n.dta^) :=
+            {$IFDEF DELPHI_TOKYO_UP}GetStrProp{$ELSE}GetUnicodeStrProp{$ENDIF}(
+              TObject(FSelf), P.Ext1);
+          {$ELSE}
         btUnicodeString,
-        {$ENDIF !UNICODE}
+          {$ENDIF !UNICODE}
         btWideString: tbtWidestring(n.dta^) := GetWideStrProp(TObject(FSelf), P.Ext1);
-{$ENDIF !PS_NOWIDESTRING}
-{$ENDIF DELPHI6UP}
-      else
-        begin
-          Result := False;
-          exit;
+        {$ENDIF !PS_NOWIDESTRING}{$ENDIF DELPHI6UP}
+      else begin
+          {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+          dbg('ERROR: ClassCallProcProperty: @Property.Type #2; "'+string(p.FName)+'"');
+          {$ENDIF}{$ENDIF}
+          //
+          Exit;
         end;
-      end;
+      end; // case
       Result := True;
     end;
-  finally
+  //finally
   end;
 end; // function ClassCallProcProperty
 
@@ -13698,81 +14150,121 @@ var
   n: TPSVariantIFC;
   FSelf: Pointer;
 begin
-  if Length(P.Decl) < 4 then begin
-    Result := False;
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcPropertyHelper" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcPropertyHelper" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "ClassCallProcPropertyHelper": "'+string(p.FName)+'"'); // TODO: ClassName
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  if (Length(P.Decl) < 4) then begin
     Exit;
   end;
   ParamCount := Longint((@P.Decl[1])^);
-  if Longint(Stack.Count) < ParamCount +1 then begin
-    Result := False;
+  if (Longint(Stack.Count) < ParamCount+1) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcEventPropertyHelper" @ProcRec.Decl');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
     Exit;
   end;
   Dec(ParamCount);
-  if p.Ext1 <> nil then // read
-  begin
+  if (p.Ext1 <> nil) then begin // read
     n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 2], False);
-    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then
-    begin
-      Result := False;
+    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then begin
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
-    FSelf := pointer(n.Dta^);
-    if FSelf = nil then
-    begin
+    FSelf := Pointer(n.Dta^);
+    if (FSelf = nil) then begin
       Caller.CMD_Err2(erCouldNotCallProc, TbtString(RPS_CouldNotCallProc) + ' by nil object');
-      Result := False;
-      exit;
+      Exit;
     end;
-    //if TObject(FSelf).ClassType = nil then // TODO: check ...
-    //begin
+    //if TObject(FSelf).ClassType = nil then begin // TODO: check ...
     //  Caller.CMD_Err2(erCouldNotCallProc, TbtString(RPS_CouldNotCallProc) + ' by destroyed object');
-    //  Result := False;
-    //  exit;
+    //  Exit;
     //end;
-    Params := TPSList.Create;
-    Params.Add(NewPPSVariantIFC(Stack[Longint(Stack.Count) - 1], True));
-    for i := Stack.Count -3 downto Longint(Stack.Count) - ParamCount -2 do
-    begin
-      Params.Add(NewPPSVariantIFC(Stack[I], False));
+    if (Stack = nil) then begin // Internal Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "ClassCallProcPropertyHelper" @Stack');
+      {$ENDIF}{$ENDIF}
+      Exit;
     end;
+    Params := TPSList.Create;
     try
+      Params.Add( NewPPSVariantIFC(Stack[Longint(Stack.Count)-1], True) );
+      for i := (Stack.Count-3) downto (Longint(Stack.Count)-ParamCount-2) do begin
+        Params.Add(NewPPSVariantIFC(Stack[i], False));
+      end;
+      //
       Result := Caller.InnerfuseCall(FSelf, p.Ext1, cdRegister, Params, nil);
     finally
-      DisposePPSVariantIFCList(Params);
+      if (not Result) then begin // InnerfuseCall Error
+        {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+        dbg('ERROR: ClassCallProcEventPropertyHelper: InnerfuseCall #1; "'+string(p.FName)+'"');
+        {$ENDIF}{$ENDIF}
+        //
+        // duplicate release for comfortly debug
+        DisposePPSVariantIFCList(Params);
+      end else begin
+        DisposePPSVariantIFCList(Params);
+      end;
     end;
-  end else begin
-    n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 1], False);
-    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then
-    begin
-      Result := False;
+  end else // when "(p.Ext1 = nil)":
+  begin
+    n := NewTPSVariantIFC(Stack[Longint(Stack.Count)-1], False);
+    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then begin
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
-    FSelf := pointer(n.Dta^);
-    if FSelf = nil then
-    begin
+    FSelf := Pointer(n.Dta^);
+    if (FSelf = nil) then begin
       Caller.CMD_Err2(erCouldNotCallProc, TbtString(RPS_CouldNotCallProc) + ' by nil object');
-      Result := False;
-      exit;
+      Exit;
     end;
-    //if TObject(FSelf).ClassType = nil then // TODO: check ...
-    //begin
+    //if TObject(FSelf).ClassType = nil begin then // TODO: check ...
     //  Caller.CMD_Err2(erCouldNotCallProc, TbtString(RPS_CouldNotCallProc) + ' by destroyed object');
-    //  Result := False;
-    //  exit;
+    //  Exit;
     //end;
-    Params := TPSList.Create;
-    Params.Add(NewPPSVariantIFC(Stack[Longint(Stack.Count) - ParamCount - 2], False));
-
-    for i := Stack.Count -2 downto Longint(Stack.Count) - ParamCount - 1 do
-    begin
-      Params.Add(NewPPSVariantIFC(Stack[I], False));
+    if (Stack = nil) then begin // Internal Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('Internal Error "ClassCallProcPropertyHelper" @Stack');
+      {$ENDIF}{$ENDIF}
+      Exit;
     end;
+    Params := TPSList.Create;
     try
+      Params.Add(NewPPSVariantIFC(Stack[Longint(Stack.Count) - ParamCount - 2], False));
+      for i := (Stack.Count-2) downto (Longint(Stack.Count)-ParamCount-1) do begin
+        Params.Add( NewPPSVariantIFC(Stack[i], False) );
+      end;
+      //
       Result := Caller.InnerfuseCall(FSelf, p.Ext2, cdregister, Params, nil);
     finally
-      DisposePPSVariantIFCList(Params);
+      if (not Result) then begin // InnerfuseCall Error
+        {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+        dbg('ERROR: ClassCallProcEventPropertyHelper: InnerfuseCall #2; "'+string(p.FName)+'"');
+        {$ENDIF}{$ENDIF}
+        //
+        // duplicate release for comfortly debug
+        DisposePPSVariantIFCList(Params);
+      end else begin
+        DisposePPSVariantIFCList(Params);
+      end;
     end;
   end;
 end; // function ClassCallProcPropertyHelper
@@ -13785,69 +14277,125 @@ var
   n: TPSVariantIFC;
   FSelf: Pointer;
 begin
-  if Length(P.Decl) < 4 then begin
-    Result := False;
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcPropertyHelperName" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcPropertyHelperName" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "ClassCallProcPropertyHelperName": "'+string(p.FName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  if (Length(P.Decl) < 4) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcPropertyHelperName" @ProcRec.Decl');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
     Exit;
   end;
   ParamCount := Longint((@P.Decl[1])^);
-  if Longint(Stack.Count) < ParamCount +1 then begin
-    Result := False;
+
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcPropertyHelperName" @Stack');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (Longint(Stack.Count) < ParamCount+1) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcPropertyHelperName" @Param.Count');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
     Exit;
   end;
   Dec(ParamCount);
-  if p.Ext1 <> nil then // read
-  begin
-    n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 2], False);
-    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then
-    begin
-      Result := False;
+  if (p.Ext1 <> nil) then begin // read
+    n := NewTPSVariantIFC(Stack[Longint(Stack.Count)-2], False);
+    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then begin
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
     FSelf := Tobject(n.dta^);
+    tt := nil;
     Params := TPSList.Create;
-    Params.Add(NewPPSVariantIFC(Stack[Longint(Stack.Count) - 1], True));
-    for i := Stack.Count -3 downto Longint(Stack.Count) - ParamCount -2 do
-      Params.Add(NewPPSVariantIFC(Stack[I], False));
-    tt := CreateHeapVariant(Caller.FindType2(btString));
-    if tt <> nil then
-    begin
-      PPSVariantAString(tt).Data := p.Name;
-      Params.Add(NewPPSVariantIFC(tt, False));
-    end;
     try
+      Params.Add( NewPPSVariantIFC(Stack[Longint(Stack.Count)-1], True) );
+      for i := (Stack.Count-3) downto (Longint(Stack.Count)-ParamCount-2) do begin
+        Params.Add(NewPPSVariantIFC(Stack[i], False));
+      end;
+      tt := CreateHeapVariant(Caller.FindType2(btString));
+      if Assigned(tt) then begin
+        PPSVariantAString(tt).Data := p.Name;
+        Params.Add( NewPPSVariantIFC(tt, False) );
+      end;
+      //
       Result := Caller.InnerfuseCall(FSelf, p.Ext1, cdRegister, Params, nil);
     finally
-      DestroyHeapVariant(tt);
-      DisposePPSVariantIFCList(Params);
+      if (not Result) then begin // InnerfuseCall Error
+        {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+        dbg('ERROR: ClassCallProcPropertyHelperName: InnerfuseCall #1; "'+string(p.FName)+'"');
+        {$ENDIF}{$ENDIF}
+        //
+        // duplicate release for comfortly debug
+        if Assigned(tt) then
+          DestroyHeapVariant(tt);
+        DisposePPSVariantIFCList(Params);
+      end else begin
+        if Assigned(tt) then
+          DestroyHeapVariant(tt);
+        DisposePPSVariantIFCList(Params);
+      end;
     end;
-  end else begin
+  end else // when "(p.Ext1 = nil)":
+  begin
     n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 1], False);
-    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then
-    begin
-      Result := False;
+    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then begin
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
     FSelf := TObject(n.dta^);
+    tt := nil;
     Params := TPSList.Create;
-    Params.Add(NewPPSVariantIFC(Stack[Longint(Stack.Count) - 2], True));
-
-    for i := Stack.Count -2 downto Longint(Stack.Count) - ParamCount - 1 do
-    begin
-      Params.Add(NewPPSVariantIFC(Stack[I], False));
-    end;
-    tt := CreateHeapVariant(Caller.FindType2(btString));
-    if tt <> nil then
-    begin
-      PPSVariantAString(tt).Data := p.Name;
-      Params.Add(NewPPSVariantIFC(tt, False));
-    end;
     try
+      Params.Add( NewPPSVariantIFC(Stack[Longint(Stack.Count)-2], True) );
+      for i := (Stack.Count-2) downto (Longint(Stack.Count)-ParamCount-1) do begin
+        Params.Add(NewPPSVariantIFC(Stack[i], False));
+      end;
+      tt := CreateHeapVariant(Caller.FindType2(btString));
+      if Assigned(tt) then begin
+        PPSVariantAString(tt).Data := p.Name;
+        Params.Add( NewPPSVariantIFC(tt, False) );
+      end;
+      //
       Result := Caller.InnerfuseCall(FSelf, p.Ext2, cdregister, Params, nil);
     finally
-      DestroyHeapVariant(tt);
-      DisposePPSVariantIFCList(Params);
+      if (not Result) then begin // InnerfuseCall Error
+        {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+        dbg('ERROR: ClassCallProcPropertyHelperName: InnerfuseCall #2; "'+string(p.FName)+'"');
+        {$ENDIF}{$ENDIF}
+        //
+        // duplicate release for comfortly debug
+        if Assigned(tt) then
+          DestroyHeapVariant(tt);
+        DisposePPSVariantIFCList(Params);
+      end else begin
+        if Assigned(tt) then
+          DestroyHeapVariant(tt);
+        DisposePPSVariantIFCList(Params);
+      end;
     end;
   end;
 end; // function ClassCallProcPropertyHelperName
@@ -13857,112 +14405,170 @@ function ClassCallProcEventPropertyHelper(Caller: TPSExec; p: TPSExternalProcRec
 var
   I, ParamCount: Longint;
   Params: TPSList;
-  n: TPSVariantIFC;
+  n: TPSVariantIFC; // record
   data: TMethod;
   n2: PIFVariant;
   FSelf: Pointer;
 begin
-  if Length(P.Decl) < 4 then begin
-    Result := False;
+  Result := False;
+  if (Caller = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcEventPropertyHelper" @Caller');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcEventPropertyHelper" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "ClassCallProcEventPropertyHelper": "'+string(p.FName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  if (Length(P.Decl) < 4) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcEventPropertyHelper" @ProcRec.Decl');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
     Exit;
   end;
   ParamCount := Longint((@P.Decl[1])^);
-  if Longint(Stack.Count) < ParamCount +1 then begin
-    Result := False;
-    exit;
+
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcEventPropertyHelper" @Stack');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (Longint(Stack.Count) < ParamCount+1) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "ClassCallProcEventPropertyHelper" @Param.Count');
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
+    Exit;
   end;
   Dec(ParamCount);
-  if p.Ext1 <> nil then // read
-  begin
-    n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 2], False);
-    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then
-    begin
-      Result := False;
+  if (p.Ext1 <> nil) then begin // read
+    n := NewTPSVariantIFC(Stack[Longint(Stack.Count)-2], False);
+    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then begin
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
     FSelf := TObject(n.dta^);
-    n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 1], True); // Result
-    if (n.aType.BaseType <> btU32) and (n.aType.BaseType <> btProcPtr) then
-    begin
-      Result := False;
+    n := NewTPSVariantIFC( Stack[Longint(Stack.Count)-1], True ); // Result
+    if (n.aType.BaseType <> btU32) and (n.aType.BaseType <> btProcPtr) then begin // TODO: CPU64 Check
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
     n2 := CreateHeapVariant(Caller.FindType2(btPChar));
-    if n2 = nil then
-    begin
-      Result := False;
-      exit;
+    if (n2 = nil) then begin
+      Exit;
     end;
-    Params := TPSList.Create;
-    //{$IFDEF CPU64}
-    //{$ELSE}
-    data.Code := nil;
-    data.Data := nil;
-    //{$ENDIF}
-    PPSVariantDynamicArray(n2)^.Data:= @data;
-    Params.Add(NewPPSVariantIFC(n2, False));
-    for i := Stack.Count -3 downto Longint(Stack.Count) - ParamCount -2 do
-      Params.Add(NewPPSVariantIFC(Stack[i], False));
+    Params := nil;
     try
+      Params := TPSList.Create;
+      //{$IFDEF CPU64}
+      //{$ELSE}
+      data.Code := nil;
+      data.Data := nil;
+      //{$ENDIF}
+      PPSVariantDynamicArray(n2)^.Data := @data;
+      Params.Add( NewPPSVariantIFC(n2, False) );
+      for i := (Stack.Count-3) downto (Longint(Stack.Count)-ParamCount-2) do begin
+        Params.Add(NewPPSVariantIFC(Stack[i], False));
+      end;
+      //
       Result := Caller.InnerfuseCall(FSelf, p.Ext1, cdRegister, Params, nil);
     finally
-      Cardinal(n.Dta^) := getMethodNo(data, Caller);
-      if Cardinal(n.Dta^) = 0 then
-      begin
-        {+}
-        //Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := data.Data;
-        Pointer(PointerShift(n.dta, PointerSize)^) := data.Code;
-        //Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := data.Code;
-        Pointer(PointerShift(n.dta, PointerSize2)^) := data.Code;
-        {+.}
+      if (not Result) then begin // InnerfuseCall Error
+        {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+        dbg('ERROR: ClassCallProcEventPropertyHelper: InnerfuseCall #1; "'+string(p.FName)+'"');
+        {$ENDIF}{$ENDIF}
+        //
+        // duplicate release for comfortly debug
+        Cardinal(n.Dta^) := getMethodNo(data, Caller);
+        if Cardinal(n.Dta^) = 0 then begin
+          //-Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := data.Data;
+          Pointer(PointerShift(n.dta, PointerSize)^) := data.Code;
+          //-Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := data.Code;
+          Pointer(PointerShift(n.dta, PointerSize2)^) := data.Code;
+        end;
+        DestroyHeapVariant(n2);
+        DisposePPSVariantIFCList(Params);
+      end else begin
+        Cardinal(n.Dta^) := getMethodNo(data, Caller);
+        if Cardinal(n.Dta^) = 0 then begin
+          //-Pointer(Pointer((IPointer(n.dta)+PointerSize))^) := data.Data;
+          Pointer(PointerShift(n.dta, PointerSize)^) := data.Code;
+          //-Pointer(Pointer((IPointer(n.dta)+PointerSize2))^) := data.Code;
+          Pointer(PointerShift(n.dta, PointerSize2)^) := data.Code;
+        end;
+        DestroyHeapVariant(n2);
+        DisposePPSVariantIFCList(Params);
       end;
-      DestroyHeapVariant(n2);
-      DisposePPSVariantIFCList(Params);
     end;
-  end else begin
-    n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 1], False);
-    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then
-    begin
-      Result := False;
+  end else // when "(p.Ext1 = nil)":
+  begin
+    n := NewTPSVariantIFC(Stack[Longint(Stack.Count)-1], False);
+    if (n.Dta = nil) or (n.aType.BaseType <> btClass) then begin
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
     FSelf := TObject(n.dta^);
-    n := NewTPSVariantIFC(Stack[Longint(Stack.Count) - 2], False);
-    if (n.Dta = nil) or ((n.aType.BaseType <> btu32) and (n.aType.BaseType <> btProcPtr)) then
+
+    Params := nil;
+    //n2 := nil;
+    n := NewTPSVariantIFC(Stack[Longint(Stack.Count)-2], False);
+    if (n.Dta = nil)
+      or (//{$IFDEF CPU32}
+            (n.aType.BaseType <> btU32)
+          //{$ELSE}
+          //(n.aType.BaseType <> btS64) // TODO: Check CPU64
+          //{$ENDIF}
+      and (n.aType.BaseType <> btProcPtr)
+    ) then
     begin
-      Result := False;
       Caller.CMD_Err2(erNullPointerException, TbtString(RPS_NullPointerException));
-      exit;
+      Exit;
     end;
-    (*n2 := CreateHeapVariant(Caller.FindType2(btPchar));
-    if n2 = nil then
-    begin
-      Result := False;
-      exit;
-    end;*)
-
-    //if (n.aType.BaseType = btProcPtr) and (cardinal(n.dta^) = 0) then
-    //  data := TMethod(Pointer(IPointer(n.dta^)+4)^)
-    //else
-    //  data := MkMethod(Caller, Cardinal(n.dta^));
-
-    Params := TPSList.Create;
-    Params.Add(@n);
-
-    //for i := Stack.Count -2 downto Longint(Stack.Count) - ParamCount - 1 do begin
-    //  Params.Add(NewPPSVariantIFC(Stack[I], False));
-    //end;
     try
+      {n2 := CreateHeapVariant(Caller.FindType2(btPChar));
+      if (n2 = nil) then begin
+        Exit;
+      end;}
+      {if (n.aType.BaseType = btProcPtr) and (Cardinal(n.dta^) = 0)
+      then data := TMethod(Pointer(IPointer(n.dta^)+4)^)
+      else data := MkMethod(Caller, Cardinal(n.dta^));}
+
+      Params := TPSList.Create;
+      Params.Add(@n);
+      {for i := (Stack.Count-2) downto (Longint(Stack.Count)-ParamCount-1) do begin
+        Params.Add( NewPPSVariantIFC(Stack[i], False) );
+      end;}
+      //
       Result := Caller.InnerfuseCall(FSelf, p.Ext2, cdRegister, Params, nil);
     finally
-      Params.Clear;
-      {+}
-      //DestroyHeapVariant(n2);
-      {+.}
-      DisposePPSVariantIFCList(Params);
+      if (not Result) then begin // InnerfuseCall Error
+        {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+        dbg('ERROR: ClassCallProcEventPropertyHelper: InnerfuseCall #2; "'+string(p.FName)+'"');
+        {$ENDIF}{$ENDIF}
+        //
+        // duplicate release for comfortly debug
+        Params.Clear;
+        //DestroyHeapVariant(n2);
+        DisposePPSVariantIFCList(Params);
+      end else begin
+        Params.Clear;
+        //DestroyHeapVariant(n2);
+        DisposePPSVariantIFCList(Params);
+      end;
     end;
   end;
 end; // function ClassCallProcEventPropertyHelper
@@ -14300,112 +14906,152 @@ begin
   Result := '';
 end;
 
-function TPSExec.FindSpecialProcImport(
-  P: TPSOnSpecialProcImport): pointer;
-var
-  i: Longint;
-  pr: PSpecialProc;
+function TPSExec.FindSpecialProcImport(P: TPSOnSpecialProcImport): Pointer;
+var i: Longint; pr: PSpecialProc;
 begin
-  for i := FSpecialProcList.Count-1 downto 0 do
-  begin
+  for i := FSpecialProcList.Count-1 downto 0 do begin
     pr := FSpecialProcList[i];
-    if @pr.P = @p then
-    begin
+    if (@pr.P = @p) then begin
       Result := pr.tag;
-      exit;
+      Exit;
     end;
-  end;
+  end; // for
   Result := nil;
 end;
 
-function TPSExec.InvokeExternalMethod(At: TPSTypeRec_ProcPtr; Slf,
-  Ptr: Pointer): Boolean;
+function TPSExec.InvokeExternalMethod(At: TPSTypeRec_ProcPtr; Slf, Ptr: Pointer): Boolean;
 var
   res: PPSVariantIFC;
-  s: TbtString;
-  CurrStack, i: Longint;
+  S: TbtString;
+  CurrStack, i, L: Longint;
   n: PPSVariant;
   MyList: TPSList;
 begin
-  s := TPSTypeRec_ProcPtr(at).ParamInfo;
-  CurrStack := Cardinal(FStack.Count) - Cardinal(length(s));
-  if s[1] = #0 then inc(CurrStack);
-  MyList := TPSList.Create;
-  for i := 2 to length(s) do
-  begin
-    MyList.Add(nil);
+  Result := False;
+  if (At = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "TPSExec.InvokeExternalMethod" @At');
+    {$ENDIF}{$ENDIF}
+    Exit;
   end;
-  for i := length(s) downto 2 do
-  begin
-    n := FStack[CurrStack];
-    MyList[i - 2] := NewPPSVariantIFC(n, s[i] <> #0);
-    inc(CurrStack);
-  end;
-  if s[1] <> #0 then
-  begin
-    res := NewPPSVariantIFC(FStack[CurrStack + 1], True);
-  end else res := nil;
-  Result := InnerfuseCall(Slf, Ptr, cdRegister, MyList, Res);
 
-  DisposePPSVariantIFC(res);
-  DisposePPSVariantIFCList(mylist);
-end;
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  dbg('#CALL: "TPSExec.InvokeExternalMethod": "'+string(At.FExportName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  S := TPSTypeRec_ProcPtr(At).FParamInfo;
+  L := Length(s);
+  if (L = 0) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "TPSExec.InvokeExternalMethod" ParamInfo');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  if (FStack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "TPSExec.InvokeExternalMethod" @Stack');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  //--if (Cardinal(FStack.Count) < Cardinal(L)) then begin // Internal Error
+  //  {$IFDEF _DCC_MSG_}
+  //  dbg('Internal Error "TPSExec.InvokeExternalMethod" Stack'
+  //    +'; Stack.Count: '+SysUtils.IntToStr(FStack.Count)
+  //    +'; ProcPtr.ParamInfo: '+UIntToStr(L)
+  //    +'; CurrStack: '+UIntToStr(Longint(Cardinal(FStack.Count) - Cardinal(L)))
+  //  );
+  //  {$ENDIF}
+  //  Exit;
+  //end;
+  CurrStack := Cardinal(FStack.Count) - Cardinal(L);
+  if (S[1] = #0) then
+    Inc(CurrStack);
+  res := nil;
+  MyList := TPSList.Create;
+  try
+    if (L > 1) then begin
+      for i := 2 to L do
+        MyList.Add(nil);
+      for i := L downto 2 do begin
+        n := FStack[CurrStack];
+        MyList[i - 2] := NewPPSVariantIFC(n, s[i] <> #0);
+        inc(CurrStack);
+      end;
+    end;
+    if (s[1] <> #0) then
+      res := NewPPSVariantIFC(FStack[CurrStack + 1], True);
+    //
+    Result := InnerfuseCall(Slf, Ptr, cdRegister, MyList, Res);
+  finally
+    if (not Result) then begin // InnerfuseCall Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('ERROR: "TPSExec.InvokeExternalMethod" InnerfuseCall "'+string(At.FExportName)+'"');
+      {$ENDIF}{$ENDIF}
+      //
+      // duplicate release for comfortly debug
+      if Assigned(res) then
+        DisposePPSVariantIFC(res);
+      DisposePPSVariantIFCList(MyList);
+    end else begin
+      if Assigned(res) then
+        DisposePPSVariantIFC(res);
+      DisposePPSVariantIFCList(MyList);
+    end;
+  end;
+end; // function TPSExec.InvokeExternalMethod
 
 function TPSExec.LastEx: TPSError;
-var
-  pp: TPSExceptionHandler;
+var pp: TPSExceptionHandler;
 begin
   if FExceptionStack.Count = 0 then begin
     Result := ExEx;
-    exit;
+    Exit;
   end;
   pp := fExceptionStack[fExceptionStack.Count-1];
   Result := pp.ExceptionData;
 end;
 
 function TPSExec.LastExParam: TbtString;
-var
-  pp: TPSExceptionHandler;
+var pp: TPSExceptionHandler;
 begin
   if FExceptionStack.Count = 0 then begin
     Result := ExParam;
-    exit;
+    Exit;
   end;
   pp := fExceptionStack[fExceptionStack.Count-1];
   Result := pp.ExceptionParam;
 end;
 
 function TPSExec.LastExPos: {+}Cardinal{+.};
-var
-  pp: TPSExceptionHandler;
+var pp: TPSExceptionHandler;
 begin
   if FExceptionStack.Count = 0 then begin
     Result := ExPos;
-    exit;
+    Exit;
   end;
   pp := fExceptionStack[fExceptionStack.Count-1];
   Result := pp.ExceptOffset;
 end;
 
 function TPSExec.LastExProc: Integer;
-var
-  pp: TPSExceptionHandler;
+var pp: TPSExceptionHandler;
 begin
   if FExceptionStack.Count = 0 then begin
     Result := ExProc;
-    exit;
+    Exit;
   end;
   pp := fExceptionStack[fExceptionStack.Count-1];
   Result := FProcs.IndexOf(pp.CurrProc);
 end;
 
 function TPSExec.LastExObject: TObject;
-var
-  pp: TPSExceptionHandler;
+var pp: TPSExceptionHandler;
 begin
   if FExceptionStack.Count = 0 then begin
     Result := ExObject;
-    exit;
+    Exit;
   end;
   pp := fExceptionStack[fExceptionStack.Count-1];
   Result := pp.ExceptionObject;
@@ -14722,37 +15368,88 @@ end;
 
 function DelphiFunctionProc(Caller: TPSExec; p: TPSExternalProcRec; {%H-}Global, Stack: TPSStack; CC: TPSCallingConvention): Boolean;
 var
-  i: Integer;
+  CurrStack, i, L: Longint;
   MyList: TPSList;
   n: PPSVariantIFC;
-  CurrStack: Cardinal;
-  s: TbtString;
+  //CurrStack: Cardinal;
+  S: TbtString;
 begin
-  i := length(P.Decl);
-  if i = 0 then begin Result := False; exit; end;
-  s := P.Decl;
-  CurrStack := Cardinal(Stack.Count) - Cardinal(i);
-  if s[1] = #0 then inc(CurrStack);
+  Result := False;
+  if (P = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "DelphiFunctionProc" @ProcRec');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+
+  // ######### DEBUG: TRACE:
+  {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+  if (p.FName <> 'WRITELN') and (p.FName <> 'WRITE') then
+  dbg('#CALL: "DelphiFunctionProc": "'+string(p.FName)+'"');
+  {$ENDIF}{$ENDIF}
+  // ######### DEBUG: TRACE.
+
+  if (Stack = nil) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "DelphiFunctionProc" @Stack');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  S := P.Decl;
+  L := Length(S);
+  if (L = 0) then begin // Internal Error
+    {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+    dbg('Internal Error "DelphiFunctionProc" ProcRec.Decl');
+    {$ENDIF}{$ENDIF}
+    Exit;
+  end;
+  //--if (Cardinal(Stack.Count) < Cardinal(L)) then begin // Internal Error
+  //  {$IFDEF _DCC_MSG_}
+  //  dbg('Internal Error "DelphiFunctionProc" Stack'
+  //    +'; Stack.Count: '+SysUtils.IntToStr(Stack.Count)
+  //    +'; ProcRecDecl: '+SysUtils.IntToStr(L)
+  //    +'; CurrStack: '+UIntToStr(Cardinal(Stack.Count) - Cardinal(L))
+  //    +'; CurrStack: '+UIntToStr(Longint(Cardinal(Stack.Count) - Cardinal(L)))
+  //  );
+  //  {$ENDIF}
+  //  Exit;
+  //end;
+  CurrStack := Cardinal(Stack.Count) - Cardinal(L);
+
+  if (S[1] = #0) then
+    Inc(CurrStack);
   n := nil;
   MyList := TPSList.Create;
   try
-    for i := 2 to length(s) do
-    begin
-      MyList.Add(nil);
+    if (L > 1) then begin
+      for i := 2 to L do
+        MyList.Add(nil);
+      for i := L downto 2 do begin // @dbg: Stack[CurrStack].FType,r
+        MyList[i - 2] := NewPPSVariantIFC(Stack[CurrStack], S[i] <> #0); // TODO: when "Stack[CurrStack].FType <> uPSComliler.pas:TPSParametersDecl.Params[CurrStack].FType"
+        inc(CurrStack);                                                  //       sample: "10(string) <> 28(unicode)" => need convertation
+      end;
     end;
-    for i := length(s) downto 2 do
-    begin // @dbg: Stack[CurrStack].FType,r
-      MyList[i - 2] := NewPPSVariantIFC(Stack[CurrStack], s[i] <> #0); // TODO: when "Stack[CurrStack].FType <> uPSComliler.pas:TPSParametersDecl.Params[CurrStack].FType"
-      inc(CurrStack);                                                  //       sample: "10(string) <> 28(unicode)" => need convertation
-    end;
-    if s[1] <> #0 then
+    if (S[1] <> #0) then
       n := NewPPSVariantIFC(Stack[CurrStack], True);
+    //
     Result := Caller.InnerfuseCall({self:}p.Ext2, {addr:}p.Ext1, cc, {params:}MyList, {res:}n); //@dbg: p.FName
   finally
-    DisposePPSVariantIFC(n);
-    DisposePPSVariantIFCList(mylist);
+    if (not Result) then begin // InnerfuseCall Error
+      {$IFDEF _PS_TRACE_}{$IFDEF _DCC_MSG_}
+      dbg('ERROR: DelphiFunctionProc: InnerfuseCall "'+string(p.FName)+'"');
+      {$ENDIF}{$ENDIF}
+      //
+      // duplicate release for comfortly debug
+      if Assigned(n) then
+        DisposePPSVariantIFC(n);
+      DisposePPSVariantIFCList(MyList);
+    end else begin
+      if Assigned(n) then
+        DisposePPSVariantIFC(n);
+      DisposePPSVariantIFCList(MyList);
+    end;
   end;
-end;
+end; // function DelphiFunctionProc
 
 function DelphiFunctionProc_CDECL(Caller: TPSExec; p: TPSExternalProcRec; Global, Stack: TPSStack): Boolean;
 begin
@@ -14940,6 +15637,13 @@ end;
 
 { TPSTypeRec_Array }
 
+function TPSTypeRec_Array.BaseTypeToStr: string;
+begin
+  if Assigned(FArrayType)
+  then Result := 'Array of '+ArrayType.BaseTypeToStr
+  else Result := 'Array of <undefined>';
+end;
+
 procedure TPSTypeRec_Array.CalcSize;
 begin
   FrealSize := PointerSize;
@@ -14947,12 +15651,37 @@ end;
 
 { TPSTypeRec_StaticArray }
 
+function TPSTypeRec_StaticArray.BaseTypeToStr: string;
+begin
+  if FSize > 0
+  then Result := { low: }SysUtils.IntToStr(FStartOffset)
+                 +'..'
+                 +{high:}SysUtils.IntToStr(FStartOffset+FSize-1)
+  else Result := '0';
+  if Assigned(FArrayType)
+  then Result := 'StaticArray ['+Result+'] of '+ArrayType.BaseTypeToStr
+  else Result := 'StaticArray ['+Result+'] of <undefined>';
+end;
+
 procedure TPSTypeRec_StaticArray.CalcSize;
 begin
   FrealSize := Cardinal(FArrayType.RealSize) * Cardinal(Size);
 end;
 
 { TPSTypeRec_Set }
+
+function TPSTypeRec_Set.BaseTypeToStr: string;
+begin
+  Result := 'Set'
+    {$IFDEF _DCC_MSG_}
+    + '{INFO:'
+    + ' BitSize' + SysUtils.IntToStr(FBitSize)
+    + ';'
+    + ' ByteSize' + SysUtils.IntToStr(FByteSize)
+    + '}'
+    {$ENDIF}
+  ;
+end;
 
 procedure TPSTypeRec_Set.CalcSize;
 begin
@@ -14998,6 +15727,7 @@ constructor TPSStack.Create;
 begin
   inherited Create;
   GetMem(FDataPtr, MemDelta);
+  //?FillChar(FDataPtr^, MemDelta, 0); // safe
   FCapacity := MemDelta;
   FLength := 0;
 end;
@@ -15236,12 +15966,14 @@ begin
     FCapacity := 0;
   end;
   GetMem(p, Value);
+  //?FillChar(p^, Value, 0); // safe
   if FDataPtr <> nil then begin
     if FLength > FCapacity then
       OOFS := FCapacity
     else
       OOFS := FLength;
     Move(FDataPtr^, p^, OOFS);
+    //?FillChar(ShiftPointer(p,OOFS)^, FCapacity-FLength, 0); // safe
     OOFS := IPointer(P) - IPointer(FDataPtr);
 
     for i := Count-1 downto 0 do begin
@@ -15492,11 +16224,12 @@ type
 {$ENDIF CPU64}{$ENDIF FPC}
 {+.}
 
+type EDispatchInvoke = class(Exception);
 function IDispatchInvoke(Self: IDispatch; PropertySet: Boolean; const Name: string;
   const Par: array of Variant): Variant;
 var
   Param: Word;
-  i, ArgErr: Longint;
+  i, ArgErr, aSize: Longint;
   DispatchId: Longint;
   DispParam: TDispParams;
   ExceptInfo: TExcepInfo;
@@ -15512,12 +16245,12 @@ const
   atByRef    = $80;
   {+.}
 begin
-  if Self = nil then begin
+  if (Self = nil) then begin
     raise EPSException.Create('Variant is null, cannot invoke', nil, 0, 0);
   end;
   FillChar({%H-}ExceptInfo, SizeOf(ExceptInfo), 0);
-  if Name = '' then begin
-    DispatchId:=0;
+  if (Name = '') then begin
+    DispatchId := 0;
   end else begin // @dbg: pansichar(pointer(name)) ; pwidechar(pointer(name))
     {+}
     (* Notes: ------------------------------------------------------------------
@@ -15548,9 +16281,9 @@ begin
     pName := StringToOleStr(sName);
     try
       if Self = nil then
-        raise Exception.Create(RPS_NILInterfaceException);
+        raise EDispatchInvoke.Create(RPS_NILInterfaceException);
       if Self.GetIDsOfNames(GUID_NULL, @pName, 1, LOCALE_SYSTEM_DEFAULT, @DispatchId) <> S_OK then
-        raise Exception.Create(RPS_UnknownMethod);
+        raise EDispatchInvoke.Create(RPS_UnknownMethod);
     finally
       SysFreeString(pName);
     end;
@@ -15560,21 +16293,21 @@ begin
   DispParam.rgdispidNamedArgs := nil;
   DispParam.cArgs := (High(Par) + 1);
 
-  if PropertySet then
-  begin
+  if PropertySet then begin
     Param := DISPATCH_PROPERTYPUT;
     DispParam.cNamedArgs := 1;
     DispParam.rgdispidNamedArgs := @DispPropertyPut;
-  end else
+  end else begin
     Param := DISPATCH_METHOD or DISPATCH_PROPERTYGET;
+  end;
 
   WSFreeList := TPSList.Create;
   try
-    GetMem(DispParam.rgvarg, SizeOf(TVariantArg) * (High(Par) + 1));
-    FillCHar(DispParam.rgvarg^, SizeOf(TVariantArg) * (High(Par) + 1), 0);
+    aSize := SizeOf(TVariantArg) * (High(Par) + 1);
+    GetMem(DispParam.rgvarg, aSize);
+    FillChar(DispParam.rgvarg^, aSize, 0);
     try
-      for i := 0 to High(Par)  do
-      begin
+      for i := 0 to High(Par) do begin
         {+}
         ArgType := PVarData(@Par[High(Par)-i]).VType;
         DispArg := @(DispParam.rgvarg{+}{$IFDEF FPC}^{$ENDIF}{+.}[i]);
@@ -15593,8 +16326,7 @@ begin
           {+.}
         {$IFDEF UNICODE}
         //end else if (PVarData(@Par[High(Par)-i]).VType = varOleStr) or (PVarData(@Par[High(Par)-i]).VType = varUString) then
-        end else if (ArgType = varOleStr) or (ArgType = varUString) then
-        begin
+        end else if (ArgType = varOleStr) or (ArgType = varUString) then begin
           {+}
           //DispParam.rgvarg[i].vt := VT_BSTR;
           DispArg.vt := VT_BSTR;
@@ -15604,32 +16336,25 @@ begin
           WSFreeList.Add(DispArg.bstrVal);
           {+.}
         {$ENDIF}
-        end else
-        begin
+        end else begin
           {+}
           //DispParam.rgvarg[i].vt := VT_VARIANT or VT_BYREF;
           DispArg.vt := VT_VARIANT or VT_BYREF;
 
           // fix set IDispatch property value (sample: .Net interop over com object)
-          if (ArgType = varDispatch) then
-          begin
+          if (ArgType = varDispatch) then begin
             DispArg.vt := VT_DISPATCH; {+}{@dbg@:hook.Dispatch.Invoke}{+.} // dbg.cond:
-          end
-          else if (ArgType and atByRef) = atByRef then
-          begin
-            if ((ArgType and atTypeMask) = varDispatch) then
-            begin
+          end else if (ArgType and atByRef) = atByRef then begin
+            if ((ArgType and atTypeMask) = varDispatch) then begin
               DispArg.vt := VT_DISPATCH;// or VT_BYREF; // quiet crush of applications for "VT_BYREF"
             end;
           end;
 
-          if (DispArg.vt and VT_BYREF) = VT_BYREF then
-          begin
+          if ((DispArg.vt and VT_BYREF) = VT_BYREF) then begin
             New(
-            {$IFDEF DELPHI4UP}POleVariant{$ELSE}PVariant{$ENDIF}
-            //(DispParam.rgvarg[i].pvarVal));
-            (DispArg.pvarVal));
-
+              {$IFDEF DELPHI4UP}POleVariant{$ELSE}PVariant{$ENDIF}
+              //(DispParam.rgvarg[i].pvarVal));
+              (DispArg.pvarVal) );
             (*
             {$IFDEF DELPHI4UP}
               POleVariant
@@ -15638,26 +16363,27 @@ begin
             {$ENDIF}
              (DispParam.rgvarg[i].pvarVal)^ := Par[High(Par)-i];
             *)
-
             //Move(Par[High(Par)-i],Pointer(DispParam.rgvarg[i].pvarVal)^,
             Move(Par[High(Par)-i],Pointer(DispArg.pvarVal)^,
              SizeOf({$IFDEF DELPHI4UP}OleVariant{$ELSE}Variant{$ENDIF}))
           end
-          else // copy IDispatch value:
+          else begin // copy IDispatch value:
             DispArg.dispVal := PVarData(@Par[High(Par)-i]).VDispatch;
+          end;
           // fix end.
           {+.}
         end;
-      end;
-      i := Self.Invoke(DispatchId, GUID_NULL, LOCALE_SYSTEM_DEFAULT, Param, DispParam, @Result, @ExceptInfo, @ArgErr);
+      end; // for i
+      i := Self.Invoke(DispatchId, GUID_NULL, LOCALE_SYSTEM_DEFAULT,
+        Param, DispParam, @Result, @ExceptInfo, @ArgErr);
       {$IFNDEF Delphi3UP}
       try
-       if not Succeeded(i) then
-       begin
-         if i = DISP_E_EXCEPTION then
-           raise Exception.Create(OleStrToString(ExceptInfo.bstrSource)+': '+OleStrToString(ExceptInfo.bstrDescription))
-         else
-           raise Exception.Create(SysErrorMessage(i));
+       if not Succeeded(i) then begin
+         if (i = DISP_E_EXCEPTION)
+         then raise EDispatchInvoke.Create(
+                      OleStrToString(ExceptInfo.bstrSource)
+                      +': '+OleStrToString(ExceptInfo.bstrDescription) )
+         else raise EDispatchInvoke.Create(SysErrorMessage(i));
        end;
       finally
         SysFreeString(ExceptInfo.bstrSource);
@@ -15667,19 +16393,19 @@ begin
       {$ELSE Delphi3UP}
        if not Succeeded(i) then
        begin
-         if i = DISP_E_EXCEPTION then
+         if (i = DISP_E_EXCEPTION) then begin
            {$IFDEF FPC}
-           raise Exception.Create(string(ExceptInfo.Source+': '+ExceptInfo.Description))
+           raise EDispatchInvoke.Create(string(ExceptInfo.Source+': '+ExceptInfo.Description))
            {$ELSE}
-           raise Exception.Create(string(ExceptInfo.bstrSource+': '+ ExceptInfo.bstrDescription))
+           raise EDispatchInvoke.Create(string(ExceptInfo.bstrSource+': '+ ExceptInfo.bstrDescription))
            {$ENDIF !FPC}
-         else
-           raise Exception.Create(SysErrorMessage(i));
+         end else begin
+           raise EDispatchInvoke.Create(SysErrorMessage(i));
+         end;
        end;
       {$ENDIF Delphi3UP}
     finally
-      for i := 0 to High(Par)  do
-      begin
+      for i := 0 to High(Par) do begin
         {+}
         DispArg := @(DispParam.rgvarg{+}{$IFDEF FPC}^{$ENDIF}{+.}[i]);
 
@@ -15687,28 +16413,49 @@ begin
         if (DispArg.vt and VT_BYREF) = VT_BYREF then
         {+.}
         begin
-          if{$IFDEF DELPHI4UP}POleVariant{$ELSE}PVariant{$ENDIF}
-            //(DispParam.rgvarg[i].pvarVal) <> nil then
-            (DispArg.pvarVal) <> nil then
+          if {$IFDEF DELPHI4UP}POleVariant{$ELSE}PVariant{$ENDIF}(
+               //DispParam.rgvarg[i].pvarVal
+               DispArg.pvarVal
+             ) <> nil then
+          begin
             Dispose(
-            {$IFDEF DELPHI4UP}
-             POleVariant
-            {$ELSE}
-             PVariant
-            {$ENDIF}
-             //(DispParam.rgvarg[i].pvarVal));
-             (DispArg.pvarVal));
+              {$IFDEF DELPHI4UP}POleVariant{$ELSE}PVariant{$ENDIF}(
+                //(DispParam.rgvarg[i].pvarVal));
+                DispArg.pvarVal
+              ) );
+          end;
         end;
-      end;
-      FreeMem(DispParam.rgvarg, SizeOf(TVariantArg) * (High(Par) + 1));
+      end;// for i
+      //-FreeMem(DispParam.rgvarg, SizeOf(TVariantArg) * (High(Par) + 1));
+      FreeMem(DispParam.rgvarg, aSize);
     end;
   finally
-    for i := WSFreeList.Count-1 downto 0 do
+    for i := WSFreeList.Count-1 downto 0 do begin
       SysFreeString(WSFreeList[i]);
+      //-WSFreeList[i] := nil;
+    end;
     WSFreeList.Free;
   end;
 end; // function IDispatchInvoke
 {$ENDIF !PS_NOIDISPATCH}
+
+{ TPSTypeRec_Class }
+
+function TPSTypeRec_Class.BaseTypeToStr: string;
+begin
+  Result := 'Class: ' + string(FCN);
+end;
+
+{$IFNDEF PS_NOINTERFACES}
+//
+{ TPSTypeRec_Interface }
+//
+function TPSTypeRec_Interface.BaseTypeToStr: string;
+begin
+  Result := 'Interface: ['''+GUIDToString(FGuid)+''']';
+end;
+//
+{$ENDIF PS_NOINTERFACES}
 
 { TPSTypeRec_ProcPtr }
 
@@ -15717,4 +16464,17 @@ begin
   FRealSize := 3 * SizeOf(Pointer);
 end;
 
+procedure _linkdbginfo; // for comfortly debug
+begin
+  if (@_linkdbginfo <> nil) then Exit;
+  PSParamTypeToStr(PPSVariantIFC(nil));
+  PSErrorToString(erNoError, '');
+  TIFErrorToString(erNoError, '');
+end;
+//
+initialization
+  {$hints off} // Hint: H2077 Value assigned to 'MyAllMethodsHandlerPtr' never used
+  MyAllMethodsHandlerPtr := @MyAllMethodsHandler;
+  if (@_linkdbginfo = nil) then // for comfortly debug
+    _linkdbginfo();
 end.

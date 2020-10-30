@@ -1,4 +1,4 @@
-{ uPSDisassembly.pas } // version: 2020.1010.1010
+{ uPSDisassembly.pas } // version: 2020.1030.1825
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -62,7 +62,13 @@ var I: TMyPSExec;
     Output := Output + S + #13#10;
   end;
 
-  function BT2S(P: PIFTypeRec): string;
+  {$if declared(PSBaseTypeToStr)}
+  function BaseTypeToStr(P: PIFTypeRec): string; {$ifdef _inline_}inline;{$endif}
+  begin
+    Result := uPSUtils.PSBaseTypeToStr( PIFTypeRecBase(P) );
+  end;
+  {$else}
+  function BaseTypeToStr(P: PIFTypeRec): string;
   var i: Longint;
   begin
     case p.BaseType of
@@ -89,18 +95,18 @@ var I: TMyPSExec;
           Result := 'Record(';
           for i := 0 to TPSTypeRec_Record(p).FieldTypes.Count-1 do begin
             if i <> 0 then Result := Result+',';
-            Result := Result + BT2S(PIFTypeRec(TPSTypeRec_Record(p).FieldTypes[i]));
+            Result := Result + BaseTypeToStr(PIFTypeRec(TPSTypeRec_Record(p).FieldTypes[i]));
           end;
           Result := Result + ')';
         end;
-      btArray: Result := 'Array of '+BT2S(TPSTypeRec_Array(p).ArrayType);
+      btArray: Result := 'Array of '+BaseTypeToStr(TPSTypeRec_Array(p).ArrayType);
       btResourcePointer: Result := 'ResourcePointer';
       btPointer: Result := 'Pointer';
       btVariant: Result := 'Variant';
       btClass: Result := 'Class';
       btProcPtr: Result := 'ProcPtr';
       btStaticArray: Result := 'StaticArray['+IntToStr(TPSTypeRec_StaticArray(p).Size)
-        + '] of '+BT2S(TPSTypeRec_Array(p).ArrayType);
+        + '] of '+BaseTypeToStr(TPSTypeRec_Array(p).ArrayType);
       btPChar: Result := 'PChar';
       {+}
       {$IFNDEF PS_NOWIDESTRING}
@@ -118,7 +124,8 @@ var I: TMyPSExec;
     else
       Result := 'Unknown '+IntToStr(p.BaseType);
     end;
-  end; // function BT2S
+  end; // function BaseTypeToStr
+  {$ifend} // !declared(PSBaseTypeToStr)
 
   procedure WriteTypes;
   var T: Longint;
@@ -127,12 +134,12 @@ var I: TMyPSExec;
     for T := 0 to i.FTypes.Count-1 do begin
       if PIFTypeRec(i.FTypes[t]).ExportName <> '' then
         Writeln('Type ['+IntToStr(t)+']: '
-          + BT2S(PIFTypeRec(i.FTypes[t]))
+          + BaseTypeToStr(PIFTypeRec(i.FTypes[t]))
           + ' Export: '
           + {+}string(PIFTypeRec(i.FTypes[t]).ExportName){+.})
       else
         Writeln('Type ['+IntToStr(t)+']: '
-          + BT2S(PIFTypeRec(i.FTypes[t])));
+          + BaseTypeToStr(PIFTypeRec(i.FTypes[t])));
     end; // for
   end;
 
@@ -156,7 +163,7 @@ var I: TMyPSExec;
     for t := 0 to i.FGlobalVars.Count-1 do begin
       Writeln('Var ['+IntToStr(t)+']: '
         + IntToStr(FindType(PIFVariant(i.FGlobalVars[t])^.FType))
-        + ' ' + BT2S(PIFVariant(i.FGlobalVars[t])^.Ftype)
+        + ' ' + BaseTypeToStr(PIFVariant(i.FGlobalVars[t])^.Ftype)
         + ' ' + {+}string(PIFVariant(i.FGlobalVars[t])^.Ftype.ExportName){+.});
     end;
   end; // procedure WriteVars
@@ -431,7 +438,7 @@ var I: TMyPSExec;
             if not ReadLong(D1) then
               Exit;
             Writeln(' ['+IntToStr(dp)+'] PUSHTYPE '+IntToStr(d1)
-              + '('+BT2S(TPSTypeRec(I.FTypes[d1]))+') // '+IntToStr(sc));
+              + '('+BaseTypeToStr(TPSTypeRec(I.FTypes[d1]))+') // '+IntToStr(sc));
           end;
           CM_CO: begin
             if not ReadByte(b) then
@@ -547,22 +554,30 @@ var I: TMyPSExec;
 
 begin
   Result := False;
+  I := TMyPSExec.Create;
   try
-    I := TMyPSExec.Create;
-    I.AddSpecialProcImport('', @SpecImportProc, nil);
-    if not I.LoadData(Input) then begin
-      I.Free;
-      Exit;
+    try
+      I.AddSpecialProcImport('', @SpecImportProc, nil);
+      if I.LoadData(Input) then begin
+        Output := '';
+        WriteTypes;
+        WriteVars;
+        WriteProcs;
+        //
+        Result := True;
+      end;
+    except
+      {$IFDEF _DCC_MSG_}
+      {$if declared(dbg)}
+      on e: Exception do begin
+        dbg('ERROR: uPSDisasembly.IFPS3DataToText: '+e.Message);
+      end;
+      {$ifend}
+      {$ENDIF}
     end;
-    Output := '';
-    WriteTypes;
-    WriteVars;
-    WriteProcs;
+  finally
     I.Free;
-  except
-    exit;
   end;
-  Result := True;
 end; // function IFPS3DataToText
 
 { TMyIFPSExec }

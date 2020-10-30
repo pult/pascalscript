@@ -1,8 +1,11 @@
-{ x86.inc } // version: 2020.1010.1010
+{ x86.inc } // version: 2020.1030.1825
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
 { implementation of x86 abi }
+{$IFDEF _DCC_MSG_}
+  {$MESSAGE 'Note: RPS "x86.inc" use'}
+{$ENDIF}
 {$ifdef FPC}
 {$define PS_ARRAY_ON_STACK}
 {$endif}
@@ -399,7 +402,7 @@ var
           Pointer((@Stack[1])^) := VarPtr;
         end;
       end; // case RegUsage
-    end else begin
+    end else begin // when "not fVar.VarParam":
       UseReg := True;
       case fVar^.aType.BaseType of
         btSet: begin
@@ -413,7 +416,7 @@ var
                 Cardinal((@tempStr[1])^) := Cardinal(fvar.dta^);
               else
                 Pointer((@tempStr[1])^) := fvar.dta;
-            end; // Ccase
+            end; // case type size
         end;
 
         btArray: begin
@@ -567,7 +570,7 @@ var
           {$ELSE !FPC}
           TempStr := StringOfChar(AnsiChar(#0),8);
           TMethod((@TempStr[1])^) := MKMethod(Self, Longint(FVar.Dta^));
-          UseReg := false;
+          UseReg := False;
           {$ENDIF !FPC}
         end;
 

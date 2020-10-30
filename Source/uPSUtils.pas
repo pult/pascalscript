@@ -1,4 +1,4 @@
-{ uPSUtils.pas } // version: 2020.1021.2151
+{ uPSUtils.pas } // version: 2020.1030.1825
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -20,7 +20,7 @@ uses
 
 {+}
 const
-  uPSVersion = 202010212151; // format: yyyymmddhhnn
+  uPSVersion = 202010301825; // format: yyyymmddhhnn
             // yyyymmddhhnn
   {$EXTERNALSYM uPSVersion}
   (*
@@ -28,7 +28,7 @@ const
   // <sample>
   uses ... uPSUtils ...
   {$warn comparison_true off}
-  {$if (not declared(uPSVersion)) or (uPSVersion < 202010212151)}
+  {$if (not declared(uPSVersion)) or (uPSVersion < 202010301825)}
     //{$warn message_directive on}{$MESSAGE WARN 'Need update RemObjects Pascal Script Library'}
     {$MESSAGE FATAL 'Need update RemObjects Pascal Script Library'}
   {$ifend}{$warnings on}
@@ -95,6 +95,12 @@ const
   btCharIsNative = {$if btCharSize=btCharSizeNative}True{$else}False{$ifend};
   {$EXTERNALSYM btCharIsNative}
 {$IFDEF _DCC_MSG_}
+  {$IFDEF _PS_TRACE_}
+    {$MESSAGE 'Note: RPS defined _PS_TRACE_'}
+  {$ENDIF}
+  {$IFDEF _PS_TRACE_INVOK_}
+    {$MESSAGE 'Note: RPS defined _PS_TRACE_INVOK_'}
+  {$ENDIF}
   {$if btCharIsWide}
     {$MESSAGE 'Note: RPS btChar is Wide'}
   {$else}
@@ -105,7 +111,7 @@ const
   {$else}
     {$MESSAGE 'Note: RPS btChar <> System.Char (==Ansi)'}
   {$ifend}
-{$ENDIF}
+{$ENDIF _DCC_MSG_}
 
 const
   btReturnAddress       = 0;
@@ -155,6 +161,28 @@ const
   btType                = 130;
   btEnum                = 129;
   btExtClass            = 131;
+
+type
+  TPSTypeRecBase = class
+  //private
+  protected
+    FExportNameHash: Longint;
+    FExportName: TbtString;
+    FBaseType: TPSBaseType;
+  protected
+    FRealSize: Cardinal;
+  public
+    function BaseTypeToStr: string; virtual;
+
+    property RealSize: Cardinal read FRealSize;
+    property BaseType: TPSBaseType read FBaseType write FBaseType;
+    property ExportName: TbtString read FExportName write FExportName;
+    property ExportNameHash: Longint read FExportNameHash write FExportNameHash;
+  end;
+  PIFTypeRecBase = TPSTypeRecBase;
+
+function PSBaseTypeToStr(BaseType: TPSBaseType): string; overload;
+function PSBaseTypeToStr(BaseType: PIFTypeRecBase): string; overload;
 
 // Small hash maker:
 function MakeHash(const S: ShortString): Longint; overload;
@@ -785,6 +813,14 @@ function StringOfChar(Ch: WideChar; Count: Integer): UnicodeString; overload;
   {$ENDIF !PS_NOWIDESTRING}
 {$ENDIF FPC}
 
+function BoolToTxt(B: Boolean): string;
+
+// for comfortly debug
+type TPSDebugMessage = procedure(const S: string);
+var  dbg: TPSDebugMessage;
+procedure psdbg_null(const S: string);
+procedure psdbg(const S: string);
+
 implementation
 
 uses
@@ -1330,6 +1366,169 @@ begin
 end;
   {$ENDIF !PS_NOWIDESTRING}
 {$ENDIF FPC}
+
+function BoolToTxt(B: Boolean): string;
+begin
+  if B
+  then Result := 'True'
+  else Result := 'False';
+end;
+
+procedure psdbg_null(const S: string);
+begin
+  { empry }
+end;
+
+procedure psdbg(const S: string);
+begin
+  {$IFDEF MSWINDOWS}
+  begin
+    OutputDebugString(PChar('rps:> ' + S));
+    begin
+      {$IFDEF _DCC_MSG_}
+      if IsConsole then
+        writeln('rps:> ', S);
+      {$ENDIF}
+    end;
+  end;
+  {$ELSE !MSWINDOWS}
+  begin
+    //writeln(stderr, S); //?
+  end;
+  {$ENDIF !MSWINDOWS}
+end;
+
+{ TPSTypeRecBase }
+
+function TPSTypeRecBase.BaseTypeToStr: string;
+//var i: Longint;
+begin
+  case FBaseType of
+    btReturnAddress       : Result := 'ReturnAddress';
+    btU8                  : Result := 'U8';
+    btS8                  : Result := 'S8';
+    btU16                 : Result := 'U16';
+    btS16                 : Result := 'S16';
+    btU32                 : Result := 'U32';
+    btS32                 : Result := 'S32';
+    btSingle              : Result := 'Single';
+    btDouble              : Result := 'Double';
+    btExtended            : Result := 'Extended';
+    btString              : Result := {$if btCharIsWide}'UnicodeString'{$else}'AnsiString'{$ifend};
+    btRecord              : begin
+                              Result := 'Record';
+                              {i := TPSTypeRec_Record(Self).FieldTypes.Count;
+                              if (i > 0) then begin
+                                Result := Result+'('
+                                  + BaseTypeToStr(PIFTypeRecBase(TPSTypeRec_Record(Self).FieldTypes[0]));
+                                for i := 1 to i-1 do
+                                  Result := Result+','
+                                    + BaseTypeToStr(PIFTypeRecBase(TPSTypeRec_Record(Self).FieldTypes[i]));
+                                Result := Result + ')';
+                              end;}
+                            end;
+    btArray               : Result := 'Array';//+' of '+BaseTypeToStr(TPSTypeRec_Array(Self).ArrayType);
+    btPointer             : Result := 'Pointer';
+    btPChar               : Result := {$if btCharIsWide}'PWideChar'{$else}'PAnsiChar'{$ifend};
+    btResourcePointer     : Result := 'ResourcePointer';
+    btVariant             : Result := 'Variant';
+  {$IFNDEF PS_NOINT64}
+    btS64                 : Result := 'S64';
+    {+}
+  //btU64                 : Result := 'U64';
+    {+.}
+  {$ENDIF}
+    btChar                : Result := {$if btCharIsWide}'WideChar'{$else}'AnsiChar'{$ifend};
+  {$IFNDEF PS_NOWIDESTRING}
+    btWideString          : Result := 'WideString';
+    btWideChar            : Result := 'WideChar';
+  {$ELSE}
+    {$IFDEF UNICODE}
+    btWideChar            : Result := 'WideChar';
+    {$ENDIF}
+  {$ENDIF}
+    btProcPtr             : Result := 'ProcPtr';
+    btStaticArray         : Result := 'StaticArray'
+                              //+ '['+IntToStr(TPSTypeRec_StaticArray(Self).Size)
+                              //+ '] of '+BaseTypeToStr(TPSTypeRec_Array(Self).ArrayType)
+                              ;
+    btSet                 : Result := 'Set';
+    btCurrency            : Result := 'Currency';
+    btClass               : Result := 'Class'
+                              //+ ': '+string(TPSTypeRec_Class(Self).CN)
+                              ;
+    btInterface           : Result := 'Interface';
+    btNotificationVariant : Result := 'NotificationVariant';
+    btUnicodeString       : Result := 'UnicodeString';
+    {+}
+    btPWideChar           : Result := 'PWideChar';
+    {$EXTERNALSYM btPWideChar}
+    {+.}
+    btType                : Result := 'Type';
+    btEnum                : Result := 'Enum';
+    btExtClass            : Result := 'ExtClass';
+    else                    Result := 'Unknown '+SysUtils.IntToStr(FBaseType);
+  end; // case
+end;
+
+function PSBaseTypeToStr(BaseType: TPSBaseType): string;
+begin
+  case BaseType of
+    btReturnAddress       : Result := 'ReturnAddress';
+    btU8                  : Result := 'U8';
+    btS8                  : Result := 'S8';
+    btU16                 : Result := 'U16';
+    btS16                 : Result := 'S16';
+    btU32                 : Result := 'U32';
+    btS32                 : Result := 'S32';
+    btSingle              : Result := 'Single';
+    btDouble              : Result := 'Double';
+    btExtended            : Result := 'Extended';
+    btString              : Result := {$if btCharIsWide}'UnicodeString'{$else}'AnsiString'{$ifend};
+    btRecord              : Result := 'Record';
+    btArray               : Result := 'Array';
+    btPointer             : Result := 'Pointer';
+    btPChar               : Result := {$if btCharIsWide}'PWideChar'{$else}'PAnsiChar'{$ifend};
+    btResourcePointer     : Result := 'ResourcePointer';
+    btVariant             : Result := 'Variant';
+  {$IFNDEF PS_NOINT64}
+    btS64                 : Result := 'S64';
+    {+}
+  //btU64                 : Result := 'U64';
+    {+.}
+  {$ENDIF}
+    btChar                : Result := {$if btCharIsWide}'WideChar'{$else}'AnsiChar'{$ifend};
+  {$IFNDEF PS_NOWIDESTRING}
+    btWideString          : Result := 'WideString';
+    btWideChar            : Result := 'WideChar';
+  {$ELSE}
+    {$IFDEF UNICODE}
+    btWideChar            : Result := 'WideChar';
+    {$ENDIF}
+  {$ENDIF}
+    btProcPtr             : Result := 'ProcPtr';
+    btStaticArray         : Result := 'StaticArray';
+    btSet                 : Result := 'Set';
+    btCurrency            : Result := 'Currency';
+    btClass               : Result := 'Class';
+    btInterface           : Result := 'Interface';
+    btNotificationVariant : Result := 'NotificationVariant';
+    btUnicodeString       : Result := 'UnicodeString';
+    {+}
+    btPWideChar           : Result := 'PWideChar';
+    {$EXTERNALSYM btPWideChar}
+    {+.}
+    btType                : Result := 'Type';
+    btEnum                : Result := 'Enum';
+    btExtClass            : Result := 'ExtClass';
+    else                    Result := 'Unknown '+SysUtils.IntToStr(BaseType);
+  end; // case
+end; // function BaseTypeToStr
+
+function PSBaseTypeToStr(BaseType: PIFTypeRecBase): string;
+begin
+  Result := TPSTypeRecBase(BaseType).BaseTypeToStr();
+end;
 
 //
 // Small hash maker:
@@ -2602,6 +2801,21 @@ begin
   fUnitName := FastUpperCase(Value);
 end;
 
+procedure _linkdbginfo; // for comfortly debug
+begin
+  if (@_linkdbginfo <> nil) then Exit;
+  BoolToTxt(False);
+  TPSTypeRecBase(nil).BaseTypeToStr();
+  PSBaseTypeToStr(PIFTypeRecBase(nil));
+  PSBaseTypeToStr(0);
+  psdbg('');
+  psdbg_null('');
+end;
+//
 initialization
   PosInit();
+  //dbg := psdbg_null;
+  dbg := psdbg;
+  if (@_linkdbginfo = nil) then // for comfortly debug
+    _linkdbginfo();
 end.

@@ -1,4 +1,4 @@
-{ x64.inc } // version: 2020.1010.1020
+{ x64.inc } // version: 2020.1030.1825
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -58,6 +58,9 @@ type
 {$ENDIF}
 
 {$IFNDEF X64CALL_ASM} // PURE PASCAL version. ! DELPHI/FPC: Successfully on exceptions !
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS "x64.inc" use pure "x64call"'}
+  {$ENDIF}
 type
   {$IFDEF CPUX64}
   t_pstask = array[0..96] of IPointer;
@@ -1326,7 +1329,9 @@ type
 {$ENDIF CPUX64}
 
 {$IFDEF REG_STACK_PTR_OFFSET0} // ! NEW asm-win-x64 version for delphi and/or fpc !
-
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS "x64.inc" use New ASM "x64call(win)"'}
+  {$ENDIF}
 procedure x64call({RCX}Address: Pointer;out {RDX}_RAX: IPointer;var {R8}_XMM0: Double; var {R9}RegInfo: TRegisters);
 assembler; {$ifdef FPC}nostackframe;{$endif}
   //
@@ -1499,6 +1504,9 @@ begin
 end;
 {$endif}
 
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS "x64.inc" use Old ASM "x64call(win)"'}
+  {$ENDIF}
 procedure x64call( // TODO: ! GPF on exception !
   Address: Pointer;
   out _RAX: IPointer;
@@ -1644,6 +1652,9 @@ type
     SingleBits: Integer; //104
   end;
 
+  {$IFDEF _DCC_MSG_}
+    {$MESSAGE 'Note: RPS "x64.inc" use ASM "x64call"'}
+  {$ENDIF}
 procedure x64call(  // TODO: Need check GPF on exception !
   Address: Pointer;
   out _RAX: IPointer;
@@ -1816,13 +1827,18 @@ var
   {$IFNDEF WINDOWS}
   RegUsageFloat: Byte;
   {$ENDIF}
-{$IFDEF FPC}
+  {$IFDEF FPC}
   IsConstructor, IsVirtualCons: Boolean;
-{$ENDIF}
+  {$ENDIF}
   RegUsage: Byte;
   CallData: TPSList;
   I: Integer;
   pp: ^Byte;
+  OK: Boolean;
+  p, prp: PPSVariantIFC;
+  {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+  S: string;
+  {$ENDIF}{$ENDIF}
 
   function rp(p: PPSVariantIFC): PPSVariantIFC;
   begin
@@ -2127,6 +2143,27 @@ var
             //TMethodCallData(p^).Data.Data:=nil;
             TMethodCallData(p^).Data := MKMethod(Self, Longint(fVar.Dta^)); // It requires the implementation of "Handled"
             StoreReg(IPointer(@TMethodCallData(p^).Data));
+
+            // ######### DEBUG: TRACE:
+(*
+            {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+            S := ' # Ptr: Self:' + SysUtils.IntToStr(IPointer(Self))
+               + '; ProcNo:' + SysUtils.IntToStr(Longint(fVar.Dta^))
+               ;
+            dbg(S);
+
+            S := ' # CB: Code:' + SysUtils.IntToStr(IPointer(TMethodCallData(p^).Data.Code)) // == @MyAllMethodsHandler
+               + '; @MyAllMethodsHandler:' + SysUtils.IntToStr(IPointer(MyAllMethodsHandlerPtr))
+               + '; Data:' + SysUtils.IntToStr(IPointer(TMethodCallData(p^).Data.Data))
+               + '; SE:' + SysUtils.IntToStr(IPointer( PScriptMethodInfo(TMethodCallData(p^).Data.Data).SE )) // == Self
+               + '; ProcNo:' + SysUtils.IntToStr( PScriptMethodInfo(TMethodCallData(p^).Data.Data).ProcNo )
+               ;
+            dbg(S);
+            {$ENDIF}{$ENDIF}
+//*)
+            // ######### DEBUG: TRACE.
+
+
             // [#velter#]. {+.}
           end;
         btS64: begin
@@ -2161,9 +2198,36 @@ begin // function TPSExec.InnerfuseCall
   {+} // [#velter#]
   CallData := nil;
   {+.}
-  res := rp(res);
-  if res <> nil then
-    res.VarParam := true;
+
+  //res := rp(res);
+  //if res <> nil then
+  //  res.VarParam := true;
+  if Assigned(res) then begin
+    // ######### DEBUG: TRACE:
+    {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+    {$if declared(PSParamTypeToStr)}
+    S := 'INFO:    Result: '+PSParamTypeToStr(res);
+    dbg(S);
+    {$ifend}
+    {$ENDIF}{$ENDIF}
+    // ######### DEBUG: TRACE.
+
+    p := res;
+    res := rp(p);
+    if Assigned(res) then begin
+      res.VarParam := True;
+
+      // ######### DEBUG: TRACE:
+      {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+      {$if declared(PSParamTypeToStr)}
+      S := 'INFO: rp:Result: '+PSParamTypeToStr(res)+'; Same: '+BoolToTxt(res=p);
+      dbg(S);
+      {$ifend}
+      {$ENDIF}{$ENDIF}
+      // ######### DEBUG: TRACE.
+    end;
+  end; // if Assigned(res)
+
   try
     {$IFNDEF WINDOWS}
     (*_RSI := 0;
@@ -2217,12 +2281,37 @@ begin // function TPSExec.InnerfuseCall
               GetPtr(res);
           end;
       end;
-    end;
+    end; // if Assigned(res)
     {$ENDIF PS_RESBEFOREPARAMETERS}
+
     for I := 0 to Params.Count - 1 do begin
-      if not GetPtr(rp(Params[I])) then
+      p := Params[I];
+      // ######### DEBUG: TRACE:
+      {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+      {$if declared(PSParamTypeToStr)}
+      S := 'INFO:    Param['+UIntToStr(I)+']: '+PSParamTypeToStr(p);
+      dbg(S);
+      {$ifend} // "$if declared(PSParamTypeToStr)"
+      {$ENDIF}{$ENDIF}
+      // ######### DEBUG: TRACE.
+
+      prp := rp(p);
+      OK := GetPtr(prp);
+
+      // ######### DEBUG: TRACE:
+      {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
+      {$if declared(PSParamTypeToStr)}
+      S := 'INFO: pr:Param['+UIntToStr(I)+']: '+PSParamTypeToStr(prp)
+        +'; Same: '+BoolToTxt(prp=p)+'; GetPtr: '+BoolToTxt(OK);
+      dbg(S);
+      {$ifend} // "$if declared(PSParamTypeToStr)"
+      {$ENDIF}{$ENDIF}
+      // ######### DEBUG: TRACE.
+
+      if not OK then
         Exit;
     end;
+
     if Assigned(res) then begin
       {$IFNDEF PS_RESBEFOREPARAMETERS}
       case res^.aType.BaseType of
@@ -2344,4 +2433,4 @@ begin // function TPSExec.InnerfuseCall
       CallData.Free;
     end;
   end;
-end;
+end; // function TPSExec.InnerfuseCall

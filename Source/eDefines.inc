@@ -1,4 +1,4 @@
-{ eDefines.inc } // version: 2020.1010.1010
+{ eDefines.inc } // version: 2020.1030.1825
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -1314,13 +1314,20 @@
     {$IFDEF CPU386} // DELPHI11UP == DELPHI2007UP
       {$DEFINE CPUX86}
     {$ELSE !CPU386}
-      {$if (not defined(CPUARM)) and (not defined(CPUX64)) and (not defined(CPUX86))}
-        {$IFDEF CPU64BITS} // XE2-XE7 (CPUX64), XE8+ (CPU64BITS)
-          {$DEFINE CPUX64}
-        {$ELSE !CPU64BITS}
-          {$DEFINE CPUX86}
-        {$ENDIF !CPU64BITS}
-      {$ifend} //!CPUARM
+
+      // XE2-XE7 (CPUX64), XE8+ (CPU64BITS)
+      // DELPHI22UP == DELPHIXE8UP
+      {$if (not defined(CPUX86))
+        and (not defined(CPUX64))
+        and (not defined(CPU64BITS))
+        and (not defined(DELPHI22UP))
+      }
+        {$DEFINE CPUX86}
+      {$ifend}
+
+      {$IFNDEF DELPHI22UP}{$IFDEF CPUX64}
+        {$DEFINE CPU64BITS}
+      {$ENDIF}{$ENDIF}
 
       {$IFDEF CPU64BITS}
         {$UNDEF 32BIT}

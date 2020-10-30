@@ -1,4 +1,4 @@
-{ PascalScript.inc } // version: 2020.1010.1010
+{ PascalScript.inc } // version: 2020.1030.1825
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {                                                                            }
@@ -31,7 +31,11 @@
 {$ENDIF}
 {$IFDEF _DCC_MSG_}
   {$IFDEF DELPHI}
-    {-$WARN MESSAGE_DIRECTIVE ON} // optional // dcc+ fpc-
+    {$IFNDEF DELPHI11UP}
+      {$UNDEF _DCC_MSG_} // when dcc unsupported directives: $MESSAGE $WARN
+    {$ELSE}
+      {-$WARN MESSAGE_DIRECTIVE ON} // optional // dcc+ fpc-
+    {$ENDIF}
   {$ELSE}
     {-$HINT MESSAGE_DIRECTIVE ON} // optional // dcc- fpc+
     {-$NOTE MESSAGE_DIRECTIVE ON} // optional // dcc- fpc+
@@ -106,9 +110,9 @@ Defines:
 {$ELSE !FPC}
   // DELPHI :
   {$IFDEF DELPHI23UP}
-    {$DEFINE _INVOKECALL_IMPL_} // optional
+    {$DEFINE PS_INVOK_RTTI_IMPL} // optional
   {$ENDIF DELPHI23UP}
-  {$IFDEF _INVOKECALL_IMPL_}{$IFNDEF PS_USECLASSICINVOKE}
+  {$IFDEF PS_INVOK_RTTI_IMPL}{$IFNDEF PS_USECLASSICINVOKE}
     {--$DEFINE USEINVOKECALL} // optional // TODO: currentry not all parameter types supported
     {$if not ( defined(CPUX86) or defined(CPUX64) )}
       {$DEFINE USEINVOKECALL} // optional // TODO: currentry not all parameter types supported
@@ -117,6 +121,10 @@ Defines:
 {+.}
 {$ENDIF !FPC}
 {+}
+{$IFDEF USEINVOKECALL}
+  {$DEFINE PS_USE_INVOK_RTTI}
+{$ENDIF}
+
 {$IFDEF FPC}
   {$DEFINE UNICODE_OR_FPC}
 {$ENDIF}

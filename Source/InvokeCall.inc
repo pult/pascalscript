@@ -1,9 +1,10 @@
-{ InvokeCall.inc } // version: 2020.1030.1830
+{ InvokeCall.inc } // version: 2020.1031.1457
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
 
-// TODO: not supported parameter types: btProcPtr(-x86, +x64), ... ?
+// TODO: not supported parameter types: btProcPtr: "dcc:(-x86, +x64, ?), fpc(?)"
+// TODO: only tested on DX 10.4
 
 {$IFDEF _DCC_MSG_}
   {$MESSAGE 'Note: RPS use "InvokeCall.inc"'}
@@ -176,6 +177,26 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     Result := p;
   end;
 
+  //XE3
+  //function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
+  //  CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean = False): TValue;
+
+  //DX10,3
+  //function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
+  //  CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean = False;
+  //  IsConstructor: Boolean = False ): TValue;
+
+  {$if defined(FPC) or defined(DELPHI23UP)}
+  {$else}
+  function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
+    CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean{ = False};
+    IsConstructor: Boolean{ = False} ): TValue; overload;
+  begin
+    //?? IsConstructor
+    Result := System.Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic);
+  end;
+  {$ifend}
+
 type
   TMethodCallData = record
     MType: Byte;
@@ -220,8 +241,8 @@ begin
   if Assigned(_Self) then
   begin
     Arg := TValue.From<Pointer>( _Self );
-    {$if defined(FPC) or (not defined(DELPHI23UP))}
-    Args := [Arg];
+    {$if defined(FPC) or defined(DELPHI23UP)}
+    Args := [Arg]; // XE3: Error: E2001 Ordinal type required
     {$else}
     SetLength({%H-}Args, 1);
     Args[0] := Arg;
@@ -298,7 +319,12 @@ begin
                 CallData.Add(p);
 
                 Arg := TValue.From<Pointer>( Pointer(POpenArray(p)^.Data) );
-                Args := Args + [Arg];
+                {$if defined(FPC) or defined(DELPHI23UP)}
+                Args := Args + [Arg]; // XE3: Error: E2001 Ordinal type required
+                {$else}
+                SetLength(Args, Length(Args)+1);
+                Args[High(Args)] := Arg;
+                {$ifend}
                 Arg := TValue.From<Longint>( Longint(POpenArray(p)^.ItemCount-1) ); //?? type IPointer
 
               end else begin
@@ -520,7 +546,13 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
              //?? poa := CreateOpenArray(False, Self, fVar);
              //   Arg := TValue.From<Pointer>( Pointer( poa ) ); //??
 
-                 Args := Args + [Arg]; // TODO: XE3: Error: E2001 Ordinal type required
+                 {$if defined(FPC) or defined(DELPHI23UP)}
+                 Args := Args + [Arg];
+                 {$else}
+                 SetLength(Args, Length(Args)+1);
+                 Args[High(Args)] := Arg;
+                 {$ifend}
+
                  //2nd - integer with arraylength - 1 (high)
                  Arg := TValue.From<Integer>(PSDynArrayGetLength(Pointer(fvar.Dta^), fvar.aType)-1);// = High of OpenArray
                  //*)
@@ -533,7 +565,13 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
 
                  //in case of openarray we should provide TWO params: first is pointer to array,
                  Arg := TValue.From<Pointer>( Pointer(POpenArray(p)^.Data) );
+                 {$if defined(FPC) or defined(DELPHI23UP)}
                  Args := Args + [Arg];
+                 {$else}
+                 SetLength(Args, Length(Args)+1);
+                 Args[High(Args)] := Arg;
+                 {$ifend}
+
                  //2nd - integer with arraylength - 1 (high)
                  Arg := TValue.From<Longint>( Longint(POpenArray(p)^.ItemCount-1) ); //?? type IPointer
                end else begin //dynarray = just push pointer:
@@ -590,7 +628,12 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
         {$ifend} // "$if declared(PSParamTypeToStr)"
         //Exit;
       end;
-      Args := Args + [Arg]; // TODO: XE3: Error: E2001 Ordinal type required
+      {$if defined(FPC) or defined(DELPHI23UP)}
+      Args := Args + [Arg];
+      {$else}
+      SetLength(Args, Length(Args)+1);
+      Args[High(Args)] := Arg;
+      {$ifend}
     end; // for I
 
     IsConstr := (Integer(CallingConv) and 64) <> 0; // TODO: FPC rtti currently not supported IsConstr
@@ -623,15 +666,6 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
     end; // if Assigned(res)
 
     if not Assigned(res) then begin
-      //XE3
-      //function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
-      //  CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean = False): TValue;
-
-      //DX10,3
-      //function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
-      //  CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean = False;
-      //  IsConstructor: Boolean = False ): TValue;
-
       Invoke(Address,Args,SysCalConv,nil,False,IsConstr);  { ignore return }
     end else begin
       case res.aType.BaseType of { add result types here }
@@ -958,8 +992,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
           0: begin
             DestroyOpenArray(Self, Pointer(pp));
           end;
-          255: begin // [#velter#]: https://github.com/velter/pascalscript/commit/1c598a1406390e2e762368b07a185ecb187182a7
-            //FreeMem(Pointer(pp), sizeof(TMethodCallData)); // release TMethodCallData
+          255: begin
             Dispose(PMethodCallData(pp));
           end;
         end; // case

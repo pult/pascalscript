@@ -752,7 +752,6 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
                                  PCurrency(res.Dta)^ := ResValue.AsType<Currency>;
                                  {$ENDIF}
                                end;
-        //TODO: XE3: Error: E2089 Invalid typecast
         btSingle:              begin
                                  ResValue := Invoke(Address,Args,SysCalConv,
                                    TypeInfo(Single),False,IsConstr);
@@ -762,7 +761,6 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
                                  PSingle(res.Dta)^ := ResValue.AsType<Single>;
                                  {$ENDIF}
                                end;
-        //TODO: XE3: Error: E2089 Invalid typecast
         btDouble:              begin
                                  ResValue := Invoke(Address,Args,SysCalConv,
                                    TypeInfo(Double),False,IsConstr);

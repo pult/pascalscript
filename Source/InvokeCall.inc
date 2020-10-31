@@ -476,7 +476,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
 
 (*
               //
-              // like "x86.inc":
+              // like "x64.inc":
               //
               p := New(PMethodCallData);
               TMethodCallData(p^).MType := 255;

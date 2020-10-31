@@ -1,4 +1,4 @@
-{ PascalScript.inc } // version: 2020.1030.1825
+{ PascalScript.inc } // version: 2020.1031.1630
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {                                                                            }
@@ -127,6 +127,10 @@ Defines:
 
 {$IFDEF FPC}
   {$DEFINE UNICODE_OR_FPC}
+{$ENDIF}
+
+{$IFDEF CPU64}
+  {$UNDEF PS_NOINT64}
 {$ENDIF}
 
 {$D+} { optional }

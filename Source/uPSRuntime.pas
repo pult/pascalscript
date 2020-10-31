@@ -1,4 +1,4 @@
-{ uPSRuntime.pas } // version: 2020.1030.1825
+{ uPSRuntime.pas } // version: 2020.1031.1630
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -454,6 +454,7 @@ type
     Data: TbtWideString;
   end;
   PPSVariantWString = ^TPSVariantWString;
+  {$ENDIF !PS_NOWIDESTRING}
 
   TPSVariantUString =
     //{$IFNDEF DELPHI2009UP}
@@ -464,7 +465,6 @@ type
     Data: TbtUnicodeString;
   end;
   PPSVariantUString = ^TPSVariantUString;
-  {$ENDIF !PS_NOWIDESTRING}
 
   TPSVariantSingle = packed record
     VI: TPSVariant;
@@ -1143,10 +1143,11 @@ uses
     {$ENDIF CONDITIONALEXPRESSIONS}
   {$ENDIF !PS_NOINTERFACES}
   //
-  {$IFNDEF PS_NOWIDESTRING}
   {$IFDEF FPC}
   StrUtils, {$DEFINE _STRUTILS_}
-  {$ELSE}
+  {$ENDIF !FPC}
+  {$IFNDEF PS_NOWIDESTRING}
+  {$IFNDEF FPC}
   WideStrUtils,
   {$ENDIF !FPC}
   {$ENDIF !PS_NOWIDESTRING}
@@ -2034,7 +2035,7 @@ begin
         Result := 'Null'
       else if (TVarData(p.Dta^).VType = varOleStr) then
       {$IFDEF PS_NOWIDESTRING}
-        Result := MakeString(Variant(p.Dta^))
+        Result := MakeString(TbtString(VarToStr(Variant(p.Dta^))))
       {$ELSE}
         Result := MakeWString(Variant(p.dta^))
       {$ENDIF}
@@ -5466,11 +5467,11 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
             Pointer(Dest^) := Pointer(Src^); // TODO: ?: Pointer(Dest^) := Pointer(btu32(Src^));
           end;
           {+}
-          {$IFDEF CPU64}
+          {$IFDEF CPU64}{$IFNDEF PS_NOINT64}
           bts64: begin
             Pointer(Dest^) := Pointer(Src^); // TODO: ?: Pointer(Dest^) := Pointer(bts64(Src^));
           end;
-          {$ENDIF CPU32}
+          {$ENDIF PS_NOINT64}{$ENDIF CPU64}
           btPointer: begin
             Pointer(Dest^) := Pointer(Src^);
           end;
@@ -5626,7 +5627,7 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
           ,btPWideChar
             {$ifend}
           {$ENDIF}:
-            TbtDouble(Dest^) := NativeUInt(TbtS64(Src^));
+            TbtDouble(Dest^) := NativeUInt(Pointer(Src^));
           {$ENDIF CPU64}
           {+.}
           else
@@ -5672,7 +5673,7 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
           ,btPWideChar
             {$ifend}
           {$ENDIF}:
-            tbtextended(Dest^) := NativeUInt(TbtS64(Src^));
+            TbtExtended(Dest^) := NativeUInt(Pointer(Src^));
           {$ENDIF CPU64}
           {+.}
           else
@@ -5877,10 +5878,11 @@ begin // {+}{@dbg@:hook.variant.set}{+.} // dbg.cond: srctype.BaseType = btUnico
         end
         {$ENDIF CPU32}
         {$IFDEF CPU64}
-        else if (srctype.BaseType in [btS64, btPointer, btPChar, btClass, btInterface
+        else if (srctype.BaseType in [{$IFNDEF PS_NOINT64}btS64,{$ENDIF} btPointer,
+          btPChar, btClass, btInterface
           {$IFNDEF PS_NOWIDESTRING}{$if declared(btPWideChar)},btPWideChar{$ifend}{$ENDIF}])
         then begin
-          Pointer(Dest^) := Pointer(tbts64(Src^));
+          Pointer(Dest^) := Pointer(Src^);
         end
         {$ENDIF CPU64}
         {+.}
@@ -11987,7 +11989,7 @@ begin
     {.$IFNDEF PS_NOINT64}
     {$IFDEF CPU64}
     {?}btPointer, btClass:
-      Dest := IPointer(tbts64(src^));
+      Dest := IPointer(Pointer(src^));
     {$ENDIF}
     {.$ENDIF}
     {?}btInterface:
@@ -12320,7 +12322,7 @@ begin
 end; // procedure DestroyOpenArray
 
 {+}
-var MyAllMethodsHandlerPtr: Pointer; // == @MyAllMethodsHandler; possibility of access from platfom "*.inc"
+var {%H-}MyAllMethodsHandlerPtr: Pointer; // == @MyAllMethodsHandler; possibility of access from platfom "*.inc"
 
 type
   PScriptMethodInfo = ^TScriptMethodInfo;

@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1031.1530
+{ InvokeCall.inc } // version: 2020.1031.1630
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -905,17 +905,30 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
           begin
             //OK:
             ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(TVarData),False,IsConstr);
+            {$IFDEF FPC}
+            ResValue.ExtractRawData(res.Dta);
+            {$ELSE}
             TVarData(res.Dta^) := ResValue.AsType<TVarData>;
+            {$ENDIF}
 
             //OK:
             //ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Variant),False,IsConstr);
             //Variant(res.Dta^) := ResValue.AsVariant;
           end;
+        btProcPtr:
+        begin //??
+          ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(TMethod),False,IsConstr);
+          {$IFDEF FPC}
+          ResValue.ExtractRawData(res.Dta);
+          {$ELSE}
+          TMethod(res.Dta^) := ResValue.AsType<TMethod>;
+          {$ENDIF}
+        end;
         btStaticArray:
         begin
           {$IFDEF FPC}
           ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
-          PPointer(res.Dta)^ := ResValue.AsOrdinal;
+          PPointer(res.Dta)^ := Pointer(ResValue.AsOrdinal);
           {$ELSE !FPC}
             {$IFNDEF FPC}
             for RttiType in ctx.GetTypes do
@@ -935,7 +948,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
         begin
           {$IFDEF FPC}
           ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
-          PPointer(res.Dta)^ := ResValue.AsOrdinal;
+          PPointer(res.Dta)^ := Pointer(ResValue.AsOrdinal);
           {$ELSE !FPC}
             {$IFNDEF FPC}
             for RttiType in ctx.GetTypes do
@@ -953,7 +966,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
         begin
           {$IFDEF FPC}
           ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
-          PPointer(res.Dta)^ := ResValue.AsOrdinal;
+          PPointer(res.Dta)^ := Pointer(ResValue.AsOrdinal);
           {$ELSE !FPC}
             //NB. When you have types-synonyms like TCardinalDynArray = array of Cardinal;
             //it will NOT be added to RTTI list by compiler. So, it will be never

@@ -1,4 +1,4 @@
-{ uPSCompiler.pas } // version: 2020.1010.1010
+{ uPSCompiler.pas } // version: 2020.1031.1630
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -5081,21 +5081,21 @@ function TPSPascalCompiler.ReadString: PIfRVariant;
       begin
         if UTF8Decode then
         begin
-        temp3 := temp3
-          + {.$IFNDEF PS_NOWIDESTRING}
-               {$IFDEF DELPHI6UP}{.$IFNDEF FPC}System.{.$ENDIF}
-                 {$IFDEF DELPHI2009UP}UTF8ToWideString{$ELSE}UTF8Decode{$ENDIF}
-               {$ENDIF}
-            {.$ENDIF}
-            (
-              //-PString(FParser.GetToken)
-              {$if btCharIsWide}
-              RawByteString(FParser.GetToken)
-              {$else}
-              FParser.GetToken
-              {$ifend}
-            )
-        ;
+        temp3 := temp3 + {$IFNDEF PS_NOWIDESTRING}TbtUnicodeString{$ELSE}TbtString{$ENDIF}(
+          {.$IFNDEF PS_NOWIDESTRING}
+             {$IFDEF DELPHI6UP}{.$IFNDEF FPC}System.{.$ENDIF}
+               {$IFDEF DELPHI2009UP}UTF8ToWideString{$ELSE}UTF8Decode{$ENDIF}
+             {$ENDIF}
+          {.$ENDIF}
+          (
+            //-PString(FParser.GetToken)
+            {$if btCharIsWide}
+            RawByteString(FParser.GetToken)
+            {$else}
+            FParser.GetToken
+            {$ifend}
+          )
+        );
         {$IFNDEF PS_NOWIDESTRING}
         wChar := True;
         {$ENDIF}
@@ -12434,9 +12434,9 @@ end;
 
 {$IFNDEF PS_NOINTERFACES}
 const
-  IUnknown_Guid: TGuid = (D1: 0; d2: 0; d3: 0; d4: ($c0,00,00,00,00,00,00,$46));
+  {%H-}IUnknown_Guid: TGuid = (D1: 0; d2: 0; d3: 0; d4: ($c0,00,00,00,00,00,00,$46));
   {$IFDEF MSWINDOWS}
-  IDispatch_Guid: Tguid = (D1: $20400; D2: $0; D3: $0; D4:($C0, $0, $0, $0, $0, $0, $0, $46));
+  {%H-}IDispatch_Guid: Tguid = (D1: $20400; D2: $0; D3: $0; D4:($C0, $0, $0, $0, $0, $0, $0, $46));
   {$ENDIF}
 {$ENDIF}
 

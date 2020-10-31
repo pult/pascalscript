@@ -1,4 +1,4 @@
-{ uPSUtils.pas } // version: 2020.1030.1825
+{ uPSUtils.pas } // version: 2020.1031.1630
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -11,11 +11,9 @@ uses
   {$IFDEF DELPHI7UP}Types,{$ENDIF}
   //{$IFDEF DELPHI17UP}System.UITypes,{$ENDIF}
   Classes, SysUtils
-  {$IFNDEF FPC}
   {$IFDEF MSWINDOWS}
   ,Windows
   {$ENDIF MSWINDOWS}
-  {$ENDIF !FPC}
   ;
 
 {+}
@@ -818,8 +816,8 @@ function BoolToTxt(B: Boolean): string;
 // for comfortly debug
 type TPSDebugMessage = procedure(const S: string);
 var  dbg: TPSDebugMessage;
-procedure psdbg_null(const S: string);
-procedure psdbg(const S: string);
+procedure psdbg_null(const {%H-}S: string);
+procedure psdbg(const {%H-}S: string);
 
 implementation
 

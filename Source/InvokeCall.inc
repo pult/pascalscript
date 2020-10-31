@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1031.1457
+{ InvokeCall.inc } // version: 2020.1031.1530
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -913,7 +913,10 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
           end;
         btStaticArray:
         begin
-          {$IFNDEF FPC}
+          {$IFDEF FPC}
+          ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
+          PPointer(res.Dta)^ := ResValue.AsOrdinal;
+          {$ELSE !FPC}
             {$IFNDEF FPC}
             for RttiType in ctx.GetTypes do
               if (RttiType.Name.ToUpper.EndsWith(string(res.aType.FExportName))) and (RttiType.TypeKind = tkArray) then
@@ -930,7 +933,10 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
         end;
         btRecord:
         begin
-          {$IFNDEF FPC}
+          {$IFDEF FPC}
+          ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
+          PPointer(res.Dta)^ := ResValue.AsOrdinal;
+          {$ELSE !FPC}
             {$IFNDEF FPC}
             for RttiType in ctx.GetTypes do
               if (RttiType.Name.ToUpper.EndsWith(string(res.aType.FExportName))) and (RttiType.TypeKind = tkRecord) then
@@ -945,7 +951,10 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
         end;
         btArray: //need to check with open arrays
         begin
-          {$IFNDEF FPC}
+          {$IFDEF FPC}
+          ResValue := Invoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
+          PPointer(res.Dta)^ := ResValue.AsOrdinal;
+          {$ELSE !FPC}
             //NB. When you have types-synonyms like TCardinalDynArray = array of Cardinal;
             //it will NOT be added to RTTI list by compiler. So, it will be never
             //finded by this way. The only way is to declares types like:

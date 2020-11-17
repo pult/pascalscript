@@ -1,4 +1,4 @@
-﻿{ InvokeCall.inc } // version: 2020.1117.0950
+{ InvokeCall.inc } // version: 2020.1117.1005
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -179,7 +179,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
 
   function DoInvoke(CodeAddress: Pointer; const Args: TArray<TValue>;
     CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean{ = False};
-    {%H-}IsConstructor: Boolean{ = False}; ResultTypeSize: Longint = 0): TValue; overload;
+    {%H-}IsConstructor: Boolean{ = False}; ResultTypeSize: Longint = 0): TValue;
   type
     TRecordOfByte1 = packed record
       data: Byte;
@@ -277,12 +277,20 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     end; // case
   end;
 
+  var
+    Args: TArray<TValue>;
+    ArgIdx : Integer;
+  procedure AddArg(Arg : TValue);
+  begin
+    Inc(ArgIdx);
+    Args[ArgIdx] := Arg;
+  end;
+
 var
   {$IFDEF FPC}
   IsConstructor, {%H-}IsVirtualCons: Boolean;
   {$ENDIF}
   SysCalConv : TCallConv;
-  Args: TArray<TValue>;
   Arg : TValue;
   i : Integer;
   fvar: PPSVariantIFC;
@@ -377,16 +385,11 @@ begin
   {$ifend}
   {$ENDIF FPC}
 
+  ArgIdx := -1;
+  SetLength(Args, 2*Params.Count+1); // maximum params
+
   if Assigned(_Self) then
-  begin
-    Arg := TValue.From<Pointer>( _Self );
-    {$if defined(FPC) or defined(DELPHI23UP)}
-    Args := [Arg]; // XE3: Error: E2001 Ordinal type required
-    {$else}
-    SetLength({%H-}Args, 1);
-    Args[0] := Arg;
-    {$ifend}
-  end;
+    AddArg( TValue.From<Pointer>( _Self ) );
 
   CallData := nil;
   try
@@ -458,12 +461,7 @@ begin
                 CallData.Add(p);
 
                 Arg := TValue.From<Pointer>( Pointer(POpenArray(p)^.Data) );
-                {$if defined(FPC) or defined(DELPHI23UP)}
-                Args := Args + [Arg]; // XE3: Error: E2001 Ordinal type required
-                {$else}
-                SetLength(Args, Length(Args)+1);
-                Args[High(Args)] := Arg;
-                {$ifend}
+                AddArg(Arg);
                 Arg := TValue.From<Longint>( Longint(POpenArray(p)^.ItemCount-1) ); //?? type IPointer
 
               end else begin
@@ -585,12 +583,7 @@ begin
 
                  //in case of openarray we should provide TWO params: first is pointer to array,
                  Arg := TValue.From<Pointer>( Pointer(POpenArray(p)^.Data) );
-                 {$if defined(FPC) or defined(DELPHI23UP)}
-                 Args := Args + [Arg];
-                 {$else}
-                 SetLength(Args, Length(Args)+1);
-                 Args[High(Args)] := Arg;
-                 {$ifend}
+                 AddArg(Arg);
 
                  //2nd - integer with arraylength - 1 (high)
                  Arg := TValue.From<Longint>( Longint(POpenArray(p)^.ItemCount-1) ); //?? type IPointer
@@ -639,13 +632,9 @@ begin
         {$ifend} // "$if declared(PSParamTypeToStr)"
         //Exit;  // internal error
       end;
-      {$if defined(FPC) or defined(DELPHI23UP)}
-      Args := Args + [Arg];
-      {$else}
-      SetLength(Args, Length(Args)+1);
-      Args[High(Args)] := Arg;
-      {$ifend}
+      AddArg(Arg);
     end; // for I
+    SetLength(Args, ArgIdx+1); // truncate args
 
     //IsConstr := (Integer(CallingConv) and 64) <> 0; // TODO: FPC rtti currently not supported IsConstr
     IsConstr := False;

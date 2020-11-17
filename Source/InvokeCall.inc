@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1117.0840
+﻿{ InvokeCall.inc } // version: 2020.1117.0950
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -255,6 +255,9 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
       else begin
         TI := PTypeInfo(System.TypeInfo(TRecordOfByte1));
         TD := GetTypeData(TI);
+        // TODO: failed memory access
+        if not VirtualProtect(@TD.RecSize, SizeOf(TD.RecSize), PAGE_READWRITE, nil) then
+          RaiseLastOsError();
         TD.RecSize := ValueSize;
         {
         if ValueCopy then

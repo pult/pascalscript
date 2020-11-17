@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1117.1125
+{ InvokeCall.inc } // version: 2020.1117.1230
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -892,8 +892,14 @@ begin
             //{$ifend}
             5,6,7,8:
               Int64(res.Dta^) := Cardinal(DoInvoke(Address,Args,SysCalConv,TypeInfo(Int64),False,IsConstr).AsInt64);
-            {$IFNDEF FPC}
             else begin
+              ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
+              {$IFDEF FPC}
+              Pointer(res.Dta^) := Pointer(ResValue.AsOrdinal);
+              {$ELSE}
+              Pointer(res.Dta^) := ResValue.AsType<Pointer>;
+              {$ENDIF}
+              (*{$IFNDEF FPC}
               for RttiType in ctx.GetTypes do begin // FPC: Failed method TRttiType.GetTypes
                 if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkSet)
                   and (RttiType.TypeSize = TPSTypeRec_Set(res.aType).aByteSize) then
@@ -903,8 +909,8 @@ begin
                   Break;
                 end; // if
               end; // for
+              {$ENDIF !FPC} //*)
             end;
-            {$ENDIF !FPC}
           end; // case
         end;
       btClass:

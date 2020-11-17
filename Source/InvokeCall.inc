@@ -352,7 +352,7 @@ begin
   {$IFDEF FPC} // FPC: FIX FOR FPC constructor calls
     //x64.inc: {$if defined(FPC) and (fpc_version >= 3)}
     //x86.inc: {$ifdef FPC} + case CallingConv of cdRegister
-  {$if (defined(CPU32) or (fpc_version >= 3))} // TODO: FPC: test and check other platforms
+  {$if (defined(CPU32) or (declared(fpc_version) and (fpc_version >= 3)))} // TODO: FPC: test and check other platforms
   {$IFDEF CPU32}
   if (CallingConv = cdRegister) then
   {$ENDIF }

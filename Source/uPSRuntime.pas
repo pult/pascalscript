@@ -1,4 +1,4 @@
-{ uPSRuntime.pas } // version: 2020.1031.1630
+{ uPSRuntime.pas } // version: 2020.1117.1145
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -12379,11 +12379,11 @@ end;
     {$IFDEF PS_INVOK_RTTI_IMPL}
       {$IFDEF PS_USE_INVOK_RTTI}
         //{$if defined(CPUX64)}
-        //  {--$DEFINE _PS_INVOK_RTTI_INC_} { optional }  // TODO: currentry not all parameter types supported
+        //  {--$DEFINE _PS_INVOK_RTTI_INC_} { optional }
         //{$elseif defined(CPUX86)}
-        //  {--$DEFINE _PS_INVOK_RTTI_INC_} { optional }  // TODO: currentry not all parameter types supported
+        //  {--$DEFINE _PS_INVOK_RTTI_INC_} { optional }
         //{$else}
-          {$DEFINE _PS_INVOK_RTTI_INC_}  { not change } // TODO: currentry not all parameter types supported
+          {$DEFINE _PS_INVOK_RTTI_INC_}  { not change }
         //{$ifend}
       {$ENDIF PS_USE_INVOK_RTTI}
     {$ENDIF PS_INVOK_RTTI_IMPL}
@@ -12416,7 +12416,7 @@ end;
   {$ELSE}
     {$IFDEF PS_USE_INVOK_RTTI}
       {$IFDEF PS_INVOK_RTTI_IMPL}
-        {$DEFINE _PS_INVOK_RTTI_INC_} { optional }  // TODO: currentry not all parameter types supported
+        {$DEFINE _PS_INVOK_RTTI_INC_} { optional }
       {$ENDIF PS_INVOK_RTTI_IMPL}
     {$ENDIF PS_USE_INVOK_RTTI}
   {$ENDIF !PS_USECLASSICINVOKE}

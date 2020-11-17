@@ -1,4 +1,4 @@
-{ PascalScript.inc } // version: 2020.1031.1630
+{ PascalScript.inc } // version: 2020.1117.1145
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {                                                                            }
@@ -113,9 +113,9 @@ Defines:
     {$DEFINE PS_INVOK_RTTI_IMPL} // optional
   {$ENDIF DELPHI23UP}
   {$IFDEF PS_INVOK_RTTI_IMPL}{$IFNDEF PS_USECLASSICINVOKE}
-    {--$DEFINE USEINVOKECALL} // optional // TODO: currentry not all parameter types supported
+    {--$DEFINE USEINVOKECALL} // optional
     {$if not ( defined(CPUX86) or defined(CPUX64) )}
-      {$DEFINE USEINVOKECALL} // optional // TODO: currentry not all parameter types supported
+      {$DEFINE USEINVOKECALL} // optional
     {$ifend}
   {$ENDIF}{$ENDIF}
 {+.}

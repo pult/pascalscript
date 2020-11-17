@@ -311,6 +311,8 @@ var
   {%H-}p: Pointer;
   {%H-}pp: ^Byte;
   {%H-}CallData: TPSList;
+  {%H-}ctx: TRTTIContext;
+  {%H-}RttiType: TRttiType;
 begin
   // ######### DEBUG: TRACE:
   {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}

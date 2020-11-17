@@ -601,7 +601,6 @@ begin
             //    Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
             //end;
           btStaticArray:                     Arg := TValue_From_Raw(fvar.Dta, fVar.aType.RealSize);
-                                           //Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
           btArray:
             begin
                if Copy(fvar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin

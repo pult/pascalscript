@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1031.1630
+{ InvokeCall.inc } // version: 2020.1117.0404
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -59,10 +59,10 @@ begin
                               i := TPSTypeRec_Record(Self).FieldTypes.Count;
                               if (i > 0) then begin
                                 Result := Result+'('
-                                  + PSBaseTypeToStr(PIFTypeRecBase(TPSTypeRec_Record(Self).FieldTypes[0]));
+                                  + PSBaseTypeToStr(PIFTypeRec(TPSTypeRec_Record(Self).FieldTypes[0]));
                                 for i := 1 to i-1 do
                                   Result := Result+','
-                                    + PSBaseTypeToStr(PIFTypeRecBase(TPSTypeRec_Record(Self).FieldTypes[i]));
+                                    + PSBaseTypeToStr(PIFTypeRec(TPSTypeRec_Record(Self).FieldTypes[i]));
                                 Result := Result + ')';
                               end;
                             end;
@@ -107,7 +107,7 @@ begin
     btType                : Result := 'Type';
     btEnum                : Result := 'Enum';
     btExtClass            : Result := 'ExtClass';
-    else                    Result := 'Unknown '+SysUtils.IntToStr(FBaseType);
+    else                    Result := 'Unknown '+SysUtils.IntToStr(Self.BaseType);
   end; // case
 end; // function PSBaseTypeToStr
 {$ifend}
@@ -192,7 +192,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean{ = False};
     IsConstructor: Boolean{ = False} ): TValue; overload;
   begin
-    //?? IsConstructor
+    // FPC: IsConstructor parameter not exists
     Result := System.Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic);
   end;
   {$ifend}
@@ -204,6 +204,9 @@ type
   end;
   PMethodCallData=^TMethodCallData;
 var
+  {$IFDEF FPC}
+  IsConstructor, {%H-}IsVirtualCons: Boolean;
+  {$ENDIF}
   SysCalConv : TCallConv;
   Args: TArray<TValue>;
   Arg : TValue;
@@ -227,6 +230,22 @@ begin
   // ######### DEBUG: TRACE.
   //
   Result := False; //if Result then ;
+  {$IFDEF FPC}
+  if (Integer(CallingConv) and 128) <> 0 then begin
+    IsVirtualCons := True;
+    CallingConv := TPSCallingConvention(Integer(CallingConv) and not 128);
+  end else begin
+    IsVirtualCons := False;
+  end;
+  if IsVirtualCons then ;
+  if (Integer(CallingConv) and 64) <> 0 then begin
+    IsConstructor := True;
+    CallingConv := TPSCallingConvention(Integer(CallingConv) and not 64);
+  end else begin
+    IsConstructor := False;
+  end;
+  {$ENDIF FPC}
+
   case CallingConv of
     cdRegister : begin SysCalConv := ccReg;       end;
     cdPascal   : begin SysCalConv := ccPascal;    end;
@@ -237,6 +256,54 @@ begin
     else         begin SysCalConv := ccReg;       end; // to prevent warning "W1036 Variable might not have been initialized"
     {$ENDIF}
   end;
+
+  {$IFDEF FPC} // FPC: FIX FOR FPC constructor calls
+    //x64.inc: {$if defined(FPC) and (fpc_version >= 3)}
+    //x86.inc: {$ifdef FPC} + case CallingConv of cdRegister
+    // dcc: Warning: W1023 Comparing signed and unsigned types - widened both operands
+    //               => Integer(fpc_version)
+  {$if (defined(CPU32) or (Integer(fpc_version) >= 3))} // TODO: FPC: test and check other platforms
+  {$IFDEF CPU32}
+  if (CallingConv = cdRegister) then
+  {$ENDIF }
+  begin
+    if IsConstructor then begin
+      fvar := Params[0];
+      p := rp(fvar);
+      if p = nil then
+        Exit; // this goes first  // internal error
+      case fVar.aType.BaseType of
+        btArray,
+        btVariant,
+        btSet,
+        btStaticArray,
+        btRecord,
+        btInterface,
+        btClass,
+        {$IFNDEF PS_NOWIDESTRING}
+        btUnicodeString, btWideString, btWideChar,
+        {+}
+        {$if declared(btPWideChar)}
+        btPWideChar,
+        {$ifend}
+        {+.}
+        {$ENDIF !PS_NOWIDESTRING}
+        btU8, btS8, btU16,
+        btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
+        {$IFNDEF PS_NOINT64}
+        ,bts64
+        {$ENDIF}
+        ,btProcPtr
+        : { empty } ;
+      else
+        Exit; // this goes first  // internal error
+      end; // case
+      DisposePPSVariantIFC(p);
+      Params.Delete(0);
+    end;
+  end;
+  {$ifend}
+  {$ENDIF FPC}
 
   if Assigned(_Self) then
   begin
@@ -313,7 +380,7 @@ begin
               if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
                 p := CreateOpenArray(True, Self, fVar);
                 if p = nil then
-                  Exit;
+                  Exit; // internal error
                 if CallData = nil then
                   CallData := TPSList.Create;
                 CallData.Add(p);
@@ -396,7 +463,7 @@ begin
               //(*
               // invalid type
               {$if declared(PSParamTypeToStr)}
-              S := '@Param: '+PSParamTypeToStr(fvar)
+              S := '@Var Param: '+PSParamTypeToStr(fvar)
                 + '" not implemented!';
 
               // ######### DEBUG: TRACE:
@@ -407,7 +474,7 @@ begin
 
               raise EInvocationError.Create('Internal: ' + S); // optional
               {$ifend} // "$if declared(PSParamTypeToStr)"
-              Exit;
+              Exit; // internal error
               //*)
             end;
         end;
@@ -558,7 +625,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
                  //*)
                  p := CreateOpenArray(False, Self, fVar);
                  if p = nil then
-                   Exit;
+                   Exit; // internal error
                  if CallData = nil then
                    CallData := TPSList.Create;
                  CallData.Add(p);
@@ -598,7 +665,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
             end; // case
           else begin
             {$if declared(PSParamTypeToStr)}
-            S := '#Param '+PSParamTypeToStr(fvar)
+            S := '@Param: '+PSParamTypeToStr(fvar)
               + '" not implemented!';
 
             // ######### DEBUG: TRACE:
@@ -609,13 +676,13 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
 
             raise EInvocationError.Create('Internal: ' + S); // optional
             {$ifend} // "$if declared(PSParamTypeToStr)"
-            Exit;
+            Exit; // internal error
           end;
         end;  { case }
       end; { if "not a var param" }
       if Arg.IsEmpty then begin
         {$if declared(PSParamTypeToStr)}
-        S := '#Param '+PSParamTypeToStr(fvar)
+        S := '@Param: '+PSParamTypeToStr(fvar)
           + '" not detected!';
 
         // ######### DEBUG: TRACE:
@@ -626,7 +693,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
 
         //raise EInvocationError.Create('Internal: ' + S); // optional
         {$ifend} // "$if declared(PSParamTypeToStr)"
-        //Exit;
+        //Exit;  // internal error
       end;
       {$if defined(FPC) or defined(DELPHI23UP)}
       Args := Args + [Arg];
@@ -636,7 +703,8 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
       {$ifend}
     end; // for I
 
-    IsConstr := (Integer(CallingConv) and 64) <> 0; // TODO: FPC rtti currently not supported IsConstr
+    //IsConstr := (Integer(CallingConv) and 64) <> 0; // TODO: FPC rtti currently not supported IsConstr
+    IsConstr := False;
 
     if Assigned(res) then begin
       // ######### DEBUG: TRACE:
@@ -999,7 +1067,7 @@ dbg('# param['+SysUtils.IntToStr(i)+']: btProcPtr');  //# temporary:
 
           raise EInvocationError.Create('Internal: ' + S); // optional
           {$ifend} // "$if declared(PSParamTypeToStr)"
-          Exit;
+          Exit;  // internal error
         end;
       end;  { case }
     end; // Assigned(res)

@@ -186,14 +186,18 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
   //  CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean = False;
   //  IsConstructor: Boolean = False ): TValue;
 
-  {$if defined(FPC) or defined(DELPHI23UP)}
-  {$else}
+  {$if defined(FPC) or not defined(DELPHI23UP)}
   function Invoke(CodeAddress: Pointer; const Args: TArray<TValue>;
     CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean{ = False};
-    IsConstructor: Boolean{ = False} ): TValue; overload;
+    IsConstructor: Boolean{ = False} ): TValue; overload; inline;
   begin
-    // FPC: IsConstructor parameter not exists
-    Result := System.Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic);
+    // XE3: IsConstructor parameter not defined
+    // FPC: IsConstructor generate exception
+    Result := {System.}Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic
+      {$IFDEF FPC}
+      ,{IsConstructor:}False
+      {$ENDIF}
+    );
   end;
   {$ifend}
 

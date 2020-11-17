@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1117.1407
+{ InvokeCall.inc } // version: 2020.1117.2330
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -177,40 +177,95 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     Result := p;
   end;
 
+  type // system.pas
+    PFieldTable = ^TFieldTable;
+    {$IFNDEF FPC}
+    TFieldTable = packed record
+      X: Word;
+      Size: Cardinal;
+      Count: Cardinal;
+      //Fields: array [0..0] of TFieldInfo;
+    end;
+    {$ELSE FPC}
+    TFieldTable =
+      {$ifndef FPC_REQUIRES_PROPER_ALIGNMENT}
+      packed
+      {$endif FPC_REQUIRES_PROPER_ALIGNMENT}
+    record
+      Count: Word;
+      //ClassTable: PFieldClassTable;
+      { Fields: array[Word] of TFieldInfo;  Elements have variant size! }
+    end;
+    {$ENDIF FPC}
+  type
+    TRecordOfByte01 = packed record d: array[1..01] of Byte; end;
+    TRecordOfByte02 = packed record d: array[1..02] of Byte; end;
+    TRecordOfByte03 = packed record d: array[1..03] of Byte; end;
+    TRecordOfByte04 = packed record d: array[1..04] of Byte; end;
+    TRecordOfByte05 = packed record d: array[1..05] of Byte; end;
+    TRecordOfByte06 = packed record d: array[1..06] of Byte; end;
+    TRecordOfByte07 = packed record d: array[1..07] of Byte; end;
+    TRecordOfByte08 = packed record d: array[1..08] of Byte; end;
+    TRecordOfByte09 = packed record d: array[1..09] of Byte; end;
+    TRecordOfByte10 = packed record d: array[1..10] of Byte; end;
+    TRecordOfByte11 = packed record d: array[1..11] of Byte; end;
+    TRecordOfByte12 = packed record d: array[1..12] of Byte; end;
+    TRecordOfByte13 = packed record d: array[1..13] of Byte; end;
+    TRecordOfByte14 = packed record d: array[1..14] of Byte; end;
+    TRecordOfByte15 = packed record d: array[1..15] of Byte; end;
+    TRecordOfByte16 = packed record d: array[1..16] of Byte; end;
+
   function DoInvoke(CodeAddress: Pointer; const Args: TArray<TValue>;
     CallingConvention: TCallConv; AResultType: PTypeInfo; IsStatic: Boolean{ = False};
     {%H-}IsConstructor: Boolean{ = False}; ResultTypeSize: Longint = 0): TValue;
   type
-    TRecordOfByte1 = packed record
+    TRecordOfByteX = packed record
       data: Byte;
     end;
   var
     TD: PTypeData;
     TI2: PTypeInfo;
     TIBuf: array[0..SizeOf(TTypeInfo) + SizeOf(TOrdType) + (2*SizeOf(Integer)) + SizeOf(PPTypeInfo)] of Byte;
+    FT: PFieldTable;
   begin
+    FT := nil;
     if {(AResultType = nil) and} (ResultTypeSize > 0) then begin
       case ResultTypeSize of
-        1: AResultType := TypeInfo(Byte);
-        2: AResultType := TypeInfo(Word);
-        4: AResultType := TypeInfo(Cardinal);
-        8: AResultType := TypeInfo(Int64);
-        {$if SizeOf(Extended) > SizeOf(Double)}
-        SizeOf(Extended):
-           AResultType := TypeInfo(Extended);
-        {$ifend}
-        {$IFDEF CPU64}
-        SizeOf(TMethod):
-           AResultType := TypeInfo(TMethod);
-        {$ENDIF}
+        01: AResultType := TypeInfo(Byte);
+        02: AResultType := TypeInfo(Word);
+        03: AResultType := TypeInfo(TRecordOfByte03);
+        04: AResultType := TypeInfo(Cardinal);
+        //04: AResultType := TypeInfo(TRecordOfByte04);
+        05: AResultType := TypeInfo(TRecordOfByte05);
+        06: AResultType := TypeInfo(TRecordOfByte06);
+        07: AResultType := TypeInfo(TRecordOfByte07);
+        08: AResultType := TypeInfo(Int64);
+        //08: AResultType := TypeInfo(TRecordOfByte08);
+        09: AResultType := TypeInfo(TRecordOfByte09);
+        10: AResultType := TypeInfo(TRecordOfByte10);
+        //{$if SizeOf(Extended) > SizeOf(Double)}
+        //SizeOf(Extended):
+        //   AResultType := TypeInfo(Extended);
+        //{$ifend}
+        11: AResultType := TypeInfo(TRecordOfByte11);
+        12: AResultType := TypeInfo(TRecordOfByte12);
+        13: AResultType := TypeInfo(TRecordOfByte13);
+        14: AResultType := TypeInfo(TRecordOfByte14);
+        15: AResultType := TypeInfo(TRecordOfByte15);
+        //--{$IFDEF CPU64}
+        //--SizeOf(TMethod):
+        //--   AResultType := TypeInfo(TMethod); ==> AV
+        //--{$ENDIF}
+        //SizeOf(TVarData):
+        //  AResultType := TypeInfo(TVarData);
+        16: AResultType := TypeInfo(TRecordOfByte16);
         else begin
           // hack:
-          AResultType := TypeInfo(TRecordOfByte1);
+          AResultType := TypeInfo(TRecordOfByteX);
           //--TD := GetTypeData(AResultType); // Note: failed memory access for modification typeinfo
 
           // make temporary typeinfo clone
-          TI2 := @TIBuf[0];
-
+          TI2 := @TIBuf[0]; //--GetMem(TI2, SizeOf(TIBuf)); //@dbg
           with TI2^ do
           begin
             Kind := AResultType.Kind;
@@ -220,6 +275,9 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
 
           TD := GetTypeData(AResultType);
           TD.RecSize := ResultTypeSize; // modify typeinfo
+
+          FT := PFieldTable(Integer(AResultType) + Byte(PTypeInfo(AResultType).Name[0]));
+          FT.Count := 1; // TODO: PC Check
         end;
       end; // case
     end;
@@ -230,40 +288,60 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
       ,{IsConstructor:}False
       {$ifend}
     );
+
+    if Assigned(FT) then
+      FT.Count := 0; // !!! Disable AV in _FinnalizeRecord // TODO: PC Check
   end;
 
-  function TValue_From_Raw(ValuePtr: Pointer; ValueSize: Longint{; ValueCopy: Boolean}): TValue;
+  function TValue_From_Raw(ValuePtr: Pointer; ValueSize: Longint; ValueCopy: Boolean = False): TValue;
   type
-    TRecordOfByte1 = packed record
+    TRecordOfByteX = packed record
       data: Byte;
     end;
   var
     TI, TI2: PTypeInfo;
     TIBuf: array[0..SizeOf(TTypeInfo) + SizeOf(TOrdType) + (2*SizeOf(Integer)) + SizeOf(PPTypeInfo)] of Byte;
     TD: PTypeData;
+    FT: PFieldTable;
   begin
     case ValueSize of
-      0: Result := TValue.Empty;
-      1: Result := TValue.From<Byte>    (PByte    (ValuePtr)^);
-      2: Result := TValue.From<Word>    (PWord    (ValuePtr)^);
-      4: Result := TValue.From<Cardinal>(PCardinal(ValuePtr)^);
-      8: Result := TValue.From<Int64>   (PInt64   (ValuePtr)^);
-      {$if SizeOf(Extended) > SizeOf(Double)}
-      SizeOf(Extended):
-         Result := TValue.From<Extended>   (PExtended (ValuePtr)^);
-      {$ifend}
-      {$IFDEF CPU64}
-      SizeOf(TMethod):
-         Result := TValue.From<TMethod>   (PMethod (ValuePtr)^);
-      {$ENDIF}
+      00: Result := TValue.Empty;
+      01: Result := TValue.From<Byte>    (PByte    (ValuePtr)^);
+      02: Result := TValue.From<Word>    (PWord    (ValuePtr)^);
+      03: Result := TValue.From<TRecordOfByte03>   (TRecordOfByte03(ValuePtr^));
+      04: Result := TValue.From<Cardinal>(PCardinal(ValuePtr)^);
+      //04: Result := TValue.From<TRecordOfByte04>   (TRecordOfByte04(ValuePtr^));
+      05: Result := TValue.From<TRecordOfByte05>   (TRecordOfByte05(ValuePtr^));
+      06: Result := TValue.From<TRecordOfByte06>   (TRecordOfByte06(ValuePtr^));
+      07: Result := TValue.From<TRecordOfByte07>   (TRecordOfByte07(ValuePtr^));
+      08: Result := TValue.From<Int64>   (PInt64   (ValuePtr)^);
+      //08: Result := TValue.From<TRecordOfByte08>   (TRecordOfByte08(ValuePtr^));
+      09: Result := TValue.From<TRecordOfByte09>   (TRecordOfByte09(ValuePtr^));
+      10: Result := TValue.From<TRecordOfByte10>   (TRecordOfByte10(ValuePtr^));
+      //{$if SizeOf(Extended) > SizeOf(Double)}
+      //SizeOf(Extended):
+      //   Result := TValue.From<Extended>   (PExtended (ValuePtr)^);
+      //{$ifend}
+      11: Result := TValue.From<TRecordOfByte11>   (TRecordOfByte11(ValuePtr^));
+      12: Result := TValue.From<TRecordOfByte12>   (TRecordOfByte12(ValuePtr^));
+      13: Result := TValue.From<TRecordOfByte13>   (TRecordOfByte13(ValuePtr^));
+      14: Result := TValue.From<TRecordOfByte14>   (TRecordOfByte14(ValuePtr^));
+      15: Result := TValue.From<TRecordOfByte15>   (TRecordOfByte15(ValuePtr^));
+      //--{$IFDEF CPU64}
+      //--SizeOf(TMethod):
+      //--   Result := TValue.From<TMethod>   (PMethod (ValuePtr)^); ==> AV
+      //--{$ENDIF}
+      //--SizeOf(TVarData):
+      //--   Result := TValue.From<TVarData>   (PVarData (ValuePtr)^);
+      16: Result := TValue.From<TRecordOfByte16>   (TRecordOfByte16(ValuePtr^));
       else begin
-        TI := PTypeInfo(System.TypeInfo(TRecordOfByte1));
+        TI := PTypeInfo(System.TypeInfo(TRecordOfByteX));
         //--TD := GetTypeData(TI); // Note: failed memory access for modification typeinfo
         //-if not VirtualProtect(@TD.RecSize, SizeOf(TD.RecSize), PAGE_READWRITE, nil) then
         //-  RaiseLastOsError();
 
         // make temporary typeinfo clone
-        TI2 := @TIBuf[0];
+        TI2 := @TIBuf[0]; //-GetMem(TI2, SizeOf(TIBuf)); //@dbg
         with TI2^ do
         begin
           Kind := TI.Kind;
@@ -273,10 +351,12 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
         TD := GetTypeData(TI);
 
         TD.RecSize := ValueSize; // modify typeinfo
+        FT := PFieldTable(Integer(TI) + Byte(PTypeInfo(TI).Name[0]));
+        FT.Count := 1; // TODO: PC Check
 
-        {if ValueCopy then begin
+        if ValueCopy then begin
           TValue.Make(ValuePtr, TI, Result);
-        end else}
+        end else
         begin
           {$IFDEF FPC}
           TValue.Make(ValuePtr, TI, Result);
@@ -284,6 +364,9 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
           TValue.MakeWithoutCopy(ValuePtr, TI, Result);
           {$ENDIF}
         end;
+
+        FT.Count := 0; // !!! Disable AV in _FinnalizeRecord // TODO: PC Check
+
       end;
     end; // case
   end;
@@ -313,6 +396,9 @@ var
   {%H-}CallData: TPSList;
   {%H-}ctx: TRTTIContext;
   {%H-}RttiType: TRttiType;
+  {$if defined(FPC) or not defined(cpu32)} {$else}
+  M: TMethod;
+  {$ifend}
 begin
   // ######### DEBUG: TRACE:
   {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
@@ -372,11 +458,9 @@ begin
         btClass,
         {$IFNDEF PS_NOWIDESTRING}
         btUnicodeString, btWideString, btWideChar,
-        {+}
         {$if declared(btPWideChar)}
         btPWideChar,
         {$ifend}
-        {+.}
         {$ENDIF !PS_NOWIDESTRING}
         btU8, btS8, btU16,
         btS16, btU32, btS32, btSingle, btDouble, btExtended, btString, btPChar, btChar, btCurrency
@@ -466,7 +550,8 @@ begin
               if Copy(fVar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
                 p := CreateOpenArray(True, Self, fVar);
                 if p = nil then
-                  Exit; // internal error
+                  raise EInvocationError.Create('Internal: ' + 'CreateOpenArray call for var param failed!');
+                  //Exit; // internal error
                 if CallData = nil then
                   CallData := TPSList.Create;
                 CallData.Add(p);
@@ -568,7 +653,23 @@ begin
           btClass:                           Arg := TValue.From<TObject>( TObject(fvar.Dta^) );
           btPointer:                         Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
        //?btResourcePointer:                 Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
-          btProcPtr:                         Arg := TValue.From<TMethod>( MKMethod(Self, Longint(fVar.Dta^)) ); // TODO: +x64, -x86
+          btProcPtr:  // x64 : reference
+            begin     // x86: fpc: referense; delphi: value
+              {$if defined(FPC) or not defined(cpu32)} // reference:
+              GetMem(p, SizeOf(TParamData)*4);
+              PParamData(p).pType := 254;
+              if CallData = nil then
+                CallData := TPSList.Create;
+              CallData.Add(p);
+              PParamData(p).pMethod := MKMethod(Self, Longint(fVar.Dta^));
+              p := @PParamData(p).pMethod;
+              Arg := TValue.From<Pointer>( p );
+              {$else} // value:
+              //--Arg := TValue.From<TMethod>( MKMethod(Self, Longint(fVar.Dta^)) ); ==> AV
+              M := MKMethod(Self, Longint(fVar.Dta^));
+              Arg := TValue_From_Raw(@M, SizeOf(M), {copy data:}True);
+              {$ifend}
+            end;
           btInterface:                       Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
           btRecord:                          Arg := TValue_From_Raw(fvar.Dta, fVar.aType.RealSize);
           btStaticArray:                     Arg := TValue_From_Raw(fvar.Dta, fVar.aType.RealSize);
@@ -577,7 +678,8 @@ begin
                if Copy(fvar.aType.ExportName, 1, 10) = '!OPENARRAY' then begin
                  p := CreateOpenArray(False, Self, fVar);
                  if p = nil then
-                   Exit; // internal error
+                   raise EInvocationError.Create('Internal: ' + 'CreateOpenArray call for param failed!');
+                   //Exit; // internal error
                  if CallData = nil then
                    CallData := TPSList.Create;
                  CallData.Add(p);
@@ -616,27 +718,11 @@ begin
           end;
         end;  { case }
       end; { if "not a var param" }
-      if Arg.IsEmpty then begin
-        {$if declared(PSParamTypeToStr)}
-        S := '@Param: '+PSParamTypeToStr(fvar)
-          + '" not detected!';
-
-        // ######### DEBUG: TRACE:
-        {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
-        dbg(S);
-        {$ENDIF}{$ENDIF}
-        // ######### DEBUG: TRACE.
-
-        //raise EInvocationError.Create('Internal: ' + S); // optional
-        {$ifend} // "$if declared(PSParamTypeToStr)"
-        //Exit;  // internal error
-      end;
       AddArg(Arg);
     end; // for I
     SetLength(Args, ArgIdx+1); // truncate args
 
-    //IsConstr := (Integer(CallingConv) and 64) <> 0; // TODO: FPC rtti currently not supported IsConstr
-    IsConstr := False;
+    IsConstr := False; //checked on Delhi, constructors works fine.
 
     if Assigned(res) then begin
       // ######### DEBUG: TRACE:
@@ -892,23 +978,33 @@ begin
         btStaticArray:
         begin
           ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr,
-            {size:}TPSTypeRec_StaticArray(res.aType).Size);
-          CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData,
-            TPSTypeRec_StaticArray(res.aType).Size, TPSTypeRec_StaticArray(res.aType).ArrayType);
+          //{size:}TPSTypeRec_StaticArray(res.aType).Size);
+            {size:}Cardinal(TPSTypeRec_StaticArray(res.aType).Size) * TPSTypeRec_StaticArray(res.aType).ArrayType.RealSize);
+          if not CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData,
+            TPSTypeRec_StaticArray(res.aType).Size, TPSTypeRec_StaticArray(res.aType).ArrayType) then
+          begin
+		    raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for static array result failed!');
+		  end;
         end;
         btRecord:
         begin
           ResValue := DoInvoke(Address,Args,SysCalConv,{TypeInfo:}nil,False,IsConstr,
             {size:}TPSTypeRec_Record(res.aType).RealSize);
-          CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData, 1, res.aType);
+          if not CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData, 1, res.aType) then begin
+		    raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for record result failed!');
+		  end;
         end;
         btArray: //need to check with open arrays
         begin
-          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
+          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr
+            {size:},PSDynArrayGetLength(Pointer(res.Dta^), res.aType) );
           if Pointer(ResValue.AsOrdinal) = nil then
             res.Dta := nil
-          else
-            CopyArrayContents(res.Dta, Pointer(ResValue.AsOrdinal), 1, res.aType);
+          else begin
+            if not CopyArrayContents(res.Dta, Pointer(ResValue.AsOrdinal), 1, res.aType) then begin
+      		    raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for dyn array result failed!');
+			      end;
+          end;
         end;
         else begin
           {$if declared(PSParamTypeToStr)}
@@ -932,7 +1028,14 @@ begin
     if Assigned(CallData) then begin
       for i := CallData.Count-1 downto 0 do begin
         pp := CallData[i];
-        DestroyOpenArray(Self, Pointer(pp));
+        case pp^ of
+          0: begin
+            DestroyOpenArray(Self, Pointer(pp));
+          end;
+          254: begin
+            FreeMem(pp);
+          end;
+        end; // case
       end; // for
       CallData.Free;
     end; // if

@@ -193,7 +193,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
   begin
     // XE3: IsConstructor parameter not defined
     // FPC: IsConstructor generate exception
-    Result := {System.}Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic
+    Result := {$IFNDEF FPC}System.{$ENDIF}Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic
       {$IFDEF FPC}
       ,{IsConstructor:}False
       {$ENDIF}

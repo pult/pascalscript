@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1117.1230
+{ InvokeCall.inc } // version: 2020.1117.1407
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -232,16 +232,6 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     );
   end;
 
-  var
-    {%H-}CallData: TPSList;
-  type
-    TCallDataBuffer = {%H-}record
-      MType: Byte;
-      case Byte of
-        254: (Data: Byte);
-    end;
-    //PCallDataBuffer=^TCallDataBuffer;
-
   function TValue_From_Raw(ValuePtr: Pointer; ValueSize: Longint{; ValueCopy: Boolean}): TValue;
   type
     TRecordOfByte1 = packed record
@@ -251,7 +241,6 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     TI, TI2: PTypeInfo;
     TIBuf: array[0..SizeOf(TTypeInfo) + SizeOf(TOrdType) + (2*SizeOf(Integer)) + SizeOf(PPTypeInfo)] of Byte;
     TD: PTypeData;
-    //CallDataCopy: PCallDataBuffer;
   begin
     case ValueSize of
       0: Result := TValue.Empty;
@@ -285,17 +274,8 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
 
         TD.RecSize := ValueSize; // modify typeinfo
 
-        {if ValueCopy then
-        begin
+        {if ValueCopy then begin
           TValue.Make(ValuePtr, TI, Result);
-
-          //CallDataCopy := PCallDataBuffer(GetMem( SizeOf(Pointer) + ValueSize));
-          //CallDataCopy^.MType := 254; // get mem
-          //Move(ValuePtr^, CallDataCopy^.Data, ValueSize);
-          //if CallData = nil then
-          //  CallData := TPSList.Create;
-          //CallData.Add(CallDataCopy);
-          //ValuePtr := @CallDataCopy^.Data;
         end else}
         begin
           {$IFDEF FPC}
@@ -326,13 +306,11 @@ var
   i : Integer;
   fvar: PPSVariantIFC;
   IsConstr : Boolean;
-  {%H-}ctx: TRTTIContext;
-  {%H-}RttiType : TRttiType;
   ResValue : TValue;
   S: string;
-  {%H-}ATypeInfo: Pointer;
   {%H-}p: Pointer;
   {%H-}pp: ^Byte;
+  {%H-}CallData: TPSList;
 begin
   // ######### DEBUG: TRACE:
   {$IFDEF _PS_TRACE_INVOK_}{$IFDEF _DCC_MSG_}
@@ -340,7 +318,7 @@ begin
   {$ENDIF}{$ENDIF}
   // ######### DEBUG: TRACE.
   //
-  Result := False; //if Result then ;
+  Result := False;
   {$IFDEF FPC}
   if (Integer(CallingConv) and 128) <> 0 then begin
     IsVirtualCons := True;
@@ -368,12 +346,11 @@ begin
     {$ENDIF}
   end;
 
+  {$IFNDEF FPC}{$warnings off}{$ENDIF} // dcc: Warning: W1023 Comparing signed and unsigned types - widened both operands
   {$IFDEF FPC} // FPC: FIX FOR FPC constructor calls
     //x64.inc: {$if defined(FPC) and (fpc_version >= 3)}
     //x86.inc: {$ifdef FPC} + case CallingConv of cdRegister
-    // dcc: Warning: W1023 Comparing signed and unsigned types - widened both operands
-    //               => Integer(fpc_version)
-  {$if (defined(CPU32) or (Integer(fpc_version) >= 3))} // TODO: FPC: test and check other platforms
+  {$if (defined(CPU32) or (fpc_version >= 3))} // TODO: FPC: test and check other platforms
   {$IFDEF CPU32}
   if (CallingConv = cdRegister) then
   {$ENDIF }
@@ -415,6 +392,7 @@ begin
   end;
   {$ifend}
   {$ENDIF FPC}
+  {$IFNDEF FPC}{$warnings on}{$ENDIF}
 
   ArgIdx := -1;
   SetLength({%H-}Args, 2*Params.Count+1); // maximum params
@@ -490,11 +468,9 @@ begin
                 if CallData = nil then
                   CallData := TPSList.Create;
                 CallData.Add(p);
-
                 Arg := TValue.From<Pointer>( Pointer(POpenArray(p)^.Data) );
                 AddArg(Arg);
                 Arg := TValue.From<Longint>( Longint(POpenArray(p)^.ItemCount-1) ); //?? type IPointer
-
               end else begin
                 Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
               end;
@@ -593,13 +569,6 @@ begin
           btProcPtr:                         Arg := TValue.From<TMethod>( MKMethod(Self, Longint(fVar.Dta^)) ); // TODO: +x64, -x86
           btInterface:                       Arg := TValue.From<Pointer>( PPointer(fvar.Dta)^ );
           btRecord:                          Arg := TValue_From_Raw(fvar.Dta, fVar.aType.RealSize);
-            //begin
-            //  //Arg := TValue.From<Pointer>(fvar.Dta);
-            //  if fVar.aType.RealSize <= SizeOf(Pointer) then
-            //    Arg := TValue.From<IPointer>( IPointer(fvar.Dta^) )
-            //  else
-            //    Arg := TValue.From<Pointer>( Pointer(fvar.Dta) );
-            //end;
           btStaticArray:                     Arg := TValue_From_Raw(fvar.Dta, fVar.aType.RealSize);
           btArray:
             begin
@@ -610,11 +579,9 @@ begin
                  if CallData = nil then
                    CallData := TPSList.Create;
                  CallData.Add(p);
-
                  //in case of openarray we should provide TWO params: first is pointer to array,
                  Arg := TValue.From<Pointer>( Pointer(POpenArray(p)^.Data) );
                  AddArg(Arg);
-
                  //2nd - integer with arraylength - 1 (high)
                  Arg := TValue.From<Longint>( Longint(POpenArray(p)^.ItemCount-1) ); //?? type IPointer
                end else begin //dynarray = just push pointer:
@@ -885,10 +852,6 @@ begin
             2: Word(res.Dta^) := Word(DoInvoke(Address,Args,SysCalConv,TypeInfo(Word),False,IsConstr).AsInteger);
             3,
             4: Longint(res.Dta^) := Cardinal(DoInvoke(Address,Args,SysCalConv,TypeInfo(Cardinal),False,IsConstr).AsInteger);
-            //{$if defined(CPU64)} // CPU64: // or: "{$if SizeOf(Pointer) = 8}"
-            //5,6,7,8: Arg := TValue.From<Pointer>(PPointer  (fvar.Dta)^);
-            //  Pointer(res.Dta^) := Pointer(DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr).GetReferenceToRawData^);
-            //{$ifend}
             5,6,7,8:
               Int64(res.Dta^) := Cardinal(DoInvoke(Address,Args,SysCalConv,TypeInfo(Int64),False,IsConstr).AsInt64);
             else begin
@@ -898,32 +861,13 @@ begin
               {$ELSE}
               Pointer(res.Dta^) := ResValue.AsType<Pointer>;
               {$ENDIF}
-              (*{$IFNDEF FPC}
-              for RttiType in ctx.GetTypes do begin // FPC: Failed method TRttiType.GetTypes
-                if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkSet)
-                  and (RttiType.TypeSize = TPSTypeRec_Set(res.aType).aByteSize) then
-                begin
-                  ResValue := DoInvoke(Address,Args,SysCalConv,{TypeInfo:}RttiType.Handle,False,IsConstr);
-                  ResValue.ExtractRawData(res.Dta);
-                  Break;
-                end; // if
-              end; // for
-              {$ENDIF !FPC} //*)
             end;
           end; // case
         end;
       btClass:
         begin
-          {$IFNDEF FPC}
-          for RttiType in ctx.GetTypes do
-            if (RttiType.Name.ToUpper.EndsWith(string(res.aType.FExportName))) and (RttiType.TypeKind = tkClass) then
-          {$ENDIF !FPC}
-            begin
-              ATypeInfo := {$IFDEF FPC}TypeInfo(TObject){$ELSE}RttiType.Handle{$ENDIF};
-              ResValue := DoInvoke(Address,Args,SysCalConv,ATypeInfo,False,IsConstr);
-              TObject(res.Dta^) := ResValue.AsObject;
-              {$IFNDEF FPC}Break;{$ENDIF}
-            end;
+          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(TObject),False,IsConstr);
+          TObject(res.Dta^) := ResValue.AsObject;
         end;
         btVariant:
           begin
@@ -949,55 +893,12 @@ begin
             {size:}TPSTypeRec_StaticArray(res.aType).Size);
           CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData,
             TPSTypeRec_StaticArray(res.aType).Size, TPSTypeRec_StaticArray(res.aType).ArrayType);
-          (*
-          {$IFDEF FPC}
-          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
-          PPointer(res.Dta)^ := Pointer(ResValue.AsOrdinal);
-          {$ELSE !FPC}
-            {$IFNDEF FPC}
-            for RttiType in ctx.GetTypes do
-              if (RttiType.Name.ToUpper.EndsWith(string(res.aType.FExportName))) and (RttiType.TypeKind = tkArray) then
-            {$ENDIF !FPC}
-              begin
-                ATypeInfo := {$IFDEF FPC}TypeInfo(??){$ELSE}RttiType.Handle{$ENDIF};
-                ResValue := DoInvoke(Address,Args,SysCalConv,ATypeInfo,False,IsConstr);
-                // function CopyArrayContents(Dest, Src: Pointer; Len: Longint; aType: TPSTypeRec): Boolean;
-                CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData,
-                  TPSTypeRec_StaticArray(res.aType).Size, TPSTypeRec_StaticArray(res.aType).ArrayType);
-                {$IFNDEF FPC}Break;{$ENDIF}
-              end;
-          {$ENDIF !FPC}
-          //*)
         end;
         btRecord:
         begin
-          ATypeInfo := nil;
-          ResValue := DoInvoke(Address,Args,SysCalConv,ATypeInfo,False,IsConstr,
+          ResValue := DoInvoke(Address,Args,SysCalConv,{TypeInfo:}nil,False,IsConstr,
             {size:}TPSTypeRec_Record(res.aType).RealSize);
           CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData, 1, res.aType);
-          (*
-          {$IFDEF FPC}
-          // Vizit0r:
-          //-ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
-          //-PPointer(res.Dta)^ := Pointer(ResValue.AsOrdinal);
-          //
-          // Vizit0r:
-          ATypeInfo := TypeInfo(TByteArray);
-          ResValue := DoInvoke(Address,Args,SysCalConv,ATypeInfo,False,IsConstr);
-          CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData, 1, res.aType);
-          {$ELSE !FPC}
-            {$IFNDEF FPC}
-            for RttiType in ctx.GetTypes do
-              if (RttiType.Name.ToUpper.EndsWith(string(res.aType.FExportName))) and (RttiType.TypeKind = tkRecord) then
-            {$ENDIF !FPC}
-              begin
-                ATypeInfo := {$IFDEF FPC}TypeInfo(??){$ELSE}RttiType.Handle{$ENDIF};
-                ResValue := DoInvoke(Address,Args,SysCalConv,ATypeInfo,False,IsConstr);
-                CopyArrayContents(res.Dta, (ResValue.GetReferenceToRawData), 1, res.aType);
-                {$IFNDEF FPC}Break;{$ENDIF}
-              end;
-          {$ENDIF !FPC}
-          //*)
         end;
         btArray: //need to check with open arrays
         begin
@@ -1006,34 +907,6 @@ begin
             res.Dta := nil
           else
             CopyArrayContents(res.Dta, Pointer(ResValue.AsOrdinal), 1, res.aType);
-          (*
-          {$IFDEF FPC}
-          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
-          if Pointer(ResValue.AsOrdinal) = nil then
-            res.Dta := nil
-          else
-            CopyArrayContents(res.Dta, Pointer(ResValue.AsOrdinal), 1, res.aType)
-          {$ELSE !FPC}
-            //NB. When you have types-synonyms like TCardinalDynArray = array of Cardinal;
-            //it will NOT be added to RTTI list by compiler. So, it will be never
-            //finded by this way. The only way is to declares types like:
-            //TCardinalDynArray_ = array of Cardinal;
-            //TCardinalDynArray = type TCardinalDynArray_
-            {$IFNDEF FPC}
-            for RttiType in ctx.GetTypes do
-              if (RttiType.Name.ToUpper.EndsWith(string(res.aType.FExportName))) and (RttiType.TypeKind = tkDynArray) then
-            {$ENDIF !FPC}
-              begin
-                ATypeInfo := {$IFDEF FPC}TypeInfo(??){$ELSE}RttiType.Handle{$ENDIF};
-                ResValue := DoInvoke(Address,Args,SysCalConv,ATypeInfo,False,IsConstr);
-                if ResValue.GetArrayLength > 0 then
-                  CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData, 1, res.aType)
-                else
-                  res.Dta := nil;
-                {$IFNDEF FPC}Break;{$ENDIF}
-              end;
-          {$ENDIF !FPC}
-          //*)
         end;
         else begin
           {$if declared(PSParamTypeToStr)}
@@ -1057,14 +930,7 @@ begin
     if Assigned(CallData) then begin
       for i := CallData.Count-1 downto 0 do begin
         pp := CallData[i];
-        case pp^ of
-          0: begin
-            DestroyOpenArray(Self, Pointer(pp));
-          end;
-          254: begin
-            FreeMem(pp);
-          end;
-        end; // case
+        DestroyOpenArray(Self, Pointer(pp));
       end; // for
       CallData.Free;
     end; // if

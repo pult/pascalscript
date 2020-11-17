@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1117.1005
+{ InvokeCall.inc } // version: 2020.1117.1107
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -186,6 +186,8 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     end;
   var
     TD: PTypeData;
+    TI2: PTypeInfo;
+    TIBuf: array[0..SizeOf(TTypeInfo) + SizeOf(TOrdType) + (2*SizeOf(Integer)) + SizeOf(PPTypeInfo)] of Byte;
   begin
     if {(AResultType = nil) and} (ResultTypeSize > 0) then begin
       case ResultTypeSize of
@@ -204,8 +206,20 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
         else begin
           // hack:
           AResultType := TypeInfo(TRecordOfByte1);
+          //--TD := GetTypeData(AResultType); // Note: failed memory access for modification typeinfo
+
+          // make temporary typeinfo clone
+          TI2 := @TIBuf[0];
+
+          with TI2^ do
+          begin
+            Kind := AResultType.Kind;
+            Name := AResultType.Name;
+          end;
+          AResultType := TI2;
+
           TD := GetTypeData(AResultType);
-          TD.RecSize := ResultTypeSize;
+          TD.RecSize := ResultTypeSize; // modify typeinfo
         end;
       end; // case
     end;
@@ -234,7 +248,8 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
       data: Byte;
     end;
   var
-    TI: PTypeInfo;
+    TI, TI2: PTypeInfo;
+    TIBuf: array[0..SizeOf(TTypeInfo) + SizeOf(TOrdType) + (2*SizeOf(Integer)) + SizeOf(PPTypeInfo)] of Byte;
     TD: PTypeData;
     //CallDataCopy: PCallDataBuffer;
   begin
@@ -254,25 +269,37 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
       {$ENDIF}
       else begin
         TI := PTypeInfo(System.TypeInfo(TRecordOfByte1));
-        TD := GetTypeData(TI);
-        // TODO: failed memory access
-        if not VirtualProtect(@TD.RecSize, SizeOf(TD.RecSize), PAGE_READWRITE, nil) then
-          RaiseLastOsError();
-        TD.RecSize := ValueSize;
-        {
-        if ValueCopy then
-        begin
-          CallDataCopy := PCallDataBuffer(GetMem( SizeOf(Pointer) + ValueSize));
-          CallDataCopy^.MType := 254; // get mem
-          Move(ValuePtr^, CallDataCopy^.Data, ValueSize);
-          if CallData = nil then
-            CallData := TPSList.Create;
-          CallData.Add(CallDataCopy);
+        //--TD := GetTypeData(TI); // Note: failed memory access for modification typeinfo
+        //-if not VirtualProtect(@TD.RecSize, SizeOf(TD.RecSize), PAGE_READWRITE, nil) then
+        //-  RaiseLastOsError();
 
-          ValuePtr := @CallDataCopy^.Data;
+        // make temporary typeinfo clone
+        TI2 := @TIBuf[0];
+        with TI2^ do
+        begin
+          Kind := TI.Kind;
+          Name := TI.Name;
         end;
-        }
-        TValue.Make(ValuePtr, TI, Result);
+        TI := TI2;
+        TD := GetTypeData(TI);
+
+        TD.RecSize := ValueSize; // modify typeinfo
+
+        {if ValueCopy then
+        begin
+          TValue.Make(ValuePtr, TI, Result);
+
+          //CallDataCopy := PCallDataBuffer(GetMem( SizeOf(Pointer) + ValueSize));
+          //CallDataCopy^.MType := 254; // get mem
+          //Move(ValuePtr^, CallDataCopy^.Data, ValueSize);
+          //if CallData = nil then
+          //  CallData := TPSList.Create;
+          //CallData.Add(CallDataCopy);
+          //ValuePtr := @CallDataCopy^.Data;
+        end else}
+        begin
+          TValue.MakeWithoutCopy(ValuePtr, TI, Result);
+        end;
       end;
     end; // case
   end;

@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1117.1107
+{ InvokeCall.inc } // version: 2020.1117.1125
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -235,7 +235,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
   var
     {%H-}CallData: TPSList;
   type
-    TCallDataBuffer = record
+    TCallDataBuffer = {%H-}record
       MType: Byte;
       case Byte of
         254: (Data: Byte);
@@ -298,7 +298,11 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
           //ValuePtr := @CallDataCopy^.Data;
         end else}
         begin
+          {$IFDEF FPC}
+          TValue.Make(ValuePtr, TI, Result);
+          {$ELSE}
           TValue.MakeWithoutCopy(ValuePtr, TI, Result);
+          {$ENDIF}
         end;
       end;
     end; // case
@@ -413,7 +417,7 @@ begin
   {$ENDIF FPC}
 
   ArgIdx := -1;
-  SetLength(Args, 2*Params.Count+1); // maximum params
+  SetLength({%H-}Args, 2*Params.Count+1); // maximum params
 
   if Assigned(_Self) then
     AddArg( TValue.From<Pointer>( _Self ) );

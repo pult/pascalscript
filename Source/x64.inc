@@ -2175,17 +2175,17 @@ var
   end; // function GetPtr
 
 begin // function TPSExec.InnerfuseCall
-  {$IFDEF FPC}
+  {$IFDEF FPC} // TODO: CallingConv not usage
   if (Integer(CallingConv) and 128) <> 0 then begin
     IsVirtualCons := True;
-    CAllingConv := TPSCallingConvention(Integer(CallingConv) and not 128);
+    CallingConv := TPSCallingConvention(Integer(CallingConv) and not 128);
   end else begin
     IsVirtualCons := False;
   end;
   if IsVirtualCons then ;
   if (Integer(CallingConv) and 64) <> 0 then begin
     IsConstructor := True;
-    CAllingConv := TPSCallingConvention(Integer(CallingConv) and not 64);
+    CallingConv := TPSCallingConvention(Integer(CallingConv) and not 64);
   end else begin
     IsConstructor := False;
   end;

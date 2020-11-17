@@ -613,16 +613,16 @@ begin
   {$IFDEF FPC}
   if (Integer(CallingConv) and 128) <> 0 then begin
     IsVirtualCons := true;
-    CAllingConv := TPSCallingConvention(Integer(CallingConv) and not 128);
+    CallingConv := TPSCallingConvention(Integer(CallingConv) and not 128);
   end else
     IsVirtualCons:= false;
   if (Integer(CallingConv) and 64) <> 0 then begin
     IsConstructor := true;
-    CAllingConv := TPSCallingConvention(Integer(CallingConv) and not 64);
+    CallingConv := TPSCallingConvention(Integer(CallingConv) and not 64);
   end else
     IsConstructor := false;
   {$ENDIF FPC}
-  InnerfuseCall := False;
+  Result := False;
   if Address = nil then
     Exit; // need address
   Stack := '';

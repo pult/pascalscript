@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1117.2330
+{ InvokeCall.inc } // version: 2020.1123.0609
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -198,14 +198,14 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     end;
     {$ENDIF FPC}
   type
-    TRecordOfByte01 = packed record d: array[1..01] of Byte; end;
-    TRecordOfByte02 = packed record d: array[1..02] of Byte; end;
+    TRecordOfByte01 = {%H-}packed record d: array[1..01] of Byte; end;
+    TRecordOfByte02 = {%H-}packed record d: array[1..02] of Byte; end;
     TRecordOfByte03 = packed record d: array[1..03] of Byte; end;
-    TRecordOfByte04 = packed record d: array[1..04] of Byte; end;
+    TRecordOfByte04 = {%H-}packed record d: array[1..04] of Byte; end;
     TRecordOfByte05 = packed record d: array[1..05] of Byte; end;
     TRecordOfByte06 = packed record d: array[1..06] of Byte; end;
     TRecordOfByte07 = packed record d: array[1..07] of Byte; end;
-    TRecordOfByte08 = packed record d: array[1..08] of Byte; end;
+    TRecordOfByte08 = {%H-}packed record d: array[1..08] of Byte; end;
     TRecordOfByte09 = packed record d: array[1..09] of Byte; end;
     TRecordOfByte10 = packed record d: array[1..10] of Byte; end;
     TRecordOfByte11 = packed record d: array[1..11] of Byte; end;
@@ -276,7 +276,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
           TD := GetTypeData(AResultType);
           TD.RecSize := ResultTypeSize; // modify typeinfo
 
-          FT := PFieldTable(Integer(AResultType) + Byte(PTypeInfo(AResultType).Name[0]));
+          FT := PFieldTable( NativeUInt(AResultType) + Byte(PTypeInfo(AResultType).Name[0]) );
           FT.Count := 1; // TODO: PC Check
         end;
       end; // case
@@ -291,6 +291,81 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
 
     if Assigned(FT) then
       FT.Count := 0; // !!! Disable AV in _FinnalizeRecord // TODO: PC Check
+  end;
+
+  {Vizir0r:}function InvokeWithResTypeByKindSize(CodeAddress: Pointer; const Args: TArray<TValue>;
+      CallingConvention: TCallConv; RTypeKind : TTypeKind = tkUnknown; RTypeSize: Longint = 0): TValue;
+  {$IFDEF FPC}
+  type
+    TSymbolName = string[255]; // TODO: Check
+  {$ENDIF}
+  var
+    TypeData: PTypeData;
+    ExtraSize : Integer;
+    CustomType : PTypeInfo;
+  begin
+    case RTypeKind of
+      tkArray:      ExtraSize := SizeOf(TArrayTypeData);
+      tkRecord:     ExtraSize := 2*SizeOf(Integer);
+      tkDynArray:   ExtraSize :=  (2*SizeOf(Integer)) + (2*SizeOf(PPTypeInfo)) + SizeOf(TSymbolName);
+      else raise EInvocationError.Create('Unknown TypeKind in CreateCustomTypeWithSize!');
+    end;
+    CustomType := AllocMem(SizeOf(TTypeInfo) + ExtraSize);
+    try
+      CustomType.Kind := RTypeKind;
+      TypeData := GetTypeData(CustomType);
+      case RTypeKind of
+        tkArray:
+        begin
+          TypeData^.ArrayData.Size   := RTypeSize;
+          {$IFDEF FPC}
+          TypeData^.ArrayData.ElTypeRef := AllocMem(SizeOf(Pointer));
+          TypeData^.ArrayData.ElTypeRef^:= TypeInfo(Byte);
+          {$ELSE}
+          TypeData^.ArrayData.ElType := AllocMem(SizeOf(Pointer));
+          TypeData^.ArrayData.ElType^:= TypeInfo(Byte);
+          {$ENDIF !FPC}
+        end;
+        tkRecord:
+        begin
+          TypeData^.RecSize := RTypeSize;
+        end;
+        tkDynArray:
+        begin
+          TypeData^.elSize  := RTypeSize;
+          {$IFDEF FPC}
+          TypeData^.ElTypeRef := nil;
+          TypeData^.elType2Ref := AllocMem(SizeOf(Pointer));
+          TypeData^.elType2Ref^:= TypeInfo(Byte);
+          {$ELSE}
+          TypeData^.ElType := nil;
+          TypeData^.elType2 := AllocMem(SizeOf(Pointer));
+          TypeData^.elType2^:= TypeInfo(Byte);
+          {$ENDIF !FPC}
+        end;
+        else {empty};
+      end; // case
+      try
+        Result := DoInvoke(CodeAddress,Args,CallingConvention,CustomType,False,False);
+      finally
+        case RTypeKind of
+          {$IFDEF FPC}
+          tkArray:    FreeMem(TypeData^.ArrayData.ElTypeRef, 4); // TODO: check size
+          tkDynArray: FreeMem(TypeData^.elType2Ref, 4);          // TODO: check size
+          {$ELSE}
+          tkArray:    FreeMem(TypeData^.ArrayData.ElType, 4);    // TODO: check size
+          tkDynArray: FreeMem(TypeData^.elType2, 4);             // TODO: check size
+          {$ENDIF !FPC}
+          else {empty};
+        end; // case
+      end;
+    finally
+      try
+        ReallocMem(CustomType, SizeOf(TTypeInfo) + ExtraSize);
+      except
+        Result := nil;
+      end;
+    end;
   end;
 
   function TValue_From_Raw(ValuePtr: Pointer; ValueSize: Longint; ValueCopy: Boolean = False): TValue;
@@ -351,7 +426,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
         TD := GetTypeData(TI);
 
         TD.RecSize := ValueSize; // modify typeinfo
-        FT := PFieldTable(Integer(TI) + Byte(PTypeInfo(TI).Name[0]));
+        FT := PFieldTable( NativeUInt(TI) + Byte(PTypeInfo(TI).Name[0]) );
         FT.Count := 1; // TODO: PC Check
 
         if ValueCopy then begin
@@ -380,6 +455,16 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     Args[ArgIdx] := Arg;
   end;
 
+  {$if defined(FPC) or not defined(cpu32)}
+  type
+    TParamData = record
+      pType: Byte;
+      case Byte of
+        254: (pMethod: TMethod);
+      //255: (Data: Byte);
+    end;
+    PParamData = ^TParamData;
+  {$ifend} // {$if defined(FPC) or not defined(cpu32)}
 var
   {$IFDEF FPC}
   IsConstructor, {%H-}IsVirtualCons: Boolean;
@@ -438,7 +523,7 @@ begin
   {$IFDEF FPC} // FPC: FIX FOR FPC constructor calls
     //x64.inc: {$if defined(FPC) and (fpc_version >= 3)}
     //x86.inc: {$ifdef FPC} + case CallingConv of cdRegister
-  {$if (defined(CPU32) or (declared(fpc_version) and (fpc_version >= 3)))} // TODO: FPC: test and check other platforms
+  {$if defined(CPU32) or (declared(fpc_version) and (Integer(fpc_version) >= 3)) } // TODO: FPC: test and check other platforms
   {$IFDEF CPU32}
   if (CallingConv = cdRegister) then
   {$ENDIF }
@@ -975,7 +1060,7 @@ begin
           TMethod(res.Dta^) := ResValue.AsType<TMethod>;
           {$ENDIF}
         end;
-        btStaticArray:
+        btStaticArray: // TODO: need to check
         begin
           ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr,
           //{size:}TPSTypeRec_StaticArray(res.aType).Size);
@@ -983,28 +1068,37 @@ begin
           if not CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData,
             TPSTypeRec_StaticArray(res.aType).Size, TPSTypeRec_StaticArray(res.aType).ArrayType) then
           begin
-		    raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for static array result failed!');
-		  end;
+            raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for static array result failed!');
+          end;
         end;
         btRecord:
         begin
           ResValue := DoInvoke(Address,Args,SysCalConv,{TypeInfo:}nil,False,IsConstr,
             {size:}TPSTypeRec_Record(res.aType).RealSize);
           if not CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData, 1, res.aType) then begin
-		    raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for record result failed!');
-		  end;
+            raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for record result failed!');
+          end;
         end;
-        btArray: //need to check with open arrays
+        btArray: // TODO: need to check
         begin
+          //Vizir0r:
+          ResValue := InvokeWithResTypeByKindSize(Address,Args,SysCalConv, tkDynArray,
+                                                  PSDynArrayGetLength(Pointer(res.Dta^), res.aType));
+          if not CopyArrayContents(res.Dta, Pointer(ResValue.AsOrdinal), 1, res.aType) then begin
+            raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for dyn array result failed!');
+          end;
+          //Vizir0r.
+          (*
           ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr
             {size:},PSDynArrayGetLength(Pointer(res.Dta^), res.aType) );
           if Pointer(ResValue.AsOrdinal) = nil then
             res.Dta := nil
           else begin
             if not CopyArrayContents(res.Dta, Pointer(ResValue.AsOrdinal), 1, res.aType) then begin
-      		    raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for dyn array result failed!');
-			      end;
+              raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for dyn array result failed!');
+            end;
           end;
+          //*)
         end;
         else begin
           {$if declared(PSParamTypeToStr)}

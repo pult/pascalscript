@@ -543,7 +543,7 @@ begin
       end;
       // ######### DEBUG: TRACE.
 
-      Arg := nil;
+      Arg := nil; // == TValue.IsEmpty
       if fvar.VarParam then begin { var param }
         case fvar.aType.BaseType of
           btArray: begin

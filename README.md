@@ -5,7 +5,15 @@
 - **Homepage:** https://www.remobjects.com/ps
 - **Base Repository:** https://github.com/remobjects/pascalscript
 
-![](https://tokei.rs/b1/github/pult/pascalscript?category=code) ![](https://tokei.rs/b1/github/pult/pascalscript?category=files)
+![](https://tokei.rs/b1/github/pult/pascalscript?category=code)
+![](https://tokei.rs/b1/github/pult/pascalscript?category=files)
+![](https://img.shields.io/github/stars/pult/pascalscript.svg)
+![](https://img.shields.io/github/forks/pult/pascalscript.svg)
+![](https://img.shields.io/github/contributors/pult/pascalscript.svg)
+![](https://img.shields.io/github/issues/pult/pascalscript.svg)
+![](https://img.shields.io/github/issues-pr/pult/pascalscript.svg)
+![](https://img.shields.io/github/last-commit/pult/pascalscript.svg)
+![](https://img.shields.io/github/languages/top/pult/pascalscript.svg)
 
  Pascal Script is a free scripting engine that allows you to use most of the Object Pascal language within your Delphi or Free Pascal projects at runtime. Written completely in Delphi, it is composed of a set of units that can be compiled into your executable, eliminating the need to distribute any external files. Pascal Script started out as a need for a good working script, when there were none available at the time.
 

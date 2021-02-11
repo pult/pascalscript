@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2021.0211.1930
+{ InvokeCall.inc } // version: 2021.0211.1950
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -304,7 +304,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
   begin
     case RTypeKind of
       tkArray:      ExtraSize := SizeOf(TArrayTypeData);
-      {$if defined(FPC) or defined(DELPHI23UP)}
+      {$if defined(FPC) or defined(DELPHI26UP)}
       tkSet:        ExtraSize := SizeOf(UInt8) + SizeOf(PPTypeInfo);
       {$ifend}
       tkRecord:     ExtraSize := (2*SizeOf(Integer));
@@ -333,7 +333,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
           {$IFDEF FPC}
           TypeData^.SetSize       := RTypeSize;
           {$ELSE}
-            {$IFDEF DELPHI23UP}
+            {$IFDEF DELPHI26UP}
           TypeData^.SetTypeOrSize := $80 or RTypeSize;
             {$ENDIF}
           {$ENDIF !FPC}

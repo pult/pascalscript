@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2021.0211.1550
+{ InvokeCall.inc } // version: 2021.0211.1723
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -482,7 +482,7 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
   {$ifend} // {$if defined(FPC) or not defined(cpu32)}
 var
   {$IFDEF FPC}
-  IsConstructor, {%H-}IsVirtualCons: Boolean;
+  IsConstructor: Boolean; //{%H-}IsVirtualCons: Boolean;
   {$ENDIF}
   SysCalConv : TCallConv;
   Arg : TValue;
@@ -509,7 +509,7 @@ begin
   // ######### DEBUG: TRACE.
   //
   Result := False;
-  {$IFDEF FPC}
+  (*{$IFDEF FPC} //"x64.inc":
   if (Integer(CallingConv) and 128) <> 0 then begin
     IsVirtualCons := True;
     CallingConv := TPSCallingConvention(Integer(CallingConv) and not 128);
@@ -523,7 +523,7 @@ begin
   end else begin
     IsConstructor := False;
   end;
-  {$ENDIF FPC}
+  {$ENDIF FPC}//*)
 
   case CallingConv of
     cdRegister : begin SysCalConv := ccReg;       end;

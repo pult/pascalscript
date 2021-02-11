@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2021.0211.1723
+{ InvokeCall.inc } // version: 2021.0211.1930
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -877,6 +877,8 @@ begin
     if not Assigned(res) then begin
       DoInvoke(Address,Args,SysCalConv,nil,IsStatic,IsConstr);  { ignore return }
     end else begin
+      //if IsConstr and ?(res.aType.BaseType <> btClass) then
+      //  raise EInvocationError.Create('Internal: The result parameter is not possible for the constructor');
       case res.aType.BaseType of { add result types here }
         {$if btCharIsWide}
         btString:              begin

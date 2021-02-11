@@ -1,4 +1,4 @@
-{ eDefines.inc } // version: 2020.1030.1825
+{ eDefines.inc } // version: 2021.0211.1601
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -494,13 +494,13 @@
   {$DEFINE BDS7UP}
   {$DEFINE BDS8UP}
   {$DEFINE BDS9UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE3 }
@@ -545,13 +545,13 @@
   {$DEFINE BDS8UP}
   {$DEFINE BDS9UP}
   {$DEFINE BDS10UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE4 }
@@ -599,13 +599,13 @@
   {$DEFINE BDS9UP}
   {$DEFINE BDS10UP}
   {$DEFINE BDS11UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE5 }
@@ -656,13 +656,13 @@
   {$DEFINE BDS10UP}
   {$DEFINE BDS11UP}
   {$DEFINE BDS12UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE6 }
@@ -716,13 +716,13 @@
   {$DEFINE BDS11UP}
   {$DEFINE BDS12UP}
   {$DEFINE BDS14UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE7 }
@@ -779,13 +779,13 @@
   {$DEFINE BDS12UP}
   {$DEFINE BDS14UP}
   {$DEFINE BDS15UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE8 }
@@ -845,13 +845,13 @@
   {$DEFINE BDS14UP}
   {$DEFINE BDS15UP}
   {$DEFINE BDS16UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE9 (Delphi 10 Seattle) }
@@ -915,13 +915,13 @@
   {$DEFINE BDS15UP}
   {$DEFINE BDS16UP}
   {$DEFINE BDS17UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE10 (10.1 Berlin) }
@@ -987,13 +987,13 @@
   {$DEFINE BDS16UP}
   {$DEFINE BDS17UP}
   {$DEFINE BDS18UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE11 (Delphi 10.2 Tokyo) }
@@ -1062,13 +1062,13 @@
   {$DEFINE BDS17UP}
   {$DEFINE BDS18UP}
   {$DEFINE BDS19UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE12 (Delphi 10.3 Rio) }
@@ -1140,13 +1140,13 @@
   {$DEFINE BDS18UP}
   {$DEFINE BDS19UP}
   {$DEFINE BDS20UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for Delphi XE13 (Delphi 10.4 Sydney) }
@@ -1221,13 +1221,13 @@
   {$DEFINE BDS19UP}
   {$DEFINE BDS20UP}
   {$DEFINE BDS21UP}
-  {$IFDEF CPUX64}
+  {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
     {$DEFINE 64BIT}
     {$DEFINE CPU64}
   {$ELSE}
     {$DEFINE 32BIT}
     {$DEFINE CPU32}
-  {$ENDIF}
+  {$IFEND}
 {$ENDIF}
 
 { defines for "Delphi for .NET" }
@@ -1325,9 +1325,9 @@
         {$DEFINE CPUX86}
       {$ifend}
 
-      {$IFNDEF DELPHI22UP}{$IFDEF CPUX64}
+      {$IFNDEF DELPHI22UP}{$IFDEF CPUX64}{$IFNDEF CPU64BITS}
         {$DEFINE CPU64BITS}
-      {$ENDIF}{$ENDIF}
+      {$ENDIF}{$ENDIF}{$ENDIF}
 
       {$IFDEF CPU64BITS}
         {$UNDEF 32BIT}
@@ -1405,20 +1405,20 @@
 {$IFDEF DELPHI}
   {$IFDEF MACOS}
     {$DEFINE DELPHI_OSX}
-    {$IFDEF CPUX64}
+    {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
       {$DEFINE DELPHI_OSX64}
     {$ELSE}
       {$DEFINE DELPHI_OSX32}
-    {$ENDIF}
+    {$IFEND}
   {$ENDIF}
 
   {$IFDEF ANDROID}
     {$DEFINE DELPHI_ANDROID}
-    {$IFDEF CPUX64}
+    {$IF DEFINED (CPUX64) OR DEFINED(CPU64BITS)}
       {$DEFINE DELPHI_ANDROID64}
     {$ELSE}
       {$DEFINE DELPHI_ANDROID32}
-    {$ENDIF}
+    {$IFEND}
   {$ENDIF}
 
   {$IFDEF LINUX}

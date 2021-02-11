@@ -1,4 +1,4 @@
-{ uPSRuntime.pas } // version: 2020.1117.1145
+{ uPSRuntime.pas } // version: 2021.0211.1617
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -2457,7 +2457,7 @@ type
     refCnt  : PtrInt;
     high    : tdynarrayindex;
     {$else !FPC}
-    {$ifdef CPUX64}
+    {$ifdef CPU64}
     _Padding: LongInt; // Delphi XE2+ expects 16 byte align
     {$endif}
     // dynamic array reference count (basic garbage memory mechanism)
@@ -5391,7 +5391,10 @@ begin
     darr^.header.high := NewLength-1;
     {$ELSE}
     darr^.header.length := NewLength;
+    {$IFDEF CPU64}
+    darr^.header._Padding := 0; //+Vizit0r
     {$ENDIF}
+    {$ENDIF !FPC}
     arr := @darr^.datas;
     for i := OldLen to NewLength-1 do begin
       InitializeVariant(Pointer(IPointer(arr) + Cardinal(elsize * i)), TPSTypeRec_Array(aType).ArrayType);
@@ -12391,7 +12394,7 @@ end;
 
   {$IFNDEF _PS_INVOK_RTTI_INC_}
     {$IFDEF DELPHI16UP} // DELPHI16UP == DELPHIXE2UP
-      {$if defined(CPUX64)}
+      {$if defined(CPU64)}
         {$include x64.inc} // can implement "MyAllMethodsHandler"
       {$elseif defined(CPU386) or defined(CPUX86)}
         {$include x86.inc} // can implement "MyAllMethodsHandler"
@@ -12424,7 +12427,7 @@ end;
   {$IFNDEF _PS_INVOK_RTTI_INC_}
     {$if defined(cpu86) or defined(CPUX86)}
       {$include x86.inc} // can implement "MyAllMethodsHandler"
-    {$elseif defined(cpux86_64) or defined(CPUX64)}
+    {$elseif defined(cpux86_64) or defined(CPU64)}
       {$include x64.inc} // can implement "MyAllMethodsHandler"
     {$elseif defined(cpupowerpc)}
       {$include powerpc.inc} // can implement "MyAllMethodsHandler"
@@ -15870,12 +15873,12 @@ begin
   Result := PSGetUInt(@PPSVariantData(val).Data, val.FType);
 end;
 
-function TPSStack.GetUnicodeString(ItemNo: Integer): TbtUnicodeString;
+function TPSStack.GetUnicodeString(ItemNo: Longint): TbtUnicodeString;
 var
   val: PPSVariant;
 begin
   if ItemNo < 0 then
-    val := items[Longint(ItemNo) + Longint(Count)]
+    val := items[ItemNo + Longint(Count)]
   else
     val := items[ItemNo];
   Result := PSGetUnicodeString(@PPSVariantData(val).Data, val.FType);

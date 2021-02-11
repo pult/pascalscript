@@ -1,4 +1,4 @@
-{ PascalScript.inc } // version: 2020.1117.1145
+{ PascalScript.inc } // version: 2020.1117.1535
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {                                                                            }
@@ -109,9 +109,9 @@ Defines:
 {+}
 {$ELSE !FPC}
   // DELPHI :
-  {$IFDEF DELPHI23UP}
+  {$IFDEF DELPHI17UP}
     {$DEFINE PS_INVOK_RTTI_IMPL} // optional
-  {$ENDIF DELPHI23UP}
+  {$ENDIF DELPHI17UP}
   {$IFDEF PS_INVOK_RTTI_IMPL}{$IFNDEF PS_USECLASSICINVOKE}
     {--$DEFINE USEINVOKECALL} // optional
     {$if not ( defined(CPUX86) or defined(CPUX64) )}

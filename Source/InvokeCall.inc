@@ -1,4 +1,4 @@
-{ InvokeCall.inc } // version: 2020.1123.0609
+{ InvokeCall.inc } // version: 2021.0211.1550
 {----------------------------------------------------------------------------}
 { RemObjects Pascal Script                                                   }
 {----------------------------------------------------------------------------}
@@ -283,22 +283,20 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
     end;
     // XE3: IsConstructor parameter not defined
     // FPC: IsConstructor generate exception
-    Result :=  {$IFNDEF FPC}System.{$ENDIF}Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic
+    Result := {$IFNDEF FPC}System.{$ENDIF}Rtti.Invoke(CodeAddress,Args,CallingConvention,AResultType,IsStatic
       {$if defined(FPC) or defined(DELPHI23UP)}
-      ,{IsConstructor:}False
+      ,IsConstructor //+Vizit0r
       {$ifend}
     );
 
     if Assigned(FT) then
       FT.Count := 0; // !!! Disable AV in _FinnalizeRecord // TODO: PC Check
-  end;
+  end; // function DoInvoke
 
-  {Vizir0r:}function InvokeWithResTypeByKindSize(CodeAddress: Pointer; const Args: TArray<TValue>;
-      CallingConvention: TCallConv; RTypeKind : TTypeKind = tkUnknown; RTypeSize: Longint = 0): TValue;
-  {$IFDEF FPC}
-  type
-    TSymbolName = string[255]; // TODO: Check
-  {$ENDIF}
+  {Vizir0r:}
+  function InvokeWithResTypeByKindSize(CodeAddress: Pointer; const Args: TArray<TValue>;
+    CallingConvention: TCallConv; RTypeKind : TTypeKind = tkUnknown; RTypeSize: Longint = 0;
+    IsStatic : Boolean = False; {%H-}IsConstructor: Boolean = False): TValue;
   var
     TypeData: PTypeData;
     ExtraSize : Integer;
@@ -306,9 +304,13 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
   begin
     case RTypeKind of
       tkArray:      ExtraSize := SizeOf(TArrayTypeData);
-      tkRecord:     ExtraSize := 2*SizeOf(Integer);
-      tkDynArray:   ExtraSize :=  (2*SizeOf(Integer)) + (2*SizeOf(PPTypeInfo)) + SizeOf(TSymbolName);
-      else raise EInvocationError.Create('Unknown TypeKind in CreateCustomTypeWithSize!');
+      {$if defined(FPC) or defined(DELPHI23UP)}
+      tkSet:        ExtraSize := SizeOf(UInt8) + SizeOf(PPTypeInfo);
+      {$ifend}
+      tkRecord:     ExtraSize := (2*SizeOf(Integer));
+      tkDynArray:   ExtraSize := (2*SizeOf(Integer)) + (2*SizeOf(PPTypeInfo))
+                      + SizeOf({$IFDEF FPC}ShortStringBase{$ELSE}TSymbolName{$ENDIF});
+      else raise EInvocationError.Create('Unknown TypeKind in InvokeWithResTypeByKindSize!');
     end;
     CustomType := AllocMem(SizeOf(TTypeInfo) + ExtraSize);
     try
@@ -317,13 +319,23 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
       case RTypeKind of
         tkArray:
         begin
-          TypeData^.ArrayData.Size   := RTypeSize;
+          TypeData^.ArrayData.Size       := RTypeSize;
           {$IFDEF FPC}
-          TypeData^.ArrayData.ElTypeRef := AllocMem(SizeOf(Pointer));
-          TypeData^.ArrayData.ElTypeRef^:= TypeInfo(Byte);
+          TypeData^.ArrayData.ElTypeRef  := AllocMem(SizeOf(Pointer));
+          TypeData^.ArrayData.ElTypeRef^ := TypeInfo(Byte);
           {$ELSE}
-          TypeData^.ArrayData.ElType := AllocMem(SizeOf(Pointer));
-          TypeData^.ArrayData.ElType^:= TypeInfo(Byte);
+          TypeData^.ArrayData.ElType     := AllocMem(SizeOf(Pointer));
+          TypeData^.ArrayData.ElType^    := TypeInfo(Byte);
+          {$ENDIF !FPC}
+        end;
+        tkSet:
+        begin
+          {$IFDEF FPC}
+          TypeData^.SetSize       := RTypeSize;
+          {$ELSE}
+            {$IFDEF DELPHI23UP}
+          TypeData^.SetTypeOrSize := $80 or RTypeSize;
+            {$ENDIF}
           {$ENDIF !FPC}
         end;
         tkRecord:
@@ -332,29 +344,31 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
         end;
         tkDynArray:
         begin
-          TypeData^.elSize  := RTypeSize;
+          TypeData^.elSize      := RTypeSize;
           {$IFDEF FPC}
-          TypeData^.ElTypeRef := nil;
-          TypeData^.elType2Ref := AllocMem(SizeOf(Pointer));
-          TypeData^.elType2Ref^:= TypeInfo(Byte);
+          TypeData^.ElTypeRef   := nil;
+          TypeData^.ElType2Ref  := AllocMem(SizeOf(Pointer));
+          TypeData^.ElType2Ref^ := TypeInfo(Byte);
           {$ELSE}
-          TypeData^.ElType := nil;
-          TypeData^.elType2 := AllocMem(SizeOf(Pointer));
-          TypeData^.elType2^:= TypeInfo(Byte);
+          TypeData^.ElType      := nil;
+          TypeData^.ElType2     := AllocMem(SizeOf(Pointer));
+          TypeData^.ElType2^    := TypeInfo(Byte);
           {$ENDIF !FPC}
         end;
         else {empty};
       end; // case
       try
-        Result := DoInvoke(CodeAddress,Args,CallingConvention,CustomType,False,False);
+        Result := DoInvoke(CodeAddress,Args,CallingConvention,CustomType,IsStatic
+          ,IsConstructor // ?False TODO: test it
+        );
       finally
         case RTypeKind of
           {$IFDEF FPC}
-          tkArray:    FreeMem(TypeData^.ArrayData.ElTypeRef, 4); // TODO: check size
-          tkDynArray: FreeMem(TypeData^.elType2Ref, 4);          // TODO: check size
+          tkArray:    FreeMem(TypeData^.ArrayData.ElTypeRef, SizeOf(Pointer));
+          tkDynArray: FreeMem(TypeData^.ElType2Ref, SizeOf(Pointer));
           {$ELSE}
-          tkArray:    FreeMem(TypeData^.ArrayData.ElType, 4);    // TODO: check size
-          tkDynArray: FreeMem(TypeData^.elType2, 4);             // TODO: check size
+          tkArray:    FreeMem(TypeData^.ArrayData.ElType, SizeOf(Pointer));
+          tkDynArray: FreeMem(TypeData^.ElType2, SizeOf(Pointer));
           {$ENDIF !FPC}
           else {empty};
         end; // case
@@ -366,7 +380,8 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
         Result := nil;
       end;
     end;
-  end;
+  end; // function InvokeWithResTypeByKindSize
+  {Vizir0r.}
 
   function TValue_From_Raw(ValuePtr: Pointer; ValueSize: Longint; ValueCopy: Boolean = False): TValue;
   type
@@ -442,9 +457,9 @@ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingC
 
         FT.Count := 0; // !!! Disable AV in _FinnalizeRecord // TODO: PC Check
 
-      end;
+      end; // else
     end; // case
-  end;
+  end; // function TValue_From_Raw
 
   var
     Args: TArray<TValue>;
@@ -473,14 +488,16 @@ var
   Arg : TValue;
   i : Integer;
   fvar: PPSVariantIFC;
-  IsConstr : Boolean;
+  IsConstr, IsStatic: Boolean;
   ResValue : TValue;
   S: string;
   {%H-}p: Pointer;
   {%H-}pp: ^Byte;
   {%H-}CallData: TPSList;
-  {%H-}ctx: TRTTIContext;
+  {$hints off} // dcc: H2164 Variable 'ctx' is declared but never used in 'TPSExec.InnerfuseCall'
+  {%H-}ctx: TRTTIContext; // link to global rtti
   {%H-}RttiType: TRttiType;
+  {$hints on}
   {$if defined(FPC) or not defined(cpu32)} {$else}
   M: TMethod;
   {$ifend}
@@ -519,6 +536,8 @@ begin
     {$ENDIF}
   end;
 
+  IsConstr := (Integer(CallingConv) and 64) <> 0; // +Vizit0r
+
   {$IFNDEF FPC}{$warnings off}{$ENDIF} // dcc: Warning: W1023 Comparing signed and unsigned types - widened both operands
   {$IFDEF FPC} // FPC: FIX FOR FPC constructor calls
     //x64.inc: {$if defined(FPC) and (fpc_version >= 3)}
@@ -528,7 +547,8 @@ begin
   if (CallingConv = cdRegister) then
   {$ENDIF }
   begin
-    if IsConstructor then begin
+  //if IsConstructor then begin // -Vizit0r
+    if IsConstr then begin      // +Vizit0r
       fvar := Params[0];
       p := rp(fvar);
       if p = nil then
@@ -566,8 +586,25 @@ begin
   {$IFNDEF FPC}{$warnings on}{$ENDIF}
 
   ArgIdx := -1;
+  if ArgIdx > 0 then // remove warnigns
+  begin
+    {$hints off}
+    p := System.TypeInfo(Byte);
+    if (p = nil) then
+    begin
+      {$IFDEF FPC}
+      RttiType := ctx.GetType(TObject);
+      {$ELSE}
+      RttiType := nil;
+      for RttiType in ctx.GetTypes do break; // link ctx
+      {$ENDIF !FPC}
+      if Assigned(RttiType) then ;
+    end;
+    {$hints on}
+  end;//*)
   SetLength({%H-}Args, 2*Params.Count+1); // maximum params
 
+  IsStatic := not Assigned(_Self);
   if Assigned(_Self) then
     AddArg( TValue.From<Pointer>( _Self ) );
 
@@ -807,7 +844,8 @@ begin
     end; // for I
     SetLength(Args, ArgIdx+1); // truncate args
 
-    IsConstr := False; //checked on Delhi, constructors works fine.
+    //IsConstr := False; //checked on Delhi, constructors works fine. // -Vizit0r
+    //{$IFNDEF DELPHI23UP}if IsConstr then ;{$ENDIF}
 
     if Assigned(res) then begin
       // ######### DEBUG: TRACE:
@@ -837,13 +875,13 @@ begin
     end; // if Assigned(res)
 
     if not Assigned(res) then begin
-      DoInvoke(Address,Args,SysCalConv,nil,False,IsConstr);  { ignore return }
+      DoInvoke(Address,Args,SysCalConv,nil,IsStatic,IsConstr);  { ignore return }
     end else begin
       case res.aType.BaseType of { add result types here }
         {$if btCharIsWide}
         btString:              begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(UnicodeString),False,IsConstr);
+                                   TypeInfo(UnicodeString),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  TbtString(res.Dta^) := TbtString( ResValue.AsUnicodeString );
                                  {$ELSE}
@@ -853,7 +891,7 @@ begin
         {$else}
         btString:              begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(AnsiString), False,IsConstr);
+                                   TypeInfo(AnsiString),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  TbtString(res.Dta^) := TbtString( ResValue.AsAnsiString );
                                  {$ELSE}
@@ -864,7 +902,7 @@ begin
         {$IFNDEF PS_NOWIDESTRING}
         btUnicodeString:       begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(UnicodeString),False,IsConstr);
+                                   TypeInfo(UnicodeString),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {TbtUnicodeString}UnicodeString(res.Dta^) := ResValue.AsUnicodeString;
                                  {$ELSE}
@@ -873,7 +911,7 @@ begin
                                end;
         btWideString:          begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(WideString),False,IsConstr);
+                                   TypeInfo(WideString),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {TbtWideString}WideString(res.Dta^) := ResValue.AsUnicodeString;
                                  {$ELSE}
@@ -883,7 +921,7 @@ begin
         {$ENDIF}
         btU8, btS8:            begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Byte),False,IsConstr);
+                                   TypeInfo(Byte),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  PByte(res.Dta)^ := Byte(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -892,7 +930,7 @@ begin
                                end;
         btU16, btS16:          begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Word),False,IsConstr);
+                                   TypeInfo(Word),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  PWord(res.Dta)^ := Word(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -901,7 +939,7 @@ begin
                                end;
         btU32, btS32:          begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Cardinal),False,IsConstr);
+                                   TypeInfo(Cardinal),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  PCardinal(res.Dta)^ := Cardinal(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -911,12 +949,12 @@ begin
         {$IFNDEF PS_NOINT64}
         btS64:                 begin
                                  PInt64(res.Dta)^ := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Int64),False,IsConstr).AsInt64;
+                                   TypeInfo(Int64),IsStatic,IsConstr).AsInt64;
                                end;
         {$ENDIF}
         btCurrency:            begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Currency),False,IsConstr);
+                                   TypeInfo(Currency),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  PCurrency(res.Dta)^ := ResValue.AsCurrency;
                                  {$ELSE}
@@ -925,7 +963,7 @@ begin
                                end;
         btSingle:              begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Single),False,IsConstr);
+                                   TypeInfo(Single),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  PSingle(res.Dta)^ := ResValue.AsExtended;
                                  {$ELSE}
@@ -934,7 +972,7 @@ begin
                                end;
         btDouble:              begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Double),False,IsConstr);
+                                   TypeInfo(Double),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  PDouble(res.Dta)^ := ResValue.AsExtended;
                                  {$ELSE}
@@ -943,12 +981,12 @@ begin
                                end;
         btExtended:            begin
                                  PExtended(res.Dta)^ := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(Extended),False,IsConstr).AsExtended;
+                                   TypeInfo(Extended),IsStatic,IsConstr).AsExtended;
                                end;
         {$if btCharIsWide}     // unicode
         btPChar:               begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(PWideChar),False,IsConstr);
+                                   TypeInfo(PWideChar),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {PTbtChar}PWideChar(res.Dta^) := PWideChar(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -958,7 +996,7 @@ begin
         {$else}                // ansi
         btPChar:               begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(PAnsiChar),False,IsConstr);
+                                   TypeInfo(PAnsiChar),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {PTbtChar}PAnsiChar(res.Dta^) := PAnsiChar(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -969,7 +1007,7 @@ begin
         {$if btCharIsWide}     // unicode
         btChar:                begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(WideChar),False,IsConstr);
+                                   TypeInfo(WideChar),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {TbtChar}WideChar(res.Dta^) := ResValue.AsWideChar;
                                  {$ELSE}
@@ -979,7 +1017,7 @@ begin
         {$else}                // ansi
         btChar:                begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(AnsiChar),False,IsConstr);
+                                   TypeInfo(AnsiChar),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {TbtChar}AnsiChar(res.Dta^) := ResValue.AsAnsiChar;
                                  {$ELSE}
@@ -990,7 +1028,7 @@ begin
         {$IFNDEF PS_NOWIDESTRING}
         btWideChar:            begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(WideChar),False,IsConstr);
+                                   TypeInfo(WideChar),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {TbtWideChar}PWideChar(res.Dta)^ := ResValue.AsWideChar;
                                  {$ELSE}
@@ -1000,7 +1038,7 @@ begin
           {$if declared(btPWideChar)}
         btPWideChar:           begin
                                  ResValue := DoInvoke(Address,Args,SysCalConv,
-                                   TypeInfo(PWideChar),False,IsConstr);
+                                   TypeInfo(PWideChar),IsStatic,IsConstr);
                                  {$IFDEF FPC}
                                  {PTbtWideChar}PWideChar(res.Dta^) := PWideChar(ResValue.AsOrdinal);
                                  {$ELSE}
@@ -1021,14 +1059,14 @@ begin
       btSet:
         begin
           case TPSTypeRec_Set(res.aType).aByteSize of
-            1: Byte(res.Dta^) := Byte(DoInvoke(Address,Args,SysCalConv,TypeInfo(Byte),False,IsConstr).AsInteger);
-            2: Word(res.Dta^) := Word(DoInvoke(Address,Args,SysCalConv,TypeInfo(Word),False,IsConstr).AsInteger);
+            1: Byte(res.Dta^) := Byte(DoInvoke(Address,Args,SysCalConv,TypeInfo(Byte),IsStatic,IsConstr).AsInteger);
+            2: Word(res.Dta^) := Word(DoInvoke(Address,Args,SysCalConv,TypeInfo(Word),IsStatic,IsConstr).AsInteger);
             3,
-            4: Longint(res.Dta^) := Cardinal(DoInvoke(Address,Args,SysCalConv,TypeInfo(Cardinal),False,IsConstr).AsInteger);
+            4: Longint(res.Dta^) := Cardinal(DoInvoke(Address,Args,SysCalConv,TypeInfo(Cardinal),IsStatic,IsConstr).AsInteger);
             5,6,7,8:
-              Int64(res.Dta^) := Cardinal(DoInvoke(Address,Args,SysCalConv,TypeInfo(Int64),False,IsConstr).AsInt64);
+              Int64(res.Dta^) := Cardinal(DoInvoke(Address,Args,SysCalConv,TypeInfo(Int64),IsStatic,IsConstr).AsInt64);
             else begin
-              ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr);
+              ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),IsStatic,IsConstr);
               {$IFDEF FPC}
               Pointer(res.Dta^) := Pointer(ResValue.AsOrdinal);
               {$ELSE}
@@ -1039,12 +1077,12 @@ begin
         end;
       btClass:
         begin
-          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(TObject),False,IsConstr);
+          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(TObject),IsStatic,IsConstr);
           TObject(res.Dta^) := ResValue.AsObject;
         end;
         btVariant:
           begin
-            ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(TVarData),False,IsConstr);
+            ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(TVarData),IsStatic,IsConstr);
             {$IFDEF FPC}
             ResValue.ExtractRawData(res.Dta);
             {$ELSE}
@@ -1053,7 +1091,7 @@ begin
           end;
         btProcPtr:
         begin //??
-          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(TMethod),False,IsConstr);
+          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(TMethod),IsStatic,IsConstr);
           {$IFDEF FPC}
           ResValue.ExtractRawData(res.Dta);
           {$ELSE}
@@ -1062,7 +1100,7 @@ begin
         end;
         btStaticArray: // TODO: need to check
         begin
-          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr,
+          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),IsStatic,IsConstr,
           //{size:}TPSTypeRec_StaticArray(res.aType).Size);
             {size:}Cardinal(TPSTypeRec_StaticArray(res.aType).Size) * TPSTypeRec_StaticArray(res.aType).ArrayType.RealSize);
           if not CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData,
@@ -1073,7 +1111,7 @@ begin
         end;
         btRecord:
         begin
-          ResValue := DoInvoke(Address,Args,SysCalConv,{TypeInfo:}nil,False,IsConstr,
+          ResValue := DoInvoke(Address,Args,SysCalConv,{TypeInfo:}nil,IsStatic,IsConstr,
             {size:}TPSTypeRec_Record(res.aType).RealSize);
           if not CopyArrayContents(res.Dta, ResValue.GetReferenceToRawData, 1, res.aType) then begin
             raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for record result failed!');
@@ -1082,14 +1120,15 @@ begin
         btArray: // TODO: need to check
         begin
           //Vizir0r:
-          ResValue := InvokeWithResTypeByKindSize(Address,Args,SysCalConv, tkDynArray,
-                                                  PSDynArrayGetLength(Pointer(res.Dta^), res.aType));
+          ResValue := InvokeWithResTypeByKindSize(Address,Args,SysCalConv,tkDynArray
+                        ,PSDynArrayGetLength(Pointer(res.Dta^), res.aType)
+                        ,IsStatic,IsConstr);
           if not CopyArrayContents(res.Dta, Pointer(ResValue.AsOrdinal), 1, res.aType) then begin
             raise EInvocationError.Create('Internal: ' + 'CopyArrayContents call for dyn array result failed!');
           end;
           //Vizir0r.
           (*
-          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),False,IsConstr
+          ResValue := DoInvoke(Address,Args,SysCalConv,TypeInfo(Pointer),IsStatic,IsConstr
             {size:},PSDynArrayGetLength(Pointer(res.Dta^), res.aType) );
           if Pointer(ResValue.AsOrdinal) = nil then
             res.Dta := nil
